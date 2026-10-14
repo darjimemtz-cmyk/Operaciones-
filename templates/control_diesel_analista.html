@@ -3,40 +3,7 @@
 {% block title %}Control Diésel - Analista{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* ========================================================
-       ESTILOS EXCLUSIVOS: CONTROL DIÉSEL (ANALISTA)
-       ======================================================== */
-    .chofer-name { text-align: left !important; font-weight: bold; color: var(--text-main); }
-    .lts-cell { font-weight: bold; border-radius: 6px; }
-    .celda-descanso { color: var(--text-muted) !important; font-size: 11px; font-style: italic; }
-
-    /* Pie de tabla con totales consolidados */
-    .tabla-es tfoot { background: var(--bg-surface-2); font-weight: bold; }
-    .tabla-es tfoot td { padding: 12px 10px; border-top: 2px solid var(--fng-blue); text-align: center; color: var(--text-main); }
-    body.dark-mode .tabla-es tfoot td { border-top-color: var(--fng-orange); }
-
-    /* Lupa forense y efecto hover sobre litros */
-    .cell-hover:not(.celda-descanso) { transition: 0.2s; }
-    .cell-hover:not(.celda-descanso):hover { 
-        background: var(--bg-surface-2) !important; 
-        cursor: pointer; 
-        border: 2px solid var(--fng-orange) !important; 
-        transform: scale(1.05); 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-        z-index: 10; 
-        position: relative;
-    }
-
-    /* Modal amplio para desglose forense de viajes */
-    .modal-content-large { 
-        width: 95%; 
-        max-width: 900px; 
-        max-height: 90vh; 
-        overflow-y: auto; 
-        padding: 25px; 
-    }
-</style>
+<!-- Estilos centralizados en fng_maestro.css -->
 {% endblock %}
 
 {% block content %}
@@ -52,6 +19,23 @@
             <button class="glass-pill-btn active-blue" id="btn-diario" onclick="switchVista('diaria')">Diario (Semana)</button>
             <button class="glass-pill-btn" id="btn-mensual" onclick="switchVista('mensual')">Semanal (Mes)</button>
         </div>
+    </div>
+
+    <!-- TABLA 1: FIRMAS CONFIRMADAS -->
+    <h3 style="color: var(--text-main); margin-top: 0;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Tabla 1: Firmas Confirmadas</h3>
+    <div class="table-wrapper">
+        <table class="tabla-es" id="tablaFirmados">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">Chofer / Nómina</th>
+                    <th class="col-diaria" id="th-MIE">MIÉ</th><th class="col-diaria" id="th-JUE">JUE</th><th class="col-diaria" id="th-VIE">VIE</th><th class="col-diaria" id="th-SÁB">SÁB</th><th class="col-diaria" id="th-DOM">DOM</th><th class="col-diaria" id="th-LUN">LUN</th><th class="col-diaria" id="th-MAR">MAR</th>
+                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
+                    <th>TOTAL (L)</th><th>TOTAL (%)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot><tr><td style="text-align:right;">TOTALES:</td><td colspan="7" class="col-diaria"></td><td colspan="4" class="col-mensual" style="display:none;"></td><td id="totLtsFirmados">0.0</td><td id="totPctFirmados">0.0%</td></tr></tfoot>
+        </table>
     </div>
 
                     <th style="text-align:left;">Chofer / Nómina</th>

@@ -4,48 +4,7 @@
 {% block title %}FNG - Caseta SLP{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* ========================================================
-       ESTILOS EXCLUSIVOS: CASETA Y CONTROL DE ACCESOS
-       ======================================================== */
-    .badge-tipo { background: var(--fng-blue); color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; }
-    body.dark-mode .badge-tipo { background: var(--fng-orange); color: #0f172a; }
-
-    /* Paneles seccionales y transiciones */
-    .seccion-app { display: none; animation: fadeIn 0.25s ease; }
-    .seccion-app.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* Contenedores secundarios y grupos interactivos */
-    .sub-box { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
-    .btn-group { display: flex; gap: 10px; margin: 5px 0 15px 0; }
-
-    /* Botones conmutadores (Toggles de estado) */
-    .btn-toggle { flex: 1; padding: 10px; font-size: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-muted); font-weight: 600; transition: 0.2s;}
-    .btn-toggle.active { border-color: var(--fng-blue); color: var(--fng-blue); box-shadow: 0 4px 10px rgba(0,45,90,0.1); }
-    .btn-toggle.active.green-text { border-color: #10b981; color: #10b981; box-shadow: 0 4px 10px rgba(16,185,129,0.15); }
-    .btn-toggle.active.red-text { border-color: #ef4444; color: #ef4444; box-shadow: 0 4px 10px rgba(239,68,68,0.15); }
-    body.dark-mode .btn-toggle.active { border-color: var(--fng-orange); color: var(--fng-orange); }
-
-    /* Items del Checklist CTPAT */
-    .check-item { display: flex; align-items: center; background: var(--bg-surface); padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); transition: 0.2s;}
-
-    /* Carga de archivos y evidencias */
-    .btn-upload-master { background: var(--bg-surface-2); border: 2px dashed var(--border-subtle); color: var(--text-main); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; display: block; font-size: 14px; margin: 10px 0; transition: 0.3s; font-weight: 600;}
-    .btn-upload-master:hover { border-color: var(--fng-orange); background: rgba(56, 189, 248, 0.08); }
-
-    .preview-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;}
-    .preview-box { width: 75px; height: 75px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border-subtle);}
-    .preview-box img { width: 100%; height: 100%; object-fit: cover; }
-
-    /* Modal emergente local */
-    .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 15px; }
-    .modal-content-local { background: var(--bg-surface); width: 100%; max-width: 500px; border-radius: 16px; padding: 25px; box-shadow: var(--shadow-sm); max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-subtle);}
-
-    @media (max-width: 768px) {
-        .header-actions-caseta { flex-direction: column; align-items: stretch; gap: 15px;}
-    }
-</style>
+<!-- Estilos centralizados en fng_maestro.css -->
 {% endblock %}
 
 {% block content %}

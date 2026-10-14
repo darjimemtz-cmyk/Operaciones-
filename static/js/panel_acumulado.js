@@ -363,16 +363,35 @@ async function cargarEstatusVivo() {
                     tbodyCheckin.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); font-weight:600;"><i class="fas fa-warehouse" style="font-size:24px; display:block; margin-bottom:10px;"></i>Patio despejado / Sin unidades en inspección.</td></tr>';
                 } else {
                     json.checkin.forEach(item => {
+                        let dieselHtml = item.diesel.includes('Descuadre') || item.diesel.includes('Faltante') || item.diesel.includes('⚠️')
+                            ? `<span style="color:#ef4444; font-weight:700;"><i class="fas fa-exclamation-triangle"></i> ${item.diesel}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.diesel}</span>`;
+
+                        let neuHtml = item.neumaticos.includes('Desgaste') || item.neumaticos.includes('Baja') || item.neumaticos.includes('⚠️')
+                            ? `<span style="color:#f59e0b; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${item.neumaticos}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.neumaticos}</span>`;
+
+                        let mecHtml = item.mecanico.includes('Falla') || item.mecanico.includes('Taller') || item.mecanico.includes('Fuga') || item.mecanico.includes('⚠️')
+                            ? `<span style="color:#ef4444; font-weight:700;"><i class="fas fa-tools"></i> ${item.mecanico}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.mecanico}</span>`;
+
+                        let badgeClass = 'bg-green';
+                        if (item.estatus.includes('Retenida') || item.estatus.includes('Taller') || item.estatus.includes('Bloqueada')) {
+                            badgeClass = 'bg-red';
+                        } else if (item.estatus.includes('Revisión') || item.estatus.includes('Cambio') || item.estatus.includes('Espera')) {
+                            badgeClass = 'bg-yellow';
+                        }
+
                         tbodyCheckin.innerHTML += `
                             <tr style="border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface);">
-                                <td style="font-weight:bold; color:var(--fng-blue);">${item.eco}</td>
+                                <td style="font-weight:bold; color:var(--text-main);">${item.eco}</td>
                                 <td style="text-align:left; font-weight:600;">${item.operador}</td>
                                 <td style="font-weight:bold; color:var(--text-muted);">${item.llegada}</td>
-                                <td><i class="fas fa-check-circle" style="color:#10b981;"></i> ${item.diesel}</td>
-                                <td><i class="fas fa-check-circle" style="color:#10b981;"></i> ${item.neumaticos}</td>
-                                <td><i class="fas fa-check-circle" style="color:#10b981;"></i> ${item.mecanico}</td>
+                                <td>${dieselHtml}</td>
+                                <td>${neuHtml}</td>
+                                <td>${mecHtml}</td>
                                 <td style="color:var(--text-muted); font-weight:600;">${item.tiempo}</td>
-                                <td><span class="badge-status bg-green">${item.estatus}</span></td>
+                                <td><span class="badge-status ${badgeClass}">${item.estatus}</span></td>
                             </tr>
                         `;
                     });
