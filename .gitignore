@@ -1,0 +1,16 @@
+.env
+venv/
+*.log
+*.db
+__pycache__/
+
+# Archivos auxiliares de SQLite en Modo WAL
+*.db-wal
+*.db-shm
+
+# Archivos de usuarios y evidencias
+evidencias_dot/
+
+# Configuraciones locales de editor y temporales
+.vscode/
+*.save

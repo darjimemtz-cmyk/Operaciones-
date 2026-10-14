@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% set active_page = "diesel" %}
+{% block title %}Control Diésel - Analista{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================================
+       ESTILOS EXCLUSIVOS: CONTROL DIÉSEL (ANALISTA)
+       ======================================================== */
+    .chofer-name { text-align: left !important; font-weight: bold; color: var(--text-main); }
+    .lts-cell { font-weight: bold; border-radius: 6px; }
+    .celda-descanso { color: var(--text-muted) !important; font-size: 11px; font-style: italic; }
+
+    /* Pie de tabla con totales consolidados */
+    .tabla-es tfoot { background: var(--bg-surface-2); font-weight: bold; }
+    .tabla-es tfoot td { padding: 12px 10px; border-top: 2px solid var(--fng-blue); text-align: center; color: var(--text-main); }
+    body.dark-mode .tabla-es tfoot td { border-top-color: var(--fng-orange); }
+
+    /* Lupa forense y efecto hover sobre litros */
+    .cell-hover:not(.celda-descanso) { transition: 0.2s; }
+    .cell-hover:not(.celda-descanso):hover { 
+        background: var(--bg-surface-2) !important; 
+        cursor: pointer; 
+        border: 2px solid var(--fng-orange) !important; 
+        transform: scale(1.05); 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+        z-index: 10; 
+        position: relative;
+    }
+
+    /* Modal amplio para desglose forense de viajes */
+    .modal-content-large { 
+        width: 95%; 
+        max-width: 900px; 
+        max-height: 90vh; 
+        overflow-y: auto; 
+        padding: 25px; 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="margin-top: 10px;">
+    
+    <!-- TOOLBAR PRINCIPAL -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid rgba(0,45,90,0.1); padding-bottom: 15px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="excelFile" accept=".xlsx" class="form-control-local" style="margin: 0; width: auto;">
+            <button class="btn-action btn-success" onclick="procesarArchivo()"><i class="fas fa-upload"></i> Escaneo Dinámico (Upsert)</button>
+        </div>
+        <div class="glass-pill-container">
+            <button class="glass-pill-btn active-blue" id="btn-diario" onclick="switchVista('diaria')">Diario (Semana)</button>
+            <button class="glass-pill-btn" id="btn-mensual" onclick="switchVista('mensual')">Semanal (Mes)</button>
+        </div>
+    </div>
+
+                    <th style="text-align:left;">Chofer / Nómina</th>
+                    <th class="col-diaria" id="th-MIE">MIÉ</th><th class="col-diaria" id="th-JUE">JUE</th><th class="col-diaria" id="th-VIE">VIE</th><th class="col-diaria" id="th-SÁB">SÁB</th><th class="col-diaria" id="th-DOM">DOM</th><th class="col-diaria" id="th-LUN">LUN</th><th class="col-diaria" id="th-MAR">MAR</th>
+                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
+                    <th>TOTAL (L)</th><th>TOTAL (%)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot><tr><td style="text-align:right;">TOTALES:</td><td colspan="7" class="col-diaria"></td><td colspan="4" class="col-mensual" style="display:none;"></td><td id="totLtsFirmados">0.0</td><td id="totPctFirmados">0.0%</td></tr></tfoot>
+        </table>
+    </div>
+    
+    <!-- TABLA 2: PENDIENTES -->
+    <h3 style="color: var(--fng-blue); margin-top: 30px;"><i class="fas fa-exclamation-circle" style="color: #ef4444;"></i> Tabla 2: Pendientes</h3>
+    <div class="table-wrapper">
+        <table class="tabla-es" id="tablaNoFirmados">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">Chofer / Nómina</th>
+                    <th class="col-diaria" id="th-MIE-2">MIÉ</th><th class="col-diaria" id="th-JUE-2">JUE</th><th class="col-diaria" id="th-VIE-2">VIE</th><th class="col-diaria" id="th-SÁB-2">SÁB</th><th class="col-diaria" id="th-DOM-2">DOM</th><th class="col-diaria" id="th-LUN-2">LUN</th><th class="col-diaria" id="th-MAR-2">MAR</th>
+                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
+                    <th>TOTAL (L)</th><th>TOTAL (%)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot><tr><td style="text-align:right;">TOTALES:</td><td colspan="7" class="col-diaria"></td><td colspan="4" class="col-mensual" style="display:none;"></td><td id="totLtsNoFirmados">0.0</td><td id="totPctNoFirmados">0.0%</td></tr></tfoot>
+        </table>
+    </div>
+
+    <button id="btnSellar" class="btn-action btn-danger" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;" onclick="sellarReporte()"><i class="fas fa-lock"></i> Sellar y Actualizar Base de Datos</button>
+</div>
+
+<!-- MODAL FORENSE DE VIAJES -->
+<div id="modalDetalleViajes" class="modal-overlay">
+    <div class="modal-content-large">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px;">
+            <h3 style="margin: 0; color: var(--fng-blue);"><i class="fas fa-search"></i> Auditoría de Viajes: <span id="mdlDia" style="color: var(--fng-orange);"></span></h3>
+            <button onclick="document.getElementById('modalDetalleViajes').style.display='none'" style="background:none; border:none; font-size:20px; cursor:pointer; color:#ef4444; transition:0.3s;"><i class="fas fa-times"></i></button>
+        </div>
+        <h4 id="mdlChofer" style="color: #64748b; margin-top: 0; margin-bottom: 15px; font-size: 15px;"></h4>
+        
+        <div class="table-wrapper">
+            <table class="tabla-es" id="tablaListaViajes">
+                <thead>
+                    <tr>
+                        <th style="font-size:10px;">FECHA / HORA</th>
+                        <th style="font-size:10px;">ECO</th>
+                        <th style="font-size:10px;">TIPO CARGA / ESTACIÓN</th>
+                        <th style="font-size:10px;">DESTINO</th>
+                        <th style="font-size:10px;">KM (FÍS/GPS)</th>
+                        <th style="font-size:10px;">LTS (FÍS/GPS)</th>
+                        <th style="font-size:10px;">EXCESO LTS</th>
+                        <th style="font-size:10px;">VARIACIÓN %</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inyección limpia de datos desde Python a JavaScript
+    window.DIESEL_DATA = {{ data | tojson | safe }};
+    window.CABECERAS_DIN = {{ cabeceras | tojson | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/diesel.js') }}?v=1.0"></script>
+{% endblock %}

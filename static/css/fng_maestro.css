@@ -1,0 +1,335 @@
+/* ==========================================================================
+   FNG - SISTEMA DE DISEÑO MAESTRO CORPORATIVO (FLETERA NACIONAL DE GASES)
+   ========================================================================== */
+
+/* 1. DICCIONARIO DE VARIABLES Y TOKENS DE COLOR */
+:root {
+    /* Identidad de Marca Institucional */
+    --fng-blue: #002d5a;
+    --fng-blue-deep: #001f3f;
+    --fng-orange: #FF8C00;
+    --fng-cyan: #0284c7;
+    --fng-cyan-glow: #38bdf8;
+
+    /* Tema Claro (Ergonomía Diurna: Blanco Pizarra / Niebla) */
+    --bg-body: linear-gradient(135deg, #d2e0f0 0%, #eef2f5 50%, #dce5f0 100%);
+    --bg-surface: #ffffff;
+    --bg-surface-2: #f8fafc;
+    --bg-surface-hover: #f1f5f9;
+    --text-main: #002d5a;
+    --text-muted: #64748b;
+    --border-subtle: #cbd5e1;
+    --border-light: #e2e8f0;
+    --shadow-sm: 0 4px 15px rgba(0, 45, 90, 0.05);
+    --shadow-md: 0 10px 30px rgba(0, 45, 90, 0.1);
+    --input-bg: rgba(255, 255, 255, 0.85);
+
+    /* Semáforos Operativos (Diurnos) */
+    --status-green: #10b981;
+    --status-green-bg: #ecfdf5;
+    --status-yellow: #f59e0b;
+    --status-yellow-bg: #fffbeb;
+    --status-red: #ef4444;
+    --status-red-bg: #fef2f2;
+    --status-purple: #8b5cf6;
+    --status-purple-bg: #f3e8ff;
+}
+
+body.dark-mode {
+    /* Tema Oscuro (Ergonomía Nocturna: Azul Marino Medianoche Industrial) */
+    --bg-body: linear-gradient(135deg, #070d1e 0%, #0b132b 50%, #0f172a 100%);
+    --bg-surface: #131b2e;         /* Pizarra Marina para Tarjetas y Paneles */
+    --bg-surface-2: #1c2640;       /* Cabeceras de tabla, Docks y Pastillas */
+    --bg-surface-hover: #222f4e;
+    --text-main: #f8fafc;          /* Blanco Titanio de alto contraste */
+    --text-muted: #94a3b8;         /* Gris Plata suave */
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.06);
+    --shadow-sm: 0 6px 20px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 15px 35px rgba(0, 0, 0, 0.6);
+    --input-bg: #0b0f19;
+
+    /* Semáforos Operativos Adaptados a Fondo Oscuro */
+    --status-green: #34d399;
+    --status-green-bg: rgba(16, 185, 129, 0.15);
+    --status-yellow: #fbbf24;
+    --status-yellow-bg: rgba(245, 158, 11, 0.15);
+    --status-red: #f87171;
+    --status-red-bg: rgba(239, 68, 68, 0.2);
+    --status-purple: #c084fc;
+    --status-purple-bg: rgba(139, 92, 246, 0.2);
+}
+
+/* 2. REGLAS BASE Y RESET */
+* { box-sizing: border-box; }
+body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg-body);
+    color: var(--text-main);
+    margin: 0;
+    padding: 100px 1% 40px 1%;
+    transition: background 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+/* 3. PANELES FLOTANTES Y VIDRIO (GLASSMORPHISM) */
+.glass-panel {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 16px;
+    padding: 25px;
+    width: 98%;
+    max-width: none;
+    margin: 0 auto 30px auto;
+    box-shadow: var(--shadow-sm) !important;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    color: var(--text-main) !important;
+    transition: all 0.3s ease;
+}
+
+/* 4. DOCKS, PÍLDORAS Y SELECTORES */
+.glass-pill-container, .mac-dock-slim, .mac-dock {
+    display: inline-flex;
+    background: var(--bg-surface-2) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 30px;
+    padding: 4px;
+    gap: 4px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.glass-pill-btn, .mac-dock-btn, .sub-dock-btn {
+    background: transparent;
+    border: none;
+    padding: 7px 18px;
+    border-radius: 25px;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+}
+
+.glass-pill-btn:hover, .mac-dock-btn:hover, .sub-dock-btn:hover {
+    color: var(--text-main);
+}
+
+.glass-pill-btn.active, .mac-dock-btn.active, .sub-dock-btn.active {
+    background: var(--bg-surface) !important;
+    color: var(--fng-orange) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.glass-pill-btn.active-blue, .mac-dock-btn.active-blue {
+    background: var(--fng-blue) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0, 45, 90, 0.3);
+}
+
+body.dark-mode .glass-pill-btn.active-blue,
+body.dark-mode .mac-dock-btn.active-blue {
+    background: var(--fng-orange) !important;
+    color: #0b132b !important;
+}
+
+/* 5. TABLAS UNIVERSALES Y ALTA DISPONIBILIDAD */
+.table-wrapper, .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    margin-bottom: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-surface);
+    color: var(--text-main);
+}
+
+th {
+    position: sticky !important;
+    top: 0 !important;
+    background: var(--fng-blue) !important;
+    color: #ffffff !important;
+    padding: 10px 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border: 1px solid var(--border-subtle);
+    z-index: 15 !important;
+}
+
+body.dark-mode th {
+    background: var(--bg-surface-2) !important;
+    color: var(--fng-orange) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+td {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    background: var(--bg-surface);
+}
+
+body.dark-mode td {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-subtle) !important;
+    color: var(--text-main) !important;
+}
+
+tr:hover td {
+    background: var(--bg-surface-hover) !important;
+}
+
+/* 6. COLUMNAS CONGELADAS (STICKY TIPO KARDEX: COLUMNA 1 Y COLUMNA 2) */
+.sticky-col-1, .sticky-col-header, .sticky-col-id, .sticky-col-op {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+}
+
+.sticky-col-2 {
+    position: sticky;
+    left: 210px;
+    z-index: 5;
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+}
+
+th.sticky-col-1, th.sticky-col-2, th.sticky-col-header, th.sticky-col-id, th.sticky-col-op {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    background: var(--fng-blue) !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode th.sticky-col-1,
+body.dark-mode th.sticky-col-2,
+body.dark-mode th.sticky-col-header,
+body.dark-mode th.sticky-col-id,
+body.dark-mode th.sticky-col-op {
+    background: var(--bg-surface-2) !important;
+    color: var(--fng-orange) !important;
+}
+
+/* 7. CONTROLES DE FORMULARIO E INPUTS */
+.form-control, .form-control-local, .form-input-pase, select {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus, .form-control-local:focus, .form-input-pase:focus, select:focus {
+    border-color: var(--fng-orange) !important;
+    box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.2) !important;
+}
+
+body.dark-mode select option {
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+}
+
+/* 8. BUSCADOR EXPANSIBLE COMPARTIDO */
+.search-bar, .search-bar-slim {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-surface-2) !important;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-subtle);
+    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.search-bar.active, .search-bar-slim.active {
+    width: 260px;
+    cursor: text;
+    border-color: var(--fng-orange) !important;
+    background: var(--bg-surface) !important;
+    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.15);
+}
+
+.search-bar .search-icon, .search-bar-slim .search-icon {
+    font-size: 14px;
+    color: var(--text-muted);
+    min-width: 20px;
+    text-align: center;
+}
+
+.search-bar.active .search-icon, .search-bar-slim.active .search-icon {
+    color: var(--fng-orange);
+}
+
+.search-bar input, .search-bar-slim input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    padding-left: 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text-main) !important;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.search-bar.active input, .search-bar-slim.active input {
+    opacity: 1;
+}
+
+/* 9. MODALES GLOBALES */
+.modal-overlay, .modal-overlay-global, .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(7, 13, 30, 0.65) !important;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-box, .modal-box-global, .modal-content, .modal-content-local, .modal-content-large {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-subtle) !important;
+    color: var(--text-main) !important;
+    border-radius: 18px;
+    box-shadow: var(--shadow-md) !important;
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+}

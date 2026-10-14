@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% set active_page = "caseta" %}
+
+{% block title %}FNG - Caseta SLP{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================================
+       ESTILOS EXCLUSIVOS: CASETA Y CONTROL DE ACCESOS
+       ======================================================== */
+    .badge-tipo { background: var(--fng-blue); color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; }
+    body.dark-mode .badge-tipo { background: var(--fng-orange); color: #0f172a; }
+
+    /* Paneles seccionales y transiciones */
+    .seccion-app { display: none; animation: fadeIn 0.25s ease; }
+    .seccion-app.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Contenedores secundarios y grupos interactivos */
+    .sub-box { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+    .btn-group { display: flex; gap: 10px; margin: 5px 0 15px 0; }
+
+    /* Botones conmutadores (Toggles de estado) */
+    .btn-toggle { flex: 1; padding: 10px; font-size: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-muted); font-weight: 600; transition: 0.2s;}
+    .btn-toggle.active { border-color: var(--fng-blue); color: var(--fng-blue); box-shadow: 0 4px 10px rgba(0,45,90,0.1); }
+    .btn-toggle.active.green-text { border-color: #10b981; color: #10b981; box-shadow: 0 4px 10px rgba(16,185,129,0.15); }
+    .btn-toggle.active.red-text { border-color: #ef4444; color: #ef4444; box-shadow: 0 4px 10px rgba(239,68,68,0.15); }
+    body.dark-mode .btn-toggle.active { border-color: var(--fng-orange); color: var(--fng-orange); }
+
+    /* Items del Checklist CTPAT */
+    .check-item { display: flex; align-items: center; background: var(--bg-surface); padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); transition: 0.2s;}
+
+    /* Carga de archivos y evidencias */
+    .btn-upload-master { background: var(--bg-surface-2); border: 2px dashed var(--border-subtle); color: var(--text-main); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; display: block; font-size: 14px; margin: 10px 0; transition: 0.3s; font-weight: 600;}
+    .btn-upload-master:hover { border-color: var(--fng-orange); background: rgba(56, 189, 248, 0.08); }
+
+    .preview-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;}
+    .preview-box { width: 75px; height: 75px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border-subtle);}
+    .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Modal emergente local */
+    .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 15px; }
+    .modal-content-local { background: var(--bg-surface); width: 100%; max-width: 500px; border-radius: 16px; padding: 25px; box-shadow: var(--shadow-sm); max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-subtle);}
+
+    @media (max-width: 768px) {
+        .header-actions-caseta { flex-direction: column; align-items: stretch; gap: 15px;}
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="margin-top: 10px;">
+
+    <!-- ================= 1. REGISTROS E/S ================= -->
+    <div id="sec-es" class="seccion-app active">
+        <div class="header-actions-caseta" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: var(--fng-blue); font-size: 20px;"><i class="fas fa-list-ul"></i> Activos en Base</h3>
+            <button type="button" class="btn-action btn-primary" onclick="abrirMenuNuevo()"><i class="fas fa-plus"></i> NUEVO REGISTRO</button>
+        </div>
+
+        <div style="margin-bottom: 20px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;" id="contenedor-filtros-es">
+            <div class="glass-pill-container">
+                <button type="button" class="glass-pill-btn active" onclick="filtrarTabla('TODOS', this)">Todos</button>
+                <button type="button" class="glass-pill-btn" onclick="filtrarTabla('UNIDAD', this)">Unidades</button>
+                <button type="button" class="glass-pill-btn" onclick="filtrarTabla('UTILITARIO', this)">Utilitarios</button>
+                <button type="button" class="glass-pill-btn" onclick="filtrarTabla('EXTERNO', this)">Externos</button>
+                <button type="button" class="glass-pill-btn" onclick="filtrarTabla('EMPLEADO', this)">Empleados</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="tabla-es">
+                <thead>
+                    <tr>
+                        <th>TIPO</th>
+                        <th>INGRESO</th>
+                        <th>NOMBRE / OPERADOR</th>
+                        <th>REFERENCIA</th>
+                        <th style="text-align: center;">ACCIÓN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activo in activos_en_base %}
+                    <tr class="fila-activo" data-tipo="{{ activo.tipo }}">
+                        <td data-label="TIPO"><span class="badge-tipo">{{ activo.tipo }}</span></td>
+                        <td data-label="INGRESO" style="font-weight:600;"><i class="far fa-clock" style="color:#64748b;"></i> {{ activo.fecha_ingreso }}</td>
+                        <td data-label="NOMBRE / OPERADOR" style="font-weight:700; color:var(--fng-blue);">
+                            {% if activo.tipo == 'UNIDAD' %}{{ activo.datos_json.operador }}
+                            {% elif activo.tipo == 'UTILITARIO' %}{{ activo.datos_json.empleado }}
+                            {% elif activo.tipo == 'EXTERNO' %}{{ activo.datos_json['nombre[]'] | join(' | ') if activo.datos_json['nombre[]'] is iterable and activo.datos_json['nombre[]'] is not string else activo.datos_json['nombre[]'] }}
+                            {% elif activo.tipo == 'EMPLEADO' %}{{ activo.datos_json.nombre_empleado }}
+                            {% endif %}
+                        </td>
+                        <td data-label="REFERENCIA" style="color:#64748b;">
+                            {% if activo.tipo == 'UNIDAD' %}<b>Económico:</b> {{ activo.datos_json.unidad }}
+                            {% elif activo.tipo == 'UTILITARIO' %}<b>Econ:</b> {{ activo.datos_json.economico }} | <b>Placa:</b> {{ activo.datos_json.placa }}
+                            {% elif activo.tipo == 'EXTERNO' %}<b>Empresa:</b> {{ activo.datos_json.compania }}
+                            {% elif activo.tipo == 'EMPLEADO' %}<b>Depto:</b> {{ activo.datos_json.departamento }}
+                            {% endif %}
+                        </td>
+                        <td data-label="ACCIÓN" style="text-align: center;">
+                            {% if activo.tipo in ['UNIDAD', 'UTILITARIO'] %}
+                            <button type="button" class="btn-action btn-outline" style="padding: 8px 12px; color:var(--fng-orange);" 
+                                    onclick="abrirModalSalida('{{ activo.id_activo }}', '{{ activo.tipo }}', '{{ activo.identificador }}', '{{ activo.datos_json | tojson | forceescape }}')">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn-action btn-outline" style="padding: 8px 12px; color:#ef4444;" 
+                                    onclick="abrirModalSalida('{{ activo.id_activo }}', '{{ activo.tipo }}', '{{ activo.identificador }}', '{{ activo.datos_json | tojson | forceescape }}')">
+                                <i class="fas fa-door-open"></i><i class="fas fa-arrow-right" style="font-size:10px; margin-left:3px;"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ================= 2. REPORTES ================= -->
+    <div id="sec-reportes" class="seccion-app">
+        <h2 style="color:var(--fng-blue); font-size:20px; margin-top:0;"><i class="fas fa-shield-alt"></i> Auditoría y Reportes</h2>
+        
+        <div style="margin-bottom: 20px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;" id="contenedor-filtros-reportes">
+            <div class="glass-pill-container">
+                <button type="button" class="glass-pill-btn active" onclick="cambiarTipoReporte('PORTONES', this)">Portones</button>
+                <button type="button" class="glass-pill-btn" onclick="cambiarTipoReporte('RONDINES', this)">Rondines</button>
+                <button type="button" class="glass-pill-btn active-red" onclick="cambiarTipoReporte('NOVEDAD', this)" style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Novedad</button>
+            </div>
+        </div>
+        
+        <div class="sub-box" style="padding: 20px;">
+            <form action="/guardar" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="tipo_formulario" id="tipo_reporte_input" value="PORTONES">
+                <input type="text" name="guardia" class="form-control-local" placeholder="NOMBRE DEL OFICIAL:" required>
+                <input type="text" name="incidencia" class="form-control-local" placeholder="CUÁL ES LA INCIDENCIA:" required>
+                <textarea name="observaciones" class="form-control-local" rows="4" placeholder="DESCRIPCIÓN DE LA INCIDENCIA:" required style="resize:none;"></textarea>
+                
+                <label style="font-size:11px; margin-top:10px;">📸 EVIDENCIA FOTOGRÁFICA:</label>
+                <label class="btn-upload-master">
+                    <span><i class="fas fa-camera" style="font-size:24px; display:block; margin-bottom:10px;"></i></span> Toca para elegir fotos
+                    <input type="file" name="fotos" hidden accept="image/*" multiple required onchange="previewMultiple(this, 'preview-reporte')">
+                </label>
+                <div class="preview-container" id="preview-reporte"></div>
+                <button type="submit" class="btn-action btn-success" style="width:100%; margin-top:15px;"><i class="fas fa-save"></i> GUARDAR REPORTE</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= 3. PASES ================= -->
+    <div id="sec-pases" class="seccion-app">
+        <h2 style="color:var(--fng-blue); font-size:20px; margin-top:0;"><i class="fas fa-ticket-alt"></i> Pases Autorizados</h2>
+        {% for pase in pases %}
+        <div class="sub-box">
+            <h4 style="margin:0 0 5px 0; color:var(--fng-blue);">{{ pase[2] }} <span style="color:#64748b; font-weight:normal; font-size:12px;">({{ pase[3] }})</span></h4>
+            <p style="margin:0; font-size:13px; color:#666;"><b>Motivo:</b> {{ pase[6] }} | <b>Autorizó:</b> {{ pase[11] }}</p>
+            <form action="/confirmar_pase/{{ pase[0] }}" method="POST" style="margin-top:10px;">
+                <textarea name="observaciones_guardia" class="form-control-local" rows="1" placeholder="Observaciones de salida (Opcional)..."></textarea>
+                <button type="submit" class="btn-action btn-outline" style="width:100%; margin-top:10px; color:#ef4444; border-color:#ef4444;"><i class="fas fa-door-open"></i> CONFIRMAR SALIDA</button>
+            </form>
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:40px; color:#94a3b8; border: 2px dashed #cbd5e1; border-radius:12px;">
+            <i class="fas fa-check-circle" style="font-size:40px; margin-bottom:10px; opacity:0.5;"></i><br>
+            No hay pases pendientes.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ================= 4. RELEVO ================= -->
+    <div id="sec-relevo" class="seccion-app">
+        <h2 style="color:var(--fng-blue); font-size:20px; margin-top:0;"><i class="fas fa-sync-alt"></i> Entrega de Turno</h2>
+        {% if resguardo_pendiente %}
+        <form action="/recibir_turno" method="POST">
+            <input type="hidden" name="registro_id" value="{{ resguardo_pendiente.id }}">
+            <div class="sub-box">
+                <p style="margin-top:0;">Recepción de turno de: <b style="color:var(--fng-orange);">{{ resguardo_pendiente.datos.quien_entrega }}</b></p>
+                {% for item in resguardo_pendiente.datos['items'] %}
+                <div style="border-bottom:1px solid #cbd5e1; padding:10px 0;">
+                    <b style="color:var(--fng-blue);">[{{ item.cant }}] {{ item.desc }}</b> - <i style="color:#64748b;">Reportado: {{ item.estado_entrega }}</i>
+                    <input type="hidden" name="res_estado_rec[]" id="chk_rec_{{ loop.index0 }}" value="BUENO">
+                    
+                    <div class="btn-group" style="margin-top:5px;">
+                        <div class="btn-toggle active green-text" onclick="setToggleResguardo(this, 'chk_rec_{{ loop.index0 }}', 'BUENO', 'active', 'rec_{{ loop.index0 }}', 'green-text')">✔️ BUENO</div>
+                        <div class="btn-toggle" onclick="setToggleResguardo(this, 'chk_rec_{{ loop.index0 }}', 'MALO', 'active', 'rec_{{ loop.index0 }}', 'red-text')">❌ MALO</div>
+                    </div>
+                    <div id="defecto_res_rec_{{ loop.index0 }}" style="display:none; margin-top:5px;">
+                        <textarea name="res_obs_rec[]" id="obs_res_rec_{{ loop.index0 }}" class="form-control-local" rows="1" placeholder="Observaciones (Si está dañado)"></textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="text" name="quien_recibe" class="form-control-local" placeholder="TU NOMBRE:" required>
+            <button type="submit" class="btn-action btn-success" style="width:100%; margin-top:15px;"><i class="fas fa-check"></i> RECIBIR TURNO</button>
+        </form>
+        {% elif ya_entrego_turno %}
+        <div style="text-align:center; padding:40px; color:#10b981; border: 2px dashed #10b981; border-radius:12px; background: rgba(16,185,129,0.1);">
+            <i class="fas fa-check-circle" style="font-size:40px; margin-bottom:10px;"></i><br>
+            <b>Turno entregado exitosamente.</b>
+        </div>
+        {% else %}
+        <form action="/entregar_turno" method="POST">
+            <div id="lista-resguardos-dinamica">
+                {% for item in plantilla_resguardos %}
+                <div class="sub-box" id="res_row_{{ loop.index0 }}" style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" name="res_cant[]" class="form-control-local" value="{{ item.cant }}" style="width:70px; font-weight:bold; margin:0;" required>
+                        <input type="text" name="res_desc[]" class="form-control-local" value="{{ item.desc }}" style="flex:1; font-weight:bold; margin:0;" required>
+                        <button type="button" onclick="eliminarResguardo('res_row_{{ loop.index0 }}')" style="background:none; border:none; color:#dc3545; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
+                    </div>
+                    <input type="hidden" name="res_estado[]" id="chk_res_{{ loop.index0 }}" value="BUENO">
+                    <div class="btn-group" style="margin-top:0;">
+                        <div class="btn-toggle active green-text" onclick="setToggleResguardo(this, 'chk_res_{{ loop.index0 }}', 'BUENO', 'active', '{{ loop.index0 }}', 'green-text')">✔️ BUENO</div>
+                        <div class="btn-toggle" onclick="setToggleResguardo(this, 'chk_res_{{ loop.index0 }}', 'MALO', 'active', '{{ loop.index0 }}', 'red-text')">❌ MALO</div>
+                    </div>
+                    <div id="defecto_res_{{ loop.index0 }}" style="display:none; margin-top:5px;">
+                        <textarea name="res_obs[]" id="obs_res_{{ loop.index0 }}" class="form-control-local" rows="2" placeholder="Especifica el daño/faltante..." style="margin:0;"></textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <button type="button" class="btn-action btn-outline" style="width:100%; margin-bottom:25px;" onclick="agregarResguardoNuevo()"><i class="fas fa-plus"></i> Añadir Nuevo Artículo</button>
+            <input type="text" name="quien_entrega" class="form-control-local" placeholder="TU NOMBRE:" required>
+            <button type="submit" class="btn-action btn-primary" style="width:100%; margin-top:15px;"><i class="fas fa-paper-plane"></i> ENTREGAR TURNO</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- ================= 5. MI TURNO ================= -->
+    <div id="sec-turno" class="seccion-app">
+        <h2 style="color:var(--fng-blue); font-size:20px; margin-top:0;"><i class="fas fa-chart-pie"></i> Resumen de Mi Turno</h2>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 20px;">
+            <div class="sub-box" style="text-align:center; margin:0;">
+                <h4 style="margin:0 0 10px; color:var(--fng-blue); font-size:14px;"><i class="fas fa-truck"></i> Unidades</h4>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Entradas: <b id="u_ent" style="color:var(--fng-blue);">0</b></p>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Salidas: <b id="u_sal" style="color:var(--fng-blue);">0</b></p>
+            </div>
+            <div class="sub-box" style="text-align:center; margin:0;">
+                <h4 style="margin:0 0 10px; color:var(--fng-blue); font-size:14px;"><i class="fas fa-vial"></i> Alcohol</h4>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Totales: <b id="c_alc_tot" style="color:var(--fng-blue);">0</b></p>
+                <p style="margin:5px 0; font-size:13px; color:#ef4444;">Positivos: <b id="c_alc_pos">0</b></p>
+            </div>
+            <div class="sub-box" style="text-align:center; margin:0;">
+                <h4 style="margin:0 0 10px; color:var(--fng-blue); font-size:14px;"><i class="fas fa-car"></i> Utilitarios</h4>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Entradas: <b id="ut_ent" style="color:var(--fng-blue);">0</b></p>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Salidas: <b id="ut_sal" style="color:var(--fng-blue);">0</b></p>
+            </div>
+            <div class="sub-box" style="text-align:center; margin:0;">
+                <h4 style="margin:0 0 10px; color:var(--fng-blue); font-size:14px;"><i class="fas fa-users"></i> Empleados</h4>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Entradas: <b id="em_ent" style="color:var(--fng-blue);">0</b></p>
+                <p style="margin:5px 0; font-size:13px; color:#64748b;">Salidas: <b id="em_sal" style="color:var(--fng-blue);">0</b></p>
+            </div>
+        </div>
+
+        <h3 style="color:var(--fng-blue); font-size:16px;"><i class="fas fa-hard-hat"></i> Personal Externo en Turno</h3>
+        <div class="table-wrapper">
+            <table class="tabla-es">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Nombres</th>
+                        <th>Motivo</th>
+                        <th>Área</th>
+                        <th style="text-align:center;">Entrada</th>
+                        <th style="text-align:center;">Salida</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla_turno_externos">
+                    <tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Cargando información...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALES DE REGISTRO Y CÁMARA ================= -->
+<div id="modal-menu-nuevo" class="modal" onclick="cerrarMenuNuevo(event)">
+    <div class="modal-content-local" style="max-width: 300px; text-align: center; padding: 20px;">
+        <h3 style="color: var(--fng-blue); margin-top: 0;">¿Qué deseas registrar?</h3>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top:20px;">
+            <button type="button" class="btn-action btn-outline" style="width: 100%;" onclick="abrirFormIngreso('UNIDAD')"><i class="fas fa-truck"></i> Unidad</button>
+            <button type="button" class="btn-action btn-outline" style="width: 100%;" onclick="abrirFormIngreso('UTILITARIO')"><i class="fas fa-car"></i> Utilitario</button>
+            <button type="button" class="btn-action btn-outline" style="width: 100%;" onclick="abrirFormIngreso('EXTERNO')"><i class="fas fa-users"></i> Externo</button>
+            <button type="button" class="btn-action btn-outline" style="width: 100%;" onclick="abrirFormIngreso('EMPLEADO')"><i class="fas fa-id-badge"></i> Empleado</button>
+        </div>
+        <button type="button" class="btn-action btn-danger" style="width: 100%; margin-top: 25px;" onclick="cerrarMenuNuevo(event, true)">Cancelar</button>
+    </div>
+</div>
+
+<div id="modal-ingreso" class="modal">
+    <div class="modal-content-local">
+        <h3 id="titulo-ingreso" style="color:var(--fng-blue); margin-top:0;">Nuevo Registro</h3>
+        <form action="/ingreso_activo" method="POST" id="form-ingreso">
+            <input type="hidden" name="tipo_activo" id="input-tipo-activo">
+            
+            <div id="bloque-alcoholimetro" class="sub-box" style="display:none;">
+                <label style="margin-top:0;">¿Prueba de Alcoholímetro?</label>
+                <div class="btn-group" style="margin-bottom:0;">
+                    <div class="btn-toggle active green-text" onclick="toggleAlcIngreso(this, 'NO')">NO</div>
+                    <div class="btn-toggle" onclick="toggleAlcIngreso(this, 'SI')">SÍ</div>
+                </div>
+                <div id="contenedor-res-alc-ingreso" style="display:none; margin-top:10px;">
+                    <input type="hidden" name="resultado_alc_ingreso" id="input-res-alc-ingreso" value="N/A">
+                    <div class="btn-group">
+                        <div class="btn-toggle" onclick="setToggle(this, 'input-res-alc-ingreso', 'NEGATIVO', 'active', 'green-text')">✔️ NEGATIVO</div>
+                        <div class="btn-toggle" onclick="setToggle(this, 'input-res-alc-ingreso', 'POSITIVO', 'active', 'red-text')">❌ POSITIVO</div>
+                    </div>
+                    <input type="hidden" name="foto_ingreso_b64" id="input-foto-alc-b64">
+                    <button type="button" id="btn-evidencia-alc" class="btn-action btn-success" style="width:100%; margin-top:10px;" onclick="abrirCamaraAlcohol()"><i class="fas fa-camera"></i> Evidencia fotográfica</button>
+                </div>
+            </div>
+
+            <div id="campos-unidad" class="campos-dinamicos" style="display:none;">
+                <div class="btn-group">
+                    <div class="btn-toggle active" style="color:var(--fng-blue);" onclick="setConfigUnidad('TRACTO', this)">TRACTO</div>
+                    <div class="btn-toggle" onclick="setConfigUnidad('SENCILLO', this)">SENCILLO</div>
+                    <div class="btn-toggle" onclick="setConfigUnidad('FULL', this)">FULL</div>
+                </div>
+                <input type="hidden" name="config_unidad" id="config_unidad" value="TRACTO" disabled>
+
+                <label style="margin-top:10px;">ESTADO DE CARGA AL INGRESAR:</label>
+                <div class="btn-group">
+                    <div class="btn-toggle active" style="color:var(--fng-blue);" onclick="setToggle(this, 'estatus_carga', 'VACÍO', 'active')">VACÍO 📭</div>
+                    <div class="btn-toggle" onclick="setToggle(this, 'estatus_carga', 'CARGADO', 'active')">CARGADO 📦</div>
+                </div>
+                <input type="hidden" name="estatus_carga" id="estatus_carga" value="VACÍO" disabled>
+
+                <input type="text" name="operador" class="form-control-local" placeholder="NOMBRE / OPERADOR:" required disabled>
+                <input type="text" name="linea" class="form-control-local" placeholder="LÍNEA:" required disabled>
+                <input type="text" name="unidad" class="form-control-local" placeholder="ECONÓMICO (TRACTO):" required disabled>
+                <input type="text" name="placa" class="form-control-local" placeholder="PLACAS:" required disabled>
+                
+                <div id="seccion-remolques" class="sub-box" style="display:none;">
+                    <input type="text" name="eco_remolque_1" id="eco_r1" class="form-control-local" placeholder="ECONÓMICO REMOLQUE 1:" disabled>
+                    <div id="seccion-dolly-r2" style="display:none;">
+                        <input type="text" name="eco_dolly" id="eco_dolly" class="form-control-local" placeholder="ECONÓMICO DOLLY:" disabled>
+                        <input type="text" name="eco_remolque_2" id="eco_r2" class="form-control-local" placeholder="ECONÓMICO REMOLQUE 2:" disabled>
+                    </div>
+                </div>
+                <input type="text" name="origen_destino" class="form-control-local" placeholder="ORIGEN / DESTINO:" required disabled>
+
+                <h4 style="color:var(--fng-blue); margin-top:20px; font-size:14px;"><i class="fas fa-clipboard-check"></i> Checklist CTPAT</h4>
+                <div id="ctpat-container"></div>
+            </div>
+            
+            <div id="campos-utilitario" class="campos-dinamicos" style="display:none;">
+                <div class="btn-group">
+                    <div class="btn-toggle active" style="color:var(--fng-blue);" onclick="setMovUtilitario('ENTRADA', this)">ENTRADA</div>
+                    <div class="btn-toggle" onclick="setMovUtilitario('SALIDA', this)">SALIDA</div>
+                </div>
+                <input type="hidden" name="movimiento_utilitario" id="mov_utilitario" value="ENTRADA" disabled>
+
+                <input type="text" name="empleado" class="form-control-local" placeholder="NOMBRE:" required disabled>
+                <input type="text" name="placa" class="form-control-local" placeholder="PLACA:" required disabled>
+                <input type="text" name="economico" class="form-control-local" placeholder="ECONÓMICO:" required disabled>
+                <input type="number" name="km" class="form-control-local" placeholder="KILOMETRAJE:" required disabled>
+                <input type="text" name="origen_destino" class="form-control-local" placeholder="ORIGEN / DESTINO:" required disabled>
+            </div>
+            
+            <div id="campos-externo" class="campos-dinamicos" style="display:none;">
+                <div class="btn-group">
+                    <div class="btn-toggle active" style="color:var(--fng-blue);" onclick="setToggle(this, 'ext_vpc', 'VISITANTE', 'active')">VISITANTE</div>
+                    <div class="btn-toggle" onclick="setToggle(this, 'ext_vpc', 'PROVEEDOR', 'active')">PROVEEDOR</div>
+                    <div class="btn-toggle" onclick="setToggle(this, 'ext_vpc', 'CONTRATISTA', 'active')">CONTRATISTA</div>
+                </div>
+                <input type="hidden" name="vpc" id="ext_vpc" value="VISITANTE" disabled>
+                
+                <input type="text" name="compania" class="form-control-local" placeholder="EMPRESA:" required disabled>
+                <div id="lista-personas" style="margin-top:10px;">
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <input type="text" name="nombre[]" class="form-control-local" placeholder="NOMBRE:" required disabled style="margin:0;">
+                        <input type="text" name="gafete[]" class="form-control-local" placeholder="GAFETE:" disabled style="margin:0;">
+                    </div>
+                </div>
+                <button type="button" class="btn-action btn-outline" style="width:100%; margin-bottom:15px; font-size:12px;" onclick="agregarFilaExterno()"><i class="fas fa-user-plus"></i> Añadir Acompañante</button>
+                <input type="text" name="motivo" class="form-control-local" placeholder="MOTIVO:" disabled>
+                <input type="text" name="contacto" class="form-control-local" placeholder="CONTACTO INTERNO:" disabled>
+                <input type="text" name="area" class="form-control-local" placeholder="ÁREA DESTINO:" disabled>
+            </div>
+
+            <div id="campos-empleado" class="campos-dinamicos" style="display:none;">
+                <input type="text" name="nombre_empleado" class="form-control-local" placeholder="NOMBRE COMPLETO:" required disabled>
+                <input type="text" name="departamento" class="form-control-local" placeholder="DEPARTAMENTO:" required disabled>
+                <input type="text" name="motivo" class="form-control-local" placeholder="MOTIVO DE INGRESO:" disabled>
+            </div>
+
+            <div id="seccion-equipo-compartido" style="display:none; margin-top:15px;">
+                <label>¿Ingresa con Herramienta/Equipo?</label>
+                <div class="btn-group">
+                    <div class="btn-toggle active green-text" onclick="toggleEquipo('NO')">NO</div>
+                    <div class="btn-toggle" onclick="toggleEquipo('SI')">SÍ</div>
+                </div>
+                
+                <div id="contenedor-herramientas" style="display:none; margin-top:10px;">
+                    <div id="lista-herramientas-ingreso">
+                        <div style="display:flex; gap:10px; margin-bottom:10px;">
+                            <input type="text" name="desc_herramienta[]" class="form-control-local herr-input" placeholder="Descripción del equipo..." disabled style="margin:0; flex:2;">
+                            <input type="number" name="cant_herramienta[]" class="form-control-local herr-input" placeholder="Cant." min="1" disabled style="margin:0; flex:1;">
+                        </div>
+                    </div>
+                    <button type="button" class="btn-action btn-outline" style="width:100%; margin-bottom:15px; font-size:12px;" onclick="agregarHerramientaIngreso()"><i class="fas fa-toolbox"></i> Añadir Equipo</button>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button type="button" class="btn-action btn-danger" style="width:100%;" onclick="cerrarModal('modal-ingreso')">Cancelar</button>
+                <button type="submit" class="btn-action btn-primary" style="width:100%;">REGISTRAR ENTRADA</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-camara" class="modal">
+    <div class="modal-content-local" style="max-width: 400px; text-align: center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0; color:var(--fng-blue);"><i class="fas fa-camera"></i> Fotografía</h3>
+            <i class="fas fa-times" style="font-size:20px; color:#dc3545; cursor:pointer;" onclick="cerrarCamara()"></i>
+        </div>
+        <div style="border-radius:12px; overflow:hidden; border: 1px solid #cbd5e1; padding:10px; background:#f8fafc; margin-bottom:15px;">
+            <video id="video-alc" autoplay playsinline style="width:100%; aspect-ratio: 3/4; object-fit: cover; border-radius:8px;"></video>
+            <img id="foto-preview" style="display:none; width:100%; aspect-ratio: 3/4; object-fit: cover; border-radius:8px;" />
+            <canvas id="canvas-alc" style="display:none;"></canvas>
+        </div>
+        
+        <button type="button" id="btn-tomar-foto" class="btn-action btn-primary" style="width:100%;" onclick="tomarFotoAlc()"><i class="fas fa-camera"></i> Tomar foto</button>
+        
+        <div id="controles-foto" style="display:none; gap:10px;">
+            <button type="button" class="btn-action btn-outline" style="width:50%; color:#dc3545; border-color:#dc3545;" onclick="rechazarFotoAlc()"><i class="fas fa-undo"></i> Rechazar</button>
+            <button type="button" class="btn-action btn-success" style="width:50%;" onclick="confirmarFotoAlc()"><i class="fas fa-check"></i> Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-salida" class="modal">
+    <div class="modal-content-local">
+        <h3 id="titulo-salida" style="color:var(--fng-blue); margin-top:0;">Confirmar Salida</h3>
+        <form id="form-salida" action="/procesar_salida" method="POST">
+            <input type="hidden" name="id_activo" id="salida-id-activo">
+            
+            <div id="salida-bloque-unidad" class="sub-box" style="display:none;">
+                <p style="margin:0 0 10px 0; font-size:13px; color:#444;"><b>Condición de Ingreso:</b> <span id="lbl-estado-ingreso" style="color:var(--fng-orange); font-weight:bold;"></span></p>
+                <label style="margin-top:0;">ESTADO FINAL AL SALIR:</label>
+                <div class="btn-group" style="margin-top:5px;">
+                    <div class="btn-toggle" onclick="setToggle(this, 'salida_estatus_carga', 'VACÍO', 'active')">VACÍO 📭</div>
+                    <div class="btn-toggle" onclick="setToggle(this, 'salida_estatus_carga', 'CARGADO', 'active')">CARGADO 📦</div>
+                </div>
+                <input type="hidden" name="estatus_carga_salida" id="salida_estatus_carga" value="VACÍO">
+                <input type="text" name="destino_salida" class="form-control-local" placeholder="DESTINO FINAL:" style="margin-top:10px;">
+            </div>
+
+            <div id="salida-bloque-personas" class="sub-box" style="display:none;">
+                <label style="margin-top:0; color:var(--fng-blue);">Selecciona el personal que sale:</label>
+                <div id="salida-checklist-personas" style="max-height: 150px; overflow-y:auto; margin-top:10px;"></div>
+            </div>
+
+            <div id="salida-bloque-herramientas" class="sub-box" style="display:none;">
+                <label style="margin-top:0; color:var(--fng-orange);">⚠️ Equipo que abandona la base:</label>
+                <div id="salida-checklist-herramientas" style="max-height: 150px; overflow-y:auto; margin-top:10px;"></div>
+            </div>
+
+            <div id="salida-bloque-evidencia" class="sub-box" style="display:none;">
+                <textarea name="observaciones_salida" class="form-control-local" rows="2" placeholder="OBSERVACIONES O DAÑOS (Opcional):" style="margin-bottom:10px;"></textarea>
+                <label style="margin-top:0; color:var(--fng-orange);">📸 Evidencia de Salida (Obligatorio):</label>
+                <label class="btn-upload-master">
+                    <span><i class="fas fa-images" style="font-size:24px; display:block; margin-bottom:5px;"></i></span> Toca para abrir Galería
+                    <input type="file" id="input-fotos-salida" accept="image/*" multiple style="display:none;" onchange="procesarFotosSalida(this)">
+                </label>
+                <div id="preview-salida-container" class="preview-container" style="margin-top:10px;"></div>
+                <div id="hidden-b64-container"></div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="btn-action btn-outline" style="width:100%; color:#dc3545; border-color:#dc3545;" onclick="cerrarSalida()">Cancelar</button>
+                <button type="submit" id="btn-capturar-salida" class="btn-action btn-primary" style="width:100%;"><i class="fas fa-sign-out-alt"></i> CONFIRMAR SALIDA</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- NÚCLEO MODULAR DE CASETA Y CONTROL DE ACCESOS -->
+<script src="{{ url_for('static', filename='js/caseta_control.js') }}?v=1.0"></script>
+{% endblock %}

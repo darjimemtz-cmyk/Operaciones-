@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% set active_page = "operador_app" %}
+
+{% block title %}Captura Diaria - FNG{% endblock %}
+
+{% block topbar_left %}
+    <div style="font-weight: 700; font-size: 18px;"><i class="fas fa-truck" style="color: var(--fng-orange);"></i> Mi Ruta FNG</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ocultamiento de navegación lateral en vista móvil de operador */
+    .menu-toggle, .btn-menu, #btnMenu, .fa-bars { display: none !important; pointer-events: none !important; }
+    .sidebar, .sidebar-overlay { display: none !important; }
+    
+    .mobile-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 10px; border: 1px solid #e2e8f0; }
+    .form-label { font-size: 13px; font-weight: 700; color: var(--fng-blue); margin-bottom: 5px; display: block; }
+    .form-control-lg { width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; transition: border-color 0.3s; background: #f8fafc;}
+    .form-control-lg:focus { border-color: var(--fng-orange); outline: none; background: white;}
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    
+    .upload-area { border: 2px dashed var(--fng-blue); border-radius: 12px; padding: 25px 15px; text-align: center; background: #f8fafc; cursor: pointer; transition: 0.3s; margin-bottom: 20px; position: relative; }
+    .upload-area:active { background: #e0f2fe; }
+    .upload-area i { font-size: 35px; color: var(--fng-orange); margin-bottom: 10px; }
+    
+    .btn-submit { background: var(--fng-blue); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
+    .btn-submit:active { transform: scale(0.98); }
+    
+    /* Previsualización de imagen */
+    #previewContainer { display: none; margin-top: 10px; text-align: center; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;}
+    #previewImg { max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto; padding-bottom: 30px;">
+    <h3 style="color: var(--fng-blue); margin-bottom: 5px;">Hola, {{ nombre_real }}</h3>
+    <p style="color: #64748b; font-size: 14px; margin-top: 0;">Registra tu actividad del día de forma rápida.</p>
+
+    <div class="mobile-card">
+        <form id="formOperador" onsubmit="enviarReporte(event)">
+            <!-- Valores iniciales predeterminados para captura de operador -->
+            <input type="hidden" name="estatus_dia" value="EN VIAJE">
+            <input type="hidden" name="tipo_registro" value="Estimado">
+            <input type="hidden" name="auditado" value="0">
+
+            <label class="form-label"><i class="far fa-calendar-alt"></i> Fecha del Reporte</label>
+            <!-- El select se llenará automáticamente con JS para los últimos 10 días -->
+            <select id="fechaSelect" name="fecha" class="form-control-lg" required>
+            </select>
+
+            <div class="grid-2">
+                <div>
+                    <label class="form-label"><i class="fas fa-steering-wheel"></i> Hrs Manejo</label>
+                    <input type="number" step="0.1" min="0" name="horas_manejo" class="form-control-lg" placeholder="Ej. 5.5" required>
+                </div>
+                <div>
+                    <label class="form-label"><i class="fas fa-box-open"></i> Hrs Descarga</label>
+                    <input type="number" step="0.1" min="0" name="horas_maniobra" class="form-control-lg" placeholder="Ej. 2.0" required>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label class="form-label"><i class="fas fa-truck-moving"></i> Eco. Unidad</label>
+                    <input type="text" name="eco_unidad" class="form-control-lg" placeholder="Ej. 1234" required>
+                </div>
+                <div>
+                    <label class="form-label"><i class="fas fa-trailer"></i> Remolque(s)</label>
+                    <input type="text" name="eco_pipas" class="form-control-lg" placeholder="Ej. 5678" required>
+                </div>
+            </div>
+
+            <label class="form-label"><i class="fas fa-camera"></i> Evidencia Fotográfica</label>
+            <div class="upload-area" onclick="document.getElementById('fotoInput').click()">
+                <i class="fas fa-camera-retro"></i>
+                <div style="font-weight: 700; color: var(--fng-blue);" id="textUpload">Toca para abrir la cámara</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 5px;">Captura obligatoria de la bitácora</div>
+                
+                <!-- Parámetro de captura para cámara trasera en dispositivos móviles -->
+                <input type="file" id="fotoInput" name="foto" accept="image/*" capture="environment" style="display: none;" onchange="mostrarPreview(this)" required>
+            </div>
+            
+            <div id="previewContainer">
+                <img id="previewImg" src="">
+                <button type="button" onclick="limpiarFoto(event)" style="margin-top: 12px; background: #fee2e2; color: #ef4444; border: none; padding: 8px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
+                    <i class="fas fa-trash-alt"></i> Eliminar y tomar otra
+                </button>
+            </div>
+
+            <button type="submit" id="btnGuardar" class="btn-submit" style="margin-top: 20px;">
+                <i class="fas fa-paper-plane"></i> Enviar Reporte
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Generador dinámico de fechas (Últimos 10 días hasta hoy)
+    document.addEventListener("DOMContentLoaded", function() {
+        const select = document.getElementById('fechaSelect');
+        const hoy = new Date();
+        
+        for(let i = 0; i <= 10; i++) {
+            let fecha = new Date(hoy);
+            fecha.setDate(fecha.getDate() - i);
+            
+            let year = fecha.getFullYear();
+            let month = String(fecha.getMonth() + 1).padStart(2, '0');
+            let day = String(fecha.getDate()).padStart(2, '0');
+            let fechaString = `${year}-${month}-${day}`;
+            
+            let option = document.createElement('option');
+            option.value = fechaString;
+            option.text = i === 0 ? `${fechaString} (Hoy)` : fechaString;
+            
+            select.appendChild(option);
+        }
+    });
+
+    function mostrarPreview(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('previewContainer').style.display = 'block';
+                document.getElementById('textUpload').innerHTML = "Captura lista <i class='fas fa-check-circle' style='color:#10b981; font-size:14px; margin-left:5px;'></i>";
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function limpiarFoto(e) {
+        e.stopPropagation(); // Evita que se abra de nuevo la cámara al borrar
+        document.getElementById('fotoInput').value = '';
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('textUpload').innerText = "Toca para abrir la cámara";
+    }
+
+    async function enviarReporte(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnGuardar');
+        const form = document.getElementById('formOperador');
+        
+        // Bloquear botón para evitar dobles envíos
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo reporte...';
+
+        const formData = new FormData(form);
+
+        try {
+            const res = await fetch('/api/operador_guardar_dia', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast("✅ Reporte enviado correctamente a la Torre de Control", "success");
+                // Recargar página para limpiar el formulario después del éxito
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showToast("⚠️ Error: " + data.msg, "warning");
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar Reporte';
+            }
+        } catch (error) {
+            showToast("❌ Error de conexión. Revisa tus datos móviles.", "error");
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar Reporte';
+        }
+    }
+</script>
+{% endblock %}

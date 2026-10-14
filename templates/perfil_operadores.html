@@ -1,0 +1,687 @@
+{% extends "base.html" %}
+{% set active_page = "rh" %}
+
+{% block title %}Perfil de Operadores - FNG{% endblock %}
+
+{% block topbar_left %}
+    <div style="font-weight: 700; font-size: 20px;"><i class="fas fa-id-card" style="color: var(--fng-orange);"></i> FNG - Perfil de Operadores</div>
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+    /* ========================================================
+       ESTILOS EXCLUSIVOS: EXPEDIENTE RH Y MATRIZ F-OPE-01
+       ======================================================== */
+    /* 1. ENCABEZADOS Y BADGES INSTITUCIONALES */
+    .fng-meta-header {
+        display: flex; justify-content: space-between; align-items: center;
+        background: var(--bg-surface-2); border: 1px solid var(--border-subtle);
+        border-radius: 12px; padding: 12px 20px; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;
+    }
+    .fng-meta-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--bg-surface); border: 1px solid var(--border-subtle);
+        padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-main);
+    }
+
+    /* 2. SELECTOR DE PESTAÑAS (ACTIVOS VS BAJAS) */
+    .tab-pills-container { display: inline-flex; background: rgba(0, 45, 90, 0.06); padding: 4px; border-radius: 10px; gap: 5px; }
+    body.dark-mode .tab-pills-container { background: rgba(255, 255, 255, 0.05); }
+    .tab-pill-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+    .tab-pill-btn.active { background: var(--bg-surface); color: var(--fng-blue); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+    body.dark-mode .tab-pill-btn.active { background: var(--fng-orange); color: #0f172a; }
+
+    /* 3. MATRIZ EXTENDIDA CON TRIPLE ANCLAJE (STICKY) */
+    .table-responsive { width: 100%; max-height: 72vh; overflow-y: auto; overflow-x: auto; margin-top: 15px; }
+    table { min-width: 2200px; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+
+    /* Columna 1: No. Empleado (Fija en 0px) */
+    .sticky-col-id { position: sticky; left: 0; background: var(--bg-surface); z-index: 5; width: 70px; min-width: 70px; font-weight: 800; color: var(--text-muted); }
+    th.sticky-col-id { left: 0; z-index: 20 !important; }
+
+    /* Columna 2: Nombre Operador (Fija en 70px con sombra divisoria) */
+    .sticky-col-op { position: sticky; left: 70px; background: var(--bg-surface); z-index: 5; width: 260px; min-width: 260px; text-align: left !important; box-shadow: 4px 0 8px -3px rgba(0,0,0,0.08); }
+    th.sticky-col-op { left: 70px; z-index: 20 !important; box-shadow: 4px 2px 8px -3px rgba(0,0,0,0.15); }
+
+    /* Columna 3: Acciones (Fija a la derecha) */
+    .sticky-col-acc { position: sticky; right: 0; background: var(--bg-surface); z-index: 5; width: 90px; min-width: 90px; box-shadow: -4px 0 8px -3px rgba(0,0,0,0.08); }
+    th.sticky-col-acc { right: 0; z-index: 20 !important; box-shadow: -4px 2px 8px -3px rgba(0,0,0,0.15); }
+
+    /* 4. ALERTAS DE VIGENCIA Y DISTINTIVOS */
+    .danger { background: #fee2e2 !important; color: #dc2626 !important; font-weight: 800; border-radius: 4px; }
+    .warning { background: #fef3c7 !important; color: #d97706 !important; font-weight: 800; border-radius: 4px; }
+    .success { background: #dcfce7 !important; color: #16a34a !important; font-weight: 700; border-radius: 4px; }
+    body.dark-mode .danger { background: rgba(239, 68, 68, 0.25) !important; color: #f87171 !important; }
+    body.dark-mode .warning { background: rgba(245, 158, 11, 0.25) !important; color: #fbbf24 !important; }
+    body.dark-mode .success { background: rgba(16, 185, 129, 0.25) !important; color: #34d399 !important; }
+
+    .pill-estatus-op { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #dcfce7; color: #16a34a; display: inline-block; }
+    .pill-estatus-baja { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #fee2e2; color: #dc2626; display: inline-block; }
+    body.dark-mode .pill-estatus-op { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    body.dark-mode .pill-estatus-baja { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .pill-unidad-full { background: #e0f2fe; color: #0284c7; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+    .pill-unidad-sencillo { background: #fef3c7; color: #d97706; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+    body.dark-mode .pill-unidad-full { background: rgba(2, 132, 199, 0.25); color: #38bdf8; }
+    body.dark-mode .pill-unidad-sencillo { background: rgba(217, 119, 6, 0.25); color: #fcd34d; }
+
+    .product-badge { display: inline-block; padding: 2px 6px; margin: 1px; background-color: var(--bg-surface-2); color: var(--text-main); border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid var(--border-subtle); }
+    
+    .btn-action.red:hover { color: #ef4444; }
+
+    /* 5. FORMULARIOS EN REJILLA PARA MODALES */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: span 2; }
+    
+    .expediente-header-flex { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+    .expediente-avatar { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 3px solid var(--fng-orange); background: var(--bg-surface-2); }
+
+    /* 6. CÁPSULAS INTERACTIVAS (CAPACITACIONES Y ROLES) */
+    .capsule-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    .capsule-btn {
+        padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--border-subtle);
+        background: var(--bg-surface-2); color: var(--text-muted); font-size: 12px; font-weight: 700;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        transition: all 0.2s ease; user-select: none; box-sizing: border-box;
+    }
+    .capsule-btn:hover { border-color: var(--fng-blue); background: rgba(125,125,125,0.08); transform: translateY(-1px); }
+    .capsule-btn.active {
+        background: var(--fng-blue) !important; color: #ffffff !important;
+        border-color: var(--fng-blue) !important; box-shadow: 0 3px 8px rgba(0, 45, 90, 0.3) !important;
+    }
+    .capsule-btn.active-orange {
+        background: var(--fng-orange) !important; color: #ffffff !important;
+        border-color: var(--fng-orange) !important; box-shadow: 0 3px 8px rgba(255, 140, 0, 0.3) !important;
+    }
+
+    @media (max-width: 650px) {
+        .form-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+        .form-group.full { grid-column: span 1 !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel">
+    
+    <!-- BARRA PRINCIPAL: BUSCADOR + DOCK CENTRAL + BOTONES -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 18px;">
+        
+        <!-- BUSCADOR -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="search-bar" id="searchBarContainerRH" onclick="expandirBuscadorRH()">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="buscadorRH" placeholder="Buscar operador, ID, unidad..." autocomplete="off" oninput="filtrarRH()">
+                <i class="fas fa-times clear-icon" onclick="limpiarYColapsarBuscadorRH(event)"></i>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
+                Total: <b id="contadorFilas" style="color: var(--fng-blue);">{{ operadores|length }}</b>
+            </span>
+        </div>
+
+        <!-- DOCK CENTRAL ÚNICO: ACTIVOS Y NO ACTIVOS -->
+        <div class="tab-pills-container" style="display: inline-flex; background: rgba(0, 45, 90, 0.06); padding: 4px; border-radius: 12px; gap: 6px;">
+            <button class="tab-pill-btn active" id="btnTabActivos" onclick="cambiarVistaOperadores('activos')">
+                <i class="fas fa-user-check" style="color: #10b981;"></i> Activos ({{ operadores|length }})
+            </button>
+            <button class="tab-pill-btn" id="btnTabBajas" onclick="cambiarVistaOperadores('bajas')">
+                <i class="fas fa-user-slash" style="color: #ef4444;"></i> No Activos ({{ bajas|length }})
+            </button>
+        </div>
+
+        <!-- ACCIONES -->
+        {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-primary" onclick="abrirModalCargaMasiva()" style="background: #10b981;"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn-primary" onclick="abrirModalAlta()"><i class="fas fa-user-plus"></i> Nuevo Ingreso</button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- SECCIÓN 1: MATRIZ OFICIAL EXTENDIDA F-OPE-01 (PLANTILLA ACTIVA) -->
+    <div class="table-responsive" id="vistaTablaActivos">
+        <table id="tablaRH">
+            <thead>
+                <tr>
+                    <th class="sticky-col-id">No. Emp</th>
+                    <th class="sticky-col-op">Operador</th>
+                    <th>Estatus</th>
+                    <th>Ingreso</th>
+                    <th>Antigüedad</th>
+                    <th>Nacimiento</th>
+                    <th>Edad</th>
+                    <th>Tipo Lic.</th>
+                    <th>Vence Lic.</th>
+                    <th>No. Licencia</th>
+                    <th>Aptitud Médica</th>
+                    <th>Lib. Cryo</th>
+                    <th>Productos Descarga</th>
+                    <th>Lib. Operativa</th>
+                    <th>Exp. Manejo</th>
+                    <th>Tipo Unidad</th>
+                    <th>Teléfono Celular</th>
+                    {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}<th class="sticky-col-acc">Acciones</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operadores %}
+                <tr>
+                    <td class="sticky-col-id">{{ op.no_empleado }}</td>
+                    <td class="sticky-col-op">
+                        <a href="javascript:void(0)" data-op='{{ op | tojson | safe }}' onclick="abrirExpediente(this)" style="color: var(--fng-blue); font-weight: 800; text-decoration: underline; text-underline-offset: 3px;">
+                            {{ op.nombre }}
+                        </a>
+                    </td>
+                    <td><span class="pill-estatus-op">{{ op.estatus }}</span></td>
+                    <td>{{ op.fecha_alta }}</td>
+                    <td style="color: #64748b; font-size: 11px; font-weight: 700;">{{ op.texto_antiguedad }}</td>
+                    <td>{{ op.fecha_nacimiento }}</td>
+                    <td><b>{{ op.edad }}</b></td>
+                    <td><span style="font-weight: 800; color: var(--fng-blue);">{{ op.tipo_licencia }}</span></td>
+                    <td class="{% if op.dias_lic < 0 %}danger{% elif op.dias_lic < 30 %}warning{% else %}success{% endif %}">{{ op.lic }}</td>
+                    <td>{{ op.no_licencia }}</td>
+                    <td class="{% if op.dias_med < 0 %}danger{% elif op.dias_med < 30 %}warning{% else %}success{% endif %}">{{ op.med }}</td>
+                    <td>{{ op.liberacion_cryo }}</td>
+                    <td><span class="product-badge">{{ op.productos_descarga }}</span></td>
+                    <td><b>{{ op.liberado_operativamente }}</b></td>
+                    <td>{{ op.experiencia_desde }}</td>
+                    <td>
+                        {% if op.tipo_unidad == 'FULL' %}
+                            <span class="pill-unidad-full">FULL</span>
+                        {% elif op.tipo_unidad == 'SENCILLO' %}
+                            <span class="pill-unidad-sencillo">SENCILLO</span>
+                        {% else %}
+                            {{ op.tipo_unidad }}
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600; color: #475569;">{{ op.tel }}</td>
+                    
+                    {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
+                    <td class="sticky-col-acc">
+                        <button class="btn-action" title="Editar Ficha Completa" onclick='abrirModalEditarCompleto({{ op | tojson | safe }})'><i class="fas fa-edit"></i></button>
+                        <button class="btn-action red" title="Dar de Baja" onclick="confirmarBaja('{{ op.id }}', '{{ op.nombre }}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- SECCIÓN 2: HISTORIAL DE BAJAS PARA AUDITORÍAS (OCULTA POR DEFECTO) -->
+    <div class="table-responsive" id="vistaTablaBajas" style="display: none;">
+        <table id="tablaBajas" style="min-width: 1000px;">
+            <thead>
+                <tr style="background: #991b1b;">
+                    <th style="width: 80px;">No. Emp</th>
+                    <th style="text-align: left; width: 280px;">Operador</th>
+                    <th style="width: 100px;">Estatus</th>
+                    <th>Línea / Producto</th>
+                    <th>Tipo Unidad</th>
+                    <th>Fecha Ingreso</th>
+                    <th>Fecha de Baja</th>
+                    <th>Teléfono</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bajas %}
+                <tr>
+                    <td style="font-weight: 800; color: #64748b;">{{ b.no_empleado }}</td>
+                    <td style="text-align: left;">
+                        <a href="javascript:void(0)" data-op='{{ b | tojson | safe }}' onclick="abrirExpediente(this)" style="color: #991b1b; font-weight: 800; text-decoration: underline; text-underline-offset: 3px;">
+                            {{ b.nombre }}
+                        </a>
+                    </td>
+                    <td><span class="pill-estatus-baja">BAJA</span></td>
+                    <td>{{ b.linea }} • {{ b.prod }}</td>
+                    <td>{{ b.tipo_unidad }}</td>
+                    <td>{{ b.fecha_alta }}</td>
+                    <td style="font-weight: 800; color: #dc2626;">{{ b.fecha_baja }}</td>
+                    <td>{{ b.tel }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 25px; color: #64748b; font-weight: 600;">
+                        Sin registros en el archivo de bajas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- ========================================================
+     MODAL EXPEDIENTE DIGITAL LIMPIO (SIN DUPLICIDAD DE DATOS)
+     ======================================================== -->
+<div id="modalExpediente" class="modal-overlay">
+    <div class="modal-box" style="max-width: 760px; padding: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 18px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(0,45,90,0.08); color: var(--fng-blue); display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    <i class="fas fa-id-badge"></i>
+                </div>
+                <h3 style="margin: 0; color: var(--text-main); font-size: 18px; font-weight: 800;">Expediente Digital del Operador</h3>
+            </div>
+            <button class="btn-action red" onclick="cerrarExpediente()"><i class="fas fa-times" style="font-size: 18px;"></i></button>
+        </div>
+
+        <!-- CABECERA: FOTO Y NOMBRE -->
+        <div class="expediente-header-flex">
+            <img id="expFotoPerfil" src="{{ url_for('static', filename='fotos_perfil/default.png') }}" alt="Foto Operador" class="expediente-avatar">
+            <div style="flex: 1;">
+                <h2 id="expNombre" style="color: var(--text-main); margin: 0 0 4px 0; font-size: 20px; font-weight: 800;"></h2>
+                <span style="font-size: 11px; color: var(--text-muted); background: rgba(100, 116, 139, 0.1); padding: 3px 10px; border-radius: 6px; font-weight: 700;">
+                    Personal Operativo Autorizado FNG
+                </span>
+            </div>
+            <div>
+                <label for="edit_foto_directa" class="btn-primary" style="padding: 6px 12px; font-size: 11px; background: var(--fng-blue); cursor: pointer;">
+                    <i class="fas fa-camera"></i> Cambiar Foto
+                </label>
+                <input type="file" id="edit_foto_directa" accept="image/*" style="display: none;" onchange="subirFotoDirecta(this)">
+            </div>
+        </div>
+
+        <input type="hidden" id="expIdBD">
+        
+        <!-- CONTROL DE ACCESO APP MÓVIL Y DISPOSITIVOS -->
+        <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); padding: 14px 18px; border-radius: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h4 style="margin: 0; color: #0284c7; font-size: 13px; font-weight: 800;"><i class="fas fa-mobile-alt"></i> Acceso a App Móvil</h4>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-main);">
+                    Usuario: <b id="disp_usuario_app" style="color:var(--fng-blue); user-select: all; cursor: copy;"></b> • Contraseña: <b id="disp_pass_app" style="color:var(--fng-blue); user-select: all; cursor: copy;"></b>
+                </p>
+            </div>
+            {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-primary" style="background:#f59e0b; padding:7px 12px; font-size:11px;" onclick="liberarDispositivo()"><i class="fas fa-unlock-alt"></i> Liberar Celular</button>
+                <button class="btn-primary" style="background:#ef4444; padding:7px 12px; font-size:11px;" onclick="generarPIN()"><i class="fas fa-key"></i> PIN Emergencia</button>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- GRID DE HERRAMIENTAS / ACTIVOS Y SEGUIMIENTO DE FATIGA -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 18px;">
+            
+            <!-- TARJETA: ACTIVOS ASIGNADOS Y PRESTACIONES -->
+            <div style="background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 800; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 6px;">
+                    <i class="fas fa-tools"></i> Activos Asignados y Ley
+                </h4>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>Impresora de Tickets:</b> <span id="disp_imp" style="font-weight: 700; color: var(--text-main);"></span></p>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>IMEI Celular:</b> <span id="disp_imei" style="font-weight: 700; color: var(--text-main);"></span></p>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>Vacaciones por Ley:</b> <span id="disp_vacaciones" style="color: #10b981; font-weight: 800;"></span></p>
+            </div>
+
+            <!-- TARJETA: HISTORIAL OPERATIVO Y FATIGA (NOM-087) -->
+            <div style="background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 6px; margin-bottom: 10px;">
+                    <h4 style="margin: 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 800;">
+                        <i class="fas fa-stopwatch"></i> Fatiga y Descanso
+                    </h4>
+                    <button class="btn-primary" style="padding: 3px 8px; font-size: 10px; background: var(--fng-blue);" onclick="abrirCalendario30Dias()">
+                        <i class="fas fa-calendar-alt"></i> Bitácora 30D
+                    </button>
+                </div>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>Último Descanso:</b> <span id="disp_ult_descanso" style="font-weight: 700; color: var(--text-main);"></span></p>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>Estatus Hoy:</b> <span id="disp_estatus_hoy"></span></p>
+                <p style="margin: 6px 0; font-size: 12.5px;"><b>Horas DOT Semana:</b> <span id="disp_horas_dot" style="font-weight: 800;"></span></p>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: AMONESTACIONES Y REGISTRO DISCIPLINARIO -->
+        <div style="border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; background: var(--bg-surface-2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+                <h4 style="margin: 0; color: var(--text-main); font-size: 14px; font-weight: 800;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Amonestaciones y Registro Operativo
+                </h4>
+                <button type="button" class="btn-primary" onclick="abrirModalNuevaAmonestacion()" style="padding: 5px 12px; font-size: 11px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;">
+                    <i class="fas fa-plus-circle"></i> Registrar Falta
+                </button>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                <div style="background: white; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);">📋 Actas: <span id="kpi_actas" style="color: #ef4444;">0</span></div>
+                <div style="background: white; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);">⛽ Diésel: <span id="kpi_combustible" style="color: #ea580c;">0</span></div>
+                <div style="background: white; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);">💥 Daños: <span id="kpi_danos" style="color: #dc2626;">0</span></div>
+                <div style="background: white; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);">⏱️ Retardos: <span id="kpi_retardos" style="color: #f59e0b;">0</span></div>
+                <div style="background: white; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted);">🚨 Incidentes: <span id="kpi_incidentes" style="color: #7c3aed;">0</span></div>
+            </div>
+
+            <div style="overflow-y: auto; max-height: 180px; border: 1px solid var(--border-subtle); border-radius: 8px; background: white;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 480px;">
+                    <thead>
+                        <tr style="background: rgba(0,45,90,0.04); border-bottom: 1px solid var(--border-subtle);">
+                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 85px; color: var(--text-main);">Fecha</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: left; width: 150px; color: var(--text-main);">Tipo Falta</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: left; color: var(--text-main);">Observación</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 95px; color: var(--text-main);">Estatus</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaAmonestacionesCuerpo">
+                        <tr><td colspan="4" style="text-align: center; padding: 12px; color: #94a3b8; font-size: 11px;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================
+     MODAL DE EDICIÓN INTEGRAL (DESDE EL BOTÓN LÁPIZ)
+     ======================================================== -->
+{% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
+<div id="modalEditarCompleto" class="modal-overlay">
+    <div class="modal-box" style="max-width: 650px;">
+        <h3 style="margin-top: 0; border-bottom: 2px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main); font-size: 17px; font-weight: 800;">
+            <i class="fas fa-edit" style="color: var(--fng-orange);"></i> Editar Perfil de Operador
+        </h3>
+        <form onsubmit="guardarEdicionCompleta(event)">
+            <input type="hidden" id="editFull_id">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label style="font-size: 11px; font-weight: bold;">Nombre Completo:</label>
+                    <input type="text" id="editFull_nombre" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">No. Empleado:</label>
+                    <input type="text" id="editFull_noEmp" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Fecha de Ingreso:</label>
+                    <input type="date" id="editFull_ingreso" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Fecha de Nacimiento (Calcula edad en automático):</label>
+                    <input type="date" id="editFull_nac" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Experiencia Manejo Desde:</label>
+                    <input type="date" id="editFull_expDesde" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Tipo de Unidad:</label>
+                    <select id="editFull_tipoUnidad" class="form-control">
+                        <option value="FULL">FULL</option>
+                        <option value="SENCILLO">SENCILLO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Teléfono Celular (10 Dig.):</label>
+                    <input type="text" id="editFull_tel" class="form-control" pattern="\d{10}" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Tipo de Licencia:</label>
+                    <input type="text" id="editFull_tipoLic" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">No. de Licencia:</label>
+                    <input type="text" id="editFull_noLic" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Vence Licencia:</label>
+                    <input type="date" id="editFull_lic" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Vence Médico (Aptitud):</label>
+                    <input type="date" id="editFull_med" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Liberación Cryo:</label>
+                    <input type="date" id="editFull_cryo" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">Impresora Asignada:</label>
+                    <input type="text" id="editFull_imp" class="form-control" placeholder="Ej. ZEBRA-01 o N/A">
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: bold;">IMEI Dispositivo:</label>
+                    <input type="text" id="editFull_imei" class="form-control" placeholder="Ej. 8645010... o N/A">
+                </div>
+
+                <!-- PRESERVACIÓN SILENCIOSA DE CAMPOS GESTIONADOS POR LA SÁBANA -->
+                <input type="hidden" id="editFull_libOp" value="CLIENTES">
+                <input type="hidden" id="editFull_esquema" value="Arrastre">
+
+                <!-- PRODUCTOS AUTORIZADOS (CÁPSULAS INTERACTIVAS MODERNAS) -->
+                <div class="form-group full" style="background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 5px;">
+                    <label style="font-size: 11.5px; font-weight: 800; color: var(--fng-blue); display: block; margin-bottom: 4px;">
+                        <i class="fas fa-gas-pump" style="color: var(--fng-orange);"></i> Productos Autorizados para Descarga:
+                    </label>
+                    <span style="font-size: 10.5px; color: #64748b; display: block; margin-bottom: 8px;">Toca las cápsulas para activar o desactivar productos autorizados:</span>
+                    <input type="hidden" id="editFull_prods" value="LIN-LOX-LAR">
+                    <div class="capsule-group" id="grupoProductosCapsulas">
+                        <span class="capsule-btn" data-prod="LIN" onclick="toggleCapsulaProducto(this)">💧 Nitrógeno (LIN)</span>
+                        <span class="capsule-btn" data-prod="LOX" onclick="toggleCapsulaProducto(this)">❄️ Oxígeno (LOX)</span>
+                        <span class="capsule-btn" data-prod="LAR" onclick="toggleCapsulaProducto(this)">🧪 Argón (LAR)</span>
+                        <span class="capsule-btn" data-prod="CO2" onclick="toggleCapsulaProducto(this)">💨 CO2 Líquido</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                <button type="button" class="btn btn-light" onclick="document.getElementById('modalEditarCompleto').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: var(--fng-blue);">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL NUEVA AMONESTACIÓN -->
+<div id="modalNuevaAmonestacion" class="modal-overlay">
+    <div class="modal-box" style="max-width: 480px;">
+        <h3 style="margin-top:0; color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Registrar Amonestación</h3>
+        <form id="formAmonestacion" onsubmit="enviarNuevaAmonestacion(event)">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Fecha de la Falta:</label>
+                    <input type="date" id="amon_fecha" class="form-control" required style="width: 100%;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Tipo de Falta:</label>
+                    <select id="amon_tipo" class="form-control" required style="width: 100%;">
+                        <option value="ACTA ADMINISTRATIVA">ACTA ADMINISTRATIVA</option>
+                        <option value="EXCESO DE COMBUSTIBLE">EXCESO DE COMBUSTIBLE (DIÉSEL)</option>
+                        <option value="DAÑO A UNIDAD">DAÑO A UNIDAD / EQUIPO</option>
+                        <option value="RETARDO A CITATORIO">RETARDO A CITATORIO / SALIDA</option>
+                        <option value="INCIDENTE DE SEGURIDAD">INCIDENTE DE SEGURIDAD VIAL</option>
+                        <option value="OTRO">OTRO</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Motivo / Observación Detallada:</label>
+                    <textarea id="amon_descripcion" class="form-control" rows="3" required placeholder="Describe los hechos..." style="width: 100%; resize: none;"></textarea>
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Estatus Inicial:</label>
+                    <select id="amon_estatus" class="form-control" style="width: 100%;">
+                        <option value="Pendiente">Pendiente de Aclaración</option>
+                        <option value="Aplicada" selected>Aplicada / Firmada</option>
+                        <option value="Solventada">Solventada / Justificada</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn btn-light" onclick="cerrarModalNuevaAmonestacion()">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: #ef4444;">Guardar Amonestación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL BITÁCORA 30 DÍAS -->
+<div id="modalCalendario30" class="modal-overlay" style="z-index: 2500;">
+    <div class="modal-box" style="max-width: 800px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fng-orange); padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--fng-blue);"><i class="fas fa-history"></i> Bitácora Operativa (Últimos 30 Días)</h3>
+            <button class="btn-action red" onclick="document.getElementById('modalCalendario30').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 15px; background: #e0f2fe; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 13px; color: var(--fng-blue); flex-wrap: wrap;">
+            <div><i class="fas fa-steering-wheel"></i> Días Trabajados: <span id="cal_count_tr">0</span></div>
+            <div><i class="fas fa-bed"></i> Descansos (DE): <span id="cal_count_de">0</span></div>
+            <div><i class="fas fa-plane"></i> Vacaciones/Permisos: <span id="cal_count_va">0</span></div>
+        </div>
+        
+        <div id="cal_30_grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 50vh; overflow-y: auto; padding-right: 5px;"></div>
+    </div>
+</div>
+
+<!-- MODAL CARGA MASIVA EXCEL -->
+{% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
+<div id="modalCargaMasiva" class="modal-overlay">
+    <div class="modal-box">
+        <h3 style="margin-top: 0; color: #10b981;"><i class="fas fa-file-excel"></i> Carga Masiva (Excel)</h3>
+        <p style="font-size: 12px; color: #64748b;">Sube el archivo <b>Perfil operadores.xlsx</b>. El sistema actualizará las vigencias, bases, unidades y dará de alta al personal respetando su configuración.</p>
+        
+        <div class="dropzone" id="excel-dropzone" onclick="document.getElementById('excel-input').click()" style="border: 2px dashed #10b981; border-radius: 12px; padding: 20px; text-align: center; background: #f0fdf4; cursor: pointer; margin-bottom: 15px;">
+            <i class="fas fa-cloud-upload-alt" style="font-size: 30px; color: #10b981; margin-bottom: 10px;"></i>
+            <p style="margin:0; font-weight:bold; color:#065f46;">Sube o arrastra aquí tu archivo Excel</p>
+            <input type="file" id="excel-input" accept=".xlsx, .xls" style="display: none;" onchange="procesarArchivoExcel(this)">
+        </div>
+        
+        <div id="excel-loading" style="display:none; text-align:center; font-weight:bold; color:var(--fng-orange); margin-bottom: 20px;">
+            <i class="fas fa-circle-notch fa-spin"></i> Leyendo celdas y validando información...
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-light" onclick="document.getElementById('modalCargaMasiva').style.display='none'">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL NUEVO INGRESO -->
+<div id="modalAlta" class="modal-overlay">
+    <div class="modal-box" style="max-width: 680px;">
+        <h3 style="margin-top: 0; border-bottom: 2px solid var(--border-subtle); padding-bottom: 10px; color: var(--text-main); font-weight: 800;">
+            <i class="fas fa-user-plus" style="color: var(--fng-orange);"></i> Nuevo Ingreso de Operador
+        </h3>
+        <form id="formAltaOperador" onsubmit="guardarAltaCompleta(event)">
+            <div class="form-grid">
+                <div class="form-group full" style="display: flex; align-items: center; gap: 15px; background: rgba(0,45,90,0.03); padding: 12px; border-radius: 10px; border: 1px dashed var(--border-subtle);">
+                    <i class="fas fa-camera" style="font-size: 24px; color: var(--fng-orange);"></i>
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; font-weight: 700;">Foto de Perfil:</label>
+                        <input type="file" id="alta_foto" accept="image/*" class="form-control" style="padding: 4px;">
+                    </div>
+                </div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">No. Empleado (ID):</label><input type="text" id="alta_noEmp" class="form-control" required placeholder="Ej. 4227"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Nombre Completo:</label><input type="text" id="alta_nombre" class="form-control" required placeholder="Ej. JUAN PEREZ"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Fecha de Ingreso:</label><input type="date" id="alta_ingreso" class="form-control" required></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Fecha de Nacimiento (Calcula edad automática):</label><input type="date" id="alta_nac" class="form-control"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Teléfono Celular (10 Dig.):</label><input type="text" id="alta_tel" class="form-control" pattern="\d{10}" maxlength="10" placeholder="10 dígitos"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Tipo de Licencia:</label><input type="text" id="alta_tipoLic" class="form-control" value="E"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">No. Licencia:</label><input type="text" id="alta_noLic" class="form-control" placeholder="Ej. SLP0017275"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Vigencia Licencia:</label><input type="date" id="alta_vigLic" class="form-control"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Vigencia Aptitud Médica:</label><input type="date" id="alta_vigMed" class="form-control"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Liberación Cryoinfra:</label><input type="date" id="alta_libCryo" class="form-control"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Liberado en Tipo Unidad:</label>
+                    <select id="alta_tipoUnidad" class="form-control"><option value="FULL">FULL</option><option value="SENCILLO">SENCILLO</option></select>
+                </div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Experiencia Manejo Desde:</label><input type="date" id="alta_expDesde" class="form-control"></div>
+
+                <!-- SECCIÓN A: CAPACITACIONES RH (HABILIDADES MULTI-SELECCIÓN) -->
+                <div class="form-group full" style="background: rgba(0,45,90,0.02); padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                    <label style="font-size: 11.5px; font-weight: 800; color: var(--fng-blue); display: block; margin-bottom: 2px;">
+                        <i class="fas fa-certificate" style="color: var(--fng-orange);"></i> Productos que Puede Descargar (Capacitaciones RH):
+                    </label>
+                    <span style="font-size: 10.5px; color: #64748b; display: block; margin-bottom: 8px;">Marca todos los productos en los que el operador está certificado:</span>
+                    <input type="hidden" id="alta_prods" value="LIN-LOX-LAR">
+                    <div class="capsule-group" id="grupoAltaProductosCapsulas">
+                        <span class="capsule-btn active" data-prod="LIN" onclick="toggleAltaCapsula(this)">💧 Nitrógeno (LIN)</span>
+                        <span class="capsule-btn active" data-prod="LOX" onclick="toggleAltaCapsula(this)">❄️ Oxígeno (LOX)</span>
+                        <span class="capsule-btn active" data-prod="LAR" onclick="toggleAltaCapsula(this)">🧪 Argón (LAR)</span>
+                        <span class="capsule-btn" data-prod="CO2" onclick="toggleAltaCapsula(this)">💨 CO2 Líquido</span>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN B: ASIGNACIÓN OPERATIVA INICIAL EN SÁBANA (CASCADA DINÁMICA) -->
+                <div class="form-group full" style="background: #f1f5f9; padding: 14px; border-radius: 10px; border: 1px solid #94a3b8;">
+                    <label style="font-size: 11.5px; font-weight: 800; color: var(--fng-blue); display: block; margin-bottom: 2px;">
+                        <i class="fas fa-route" style="color: var(--fng-orange);"></i> Asignación Operativa Inicial en Sábana:
+                    </label>
+                    <span style="font-size: 10.5px; color: #64748b; display: block; margin-bottom: 10px;">Determina en qué línea y bloque arrancará a trabajar:</span>
+
+                    <!-- 1. Función / Rol Operativo -->
+                    <label style="font-size: 11px; font-weight: bold; color: #334155;">1. Función / Rol Operativo:</label>
+                    <input type="hidden" id="alta_libOp" value="OPERADOR">
+                    <div class="capsule-group" id="grupoAltaRolOperativo" style="margin-bottom: 12px;">
+                        <span class="capsule-btn active" onclick="seleccionarAltaRol(this, 'OPERADOR')">
+                            <i class="fas fa-truck"></i> Operador Regular
+                        </span>
+                        <span class="capsule-btn" onclick="seleccionarAltaRol(this, 'MOVEDOR')">
+                            <i class="fas fa-trailer"></i> Movedor Patio
+                        </span>
+                        <span class="capsule-btn" onclick="seleccionarAltaRol(this, 'INSTRUCTOR')">
+                            <i class="fas fa-user-shield"></i> Instructor (Comodín)
+                        </span>
+                    </div>
+
+                    <!-- 2. Producto Base Asignado (Solo si es Operador Regular) -->
+                    <div id="cajaAltaProductoBase" style="display: block; margin-bottom: 12px;">
+                        <label style="font-size: 11px; font-weight: bold; color: #334155;">2. Producto Base Asignado:</label>
+                        <select id="alta_producto_base" class="form-control" style="margin-top: 4px; margin-bottom: 0;" onchange="evaluarCascadaAlta()">
+                            <option value="NITROGENO">NITRÓGENO (CRYO)</option>
+                            <option value="OXIGENO">OXÍGENO (CRYO)</option>
+                            <option value="ARGON">ARGÓN (CRYO)</option>
+                            <option value="CO2">CO2 PURO</option>
+                        </select>
+                    </div>
+
+                    <!-- 3. Bloque Oficial de Sábana (Solo si es Criogénico) -->
+                    <div id="cajaAltaBloqueCriogenico" style="display: block;">
+                        <label style="font-size: 11px; font-weight: bold; color: #334155;">3. Bloque Operativo de Sábana (Esquema):</label>
+                        <input type="hidden" id="alta_esquema" value="1. Tercias">
+                        <div class="capsule-group" id="grupoAltaEsquemaCapsulas">
+                            <span class="capsule-btn active-orange" onclick="seleccionarAltaEsquema(this, '1. Tercias')">1. Tercias</span>
+                            <span class="capsule-btn" onclick="seleccionarAltaEsquema(this, '2. Criogenicos')">2. Criogénicos</span>
+                            <span class="capsule-btn" onclick="seleccionarAltaEsquema(this, '3. Arrastre')">3. Arrastre</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">Impresora Asignada (Opcional):</label><input type="text" id="alta_imp" class="form-control" value="N/A"></div>
+                <div class="form-group"><label style="font-size: 11px; font-weight: 700;">IMEI (Opcional):</label><input type="text" id="alta_imei" class="form-control" value="N/A"></div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                <button type="button" class="btn btn-light" onclick="document.getElementById('modalAlta').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-primary" style="background: var(--fng-blue);">Guardar Alta Completa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CONFIRMAR BAJA -->
+<div id="modalBajaGlobal" class="modal-overlay">
+    <div class="modal-box" style="text-align: center; max-width: 400px;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 45px; color: #f59e0b; margin-bottom: 15px;"></i>
+        <h3 style="margin-top: 0; color: var(--fng-blue);">Confirmar Baja</h3>
+        <p style="color: #64748b; font-size: 13px;">¿Estás seguro de dar de BAJA al operador <br><strong id="bajaNombreVisual" style="color: var(--fng-orange); font-size: 15px;"></strong>?</p>
+        <input type="hidden" id="bajaIdOculto">
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+            <button onclick="document.getElementById('modalBajaGlobal').style.display='none'" style="padding: 10px 18px; border-radius: 8px; border: none; background: #e2e8f0; color: #002d5a; font-weight: bold; cursor: pointer;">Cancelar</button>
+            <button onclick="ejecutarBajaFinal()" style="padding: 10px 18px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer;">Sí, Dar de Baja</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Inyección segura de datos JSON (sin advertencias en VS Code) -->
+<script id="raw_operadores_rh" type="application/json">{{ operadores | tojson | safe }}</script>
+
+<script>
+    window.OPERADORES_DATA = JSON.parse(document.getElementById('raw_operadores_rh').textContent || '[]');
+</script>
+
+<!-- ENLACE AL NÚCLEO MODULAR DE EXPEDIENTES RH -->
+<script src="{{ url_for('static', filename='js/perfil_operadores.js') }}?v=1.0"></script>
+{% endblock %}

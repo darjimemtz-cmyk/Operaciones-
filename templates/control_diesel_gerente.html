@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% set active_page = "diesel" %}
+{% block title %}Control Diésel - Gerencia{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================================
+       ESTILOS EXCLUSIVOS: CONTROL DIÉSEL (GERENCIA)
+       ======================================================== */
+    .chofer-name { text-align: left !important; font-weight: bold; color: var(--text-main); }
+    .lts-cell { font-weight: bold; border-radius: 6px; }
+    .celda-descanso { color: var(--text-muted) !important; font-size: 11px; font-style: italic; }
+
+    /* Lupa forense y efecto hover sobre litros */
+    .cell-hover:not(.celda-descanso) { transition: 0.2s; }
+    .cell-hover:not(.celda-descanso):hover { 
+        background: var(--bg-surface-2) !important; 
+        cursor: pointer; 
+        border: 2px solid var(--fng-orange) !important; 
+        transform: scale(1.05); 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+        z-index: 10; 
+        position: relative;
+    }
+
+    /* Modal amplio para desglose forense de viajes */
+    .modal-content-large { 
+        width: 95%; 
+        max-width: 900px; 
+        max-height: 90vh; 
+        overflow-y: auto; 
+        padding: 25px; 
+    }
+
+    /* Interruptor tipo iOS para Aprobación / Retención de Bonos */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; margin-bottom: -5px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { 
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; 
+        background-color: #ef4444; transition: .3s; border-radius: 24px; 
+    }
+    .slider:before { 
+        position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; 
+        background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="margin-top: 10px;">
+    
+    <!-- TOOLBAR PRINCIPAL -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid rgba(0,45,90,0.1); padding-bottom: 15px;">
+        <h3 style="margin:0; color:var(--fng-blue);"><i class="fas fa-chart-line"></i> Dashboard Consolidado Diésel</h3>
+        
+        <div class="glass-pill-container">
+            <button class="glass-pill-btn active-blue" id="btn-diario" onclick="switchVista('diaria')">Diario (Semana)</button>
+            <button class="glass-pill-btn" id="btn-mensual" onclick="switchVista('mensual')">Semanal (Mes)</button>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-action btn-primary" style="background:#8b5cf6; box-shadow: 0 4px 10px rgba(139,92,246,0.3);" onclick="enviarBonosAdmin()"><i class="fas fa-file-pdf"></i> Cerrar Bonos (Miércoles)</button>
+            <button class="btn-action btn-success" onclick="dispararWhatsappPrueba()"><i class="fab fa-whatsapp"></i> Alertas Sandbox</button>
+        </div>
+    </div>
+
+    <!-- TABLA 1: APROBACIONES DE BONO -->
+    <h3 style="color: var(--fng-blue); margin-top: 0;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Resumen Consolidado y Autorización de Bonos</h3>
+    <div class="table-wrapper">
+        <table class="tabla-es" id="tablaGerente">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">Chofer / Nómina</th>
+                    <th class="col-diaria" id="th-MIE">MIÉ</th><th class="col-diaria" id="th-JUE">JUE</th><th class="col-diaria" id="th-VIE">VIE</th><th class="col-diaria" id="th-SÁB">SÁB</th><th class="col-diaria" id="th-DOM">DOM</th><th class="col-diaria" id="th-LUN">LUN</th><th class="col-diaria" id="th-MAR">MAR</th>
+                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
+                    <th>Total Exceso (L)</th><th>Variación (%)</th>
+                    <th style="background:#0f172a;">Bono (Autorizar)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in data %}
+                {% if r.get('FIRMA') == 'SI' %}
+                <tr>
+                    <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S30') or 0)|round(1) }}</td>
+                    <td class="lts-cell" style="border-left:2px solid #cbd5e1; font-size:14px;">{{ (r.get('TOTAL_LTS') or 0)|round(2) }} L</td>
+                    <td class="lts-cell pct-cell" style="font-size:14px;">{{ ((r.get('TOTAL_PCT') or 0) * 100)|round(2) }} %</td>
+                    <td style="border-left: 2px solid #cbd5e1;">
+                        <label class="switch">
+                            <!-- Si la pérdida es menor a 20 (-20L), o es un ahorro (positivo), se aprueba automático. -->
+                            <input type="checkbox" class="bono-toggle" data-chofer="{{ r.get('CHOFER') }}" data-nomina="{{ r.get('NOMINA') }}" data-lts="{{ r.get('TOTAL_LTS') }}" data-pct="{{ r.get('TOTAL_PCT') }}" {% if (r.get('TOTAL_LTS') or 0) >= -20 %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- TABLA 2: SIN FIRMA / DENEGADOS -->
+    <h3 style="color: var(--fng-blue); margin-top: 30px;"><i class="fas fa-exclamation-circle" style="color: #ef4444;"></i> Excepciones / Sin Firma</h3>
+    <div class="table-wrapper">
+        <table class="tabla-es" id="tablaGerenteNoFirmados">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">Chofer / Nómina</th>
+                    <th class="col-diaria" id="th-MIE-2">MIÉ</th><th class="col-diaria" id="th-JUE-2">JUE</th><th class="col-diaria" id="th-VIE-2">VIE</th><th class="col-diaria" id="th-SÁB-2">SÁB</th><th class="col-diaria" id="th-DOM-2">DOM</th><th class="col-diaria" id="th-LUN-2">LUN</th><th class="col-diaria" id="th-MAR-2">MAR</th>
+                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
+                    <th>Total Exceso (L)</th><th>Variación (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in data %}
+                {% if r.get('FIRMA') != 'SI' %}
+                <tr>
+                    <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>
+                    <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S30') or 0)|round(1) }}</td>
+                    <td class="lts-cell" style="border-left:2px solid #cbd5e1; font-size:14px;">{{ (r.get('TOTAL_LTS') or 0)|round(2) }} L</td>
+                    <td class="lts-cell pct-cell" style="font-size:14px;">{{ ((r.get('TOTAL_PCT') or 0) * 100)|round(2) }} %</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL FORENSE DE VIAJES -->
+<div id="modalDetalleViajes" class="modal-overlay">
+    <div class="modal-content-large">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px;">
+            <h3 style="margin: 0; color: var(--fng-blue);"><i class="fas fa-search"></i> Auditoría de Viajes: <span id="mdlDia" style="color: var(--fng-orange);"></span></h3>
+            <button onclick="document.getElementById('modalDetalleViajes').style.display='none'" style="background:none; border:none; font-size:20px; cursor:pointer; color:#ef4444; transition:0.3s;"><i class="fas fa-times"></i></button>
+        </div>
+        <h4 id="mdlChofer" style="color: #64748b; margin-top: 0; margin-bottom: 15px; font-size: 15px;"></h4>
+        
+        <div class="table-wrapper">
+            <table class="tabla-es" id="tablaListaViajes">
+                <thead>
+                    <tr>
+                        <th style="font-size:10px;">FECHA / HORA</th>
+                        <th style="font-size:10px;">ECO</th>
+                        <th style="font-size:10px;">TIPO CARGA / ESTACIÓN</th>
+                        <th style="font-size:10px;">DESTINO</th>
+                        <th style="font-size:10px;">KM (FÍS/GPS)</th>
+                        <th style="font-size:10px;">LTS (FÍS/GPS)</th>
+                        <th style="font-size:10px;">EXCESO LTS</th>
+                        <th style="font-size:10px;">VARIACIÓN %</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Contenedores seguros de datos JSON (sin alertas de VS Code) -->
+<script id="raw_diesel_data" type="application/json">{{ data | tojson | safe }}</script>
+<script id="raw_cabeceras" type="application/json">{{ cabeceras | tojson | safe }}</script>
+
+<script>
+    // Asignación limpia sin choque de sintaxis en el editor
+    window.DIESEL_DATA = JSON.parse(document.getElementById('raw_diesel_data').textContent || '[]');
+    window.CABECERAS_DIN = JSON.parse(document.getElementById('raw_cabeceras').textContent || '{}');
+</script>
+
+<script src="{{ url_for('static', filename='js/diesel.js') }}?v=1.0"></script>
+{% endblock %}

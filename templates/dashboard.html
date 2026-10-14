@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Maestro - FNG</title>
+    
+    <meta name="theme-color" content="#002d5a">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ================= VARIABLES CORPORATIVAS ================= */
+        :root {
+            --fng-blue: #002d5a;
+            --fng-orange: #FF8C00;
+        }
+        * { box-sizing: border-box; }
+        
+        /* ================= FONDO DEGRADADO V4.0 ================= */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #d2e0f0 0%, #eef2f5 50%, #dce5f0 100%);
+            margin: 0;
+            padding: 100px 20px 120px 20px; /* Espacio exacto para que las barras no tapen nada */
+            min-height: 100vh;
+            color: var(--fng-blue);
+        }
+
+        /* ================= BARRA SUPERIOR (BUSCADOR) ================= */
+        .top-bar {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 1200px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 25px;
+            box-shadow: 0 10px 30px rgba(0, 45, 90, 0.1);
+            z-index: 1000;
+        }
+        .brand { font-weight: 700; color: var(--fng-blue); font-size: 20px; display: flex; align-items: center; gap: 10px;}
+        .brand i { color: var(--fng-orange); }
+        
+        .search-container { flex-grow: 1; max-width: 400px; margin: 0 20px; position: relative; }
+        .search-container input {
+            width: 100%; padding: 10px 15px 10px 40px;
+            border-radius: 12px; border: 1px solid rgba(0, 45, 90, 0.2);
+            background: rgba(255, 255, 255, 0.5);
+            font-family: 'Poppins', sans-serif; outline: none;
+            transition: all 0.3s;
+        }
+        .search-container input:focus { border-color: var(--fng-orange); background: #fff; box-shadow: 0 0 10px rgba(255,140,0,0.2); }
+        .search-container i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--fng-blue); opacity: 0.6; }
+        
+        .user-info { display: flex; align-items: center; gap: 15px; font-size: 14px; font-weight: 600;}
+        .btn-logout { background: #dc3545; color: white; padding: 8px 15px; border-radius: 10px; text-decoration: none; transition: 0.3s; }
+        .btn-logout:hover { background: #c82333; }
+
+        /* ================= TARJETAS CENTRALES ================= */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px; max-width: 1200px; margin: 0 auto;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 16px; padding: 25px; text-align: center;
+            text-decoration: none; color: var(--fng-blue);
+            box-shadow: 0 10px 20px rgba(0, 45, 90, 0.05);
+            transition: all 0.3s ease; display: flex; flex-direction: column; justify-content: center;
+            min-height: 140px;
+        }
+        .card:hover {
+            transform: translateY(-5px); border-color: var(--fng-orange);
+            box-shadow: 0 15px 30px rgba(255, 140, 0, 0.15); background: rgba(255, 255, 255, 0.9);
+        }
+        .card i { font-size: 35px; color: var(--fng-blue); margin-bottom: 15px; transition: 0.3s; }
+        .card:hover i { color: var(--fng-orange); }
+        .card h3 { margin: 0 0 8px 0; font-weight: 700; font-size: 18px; }
+        .card p { margin: 0; font-size: 13px; color: #555; }
+
+        /* ================= DOCK INFERIOR (NAVEGACIÓN) ================= */
+        .dock-container {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 45, 90, 0.9); /* Azul FNG Translúcido */
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 10px 20px; border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; gap: 10px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            z-index: 1000; max-width: 95vw; overflow-x: auto;
+        }
+        .dock-item {
+            color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 11px;
+            font-weight: 600; padding: 8px 15px; border-radius: 12px;
+            transition: all 0.3s; display: flex; flex-direction: column; align-items: center; min-width: 75px;
+        }
+        .dock-item:hover { color: #fff; background: rgba(255, 255, 255, 0.1); transform: translateY(-3px); }
+        .dock-item.active { color: var(--fng-orange); background: rgba(255, 140, 0, 0.15); border: 1px solid rgba(255, 140, 0, 0.3); }
+        .dock-icon { font-size: 20px; margin-bottom: 4px; }
+        
+        /* Ajuste para pantallas pequeñas */
+        @media (max-width: 768px) {
+            .top-bar { flex-direction: column; gap: 15px; padding: 15px; }
+            body { padding-top: 170px; }
+            .search-container { width: 100%; max-width: 100%; margin: 0; }
+            .user-info { width: 100%; justify-content: space-between; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand"><i class="fas fa-shield-alt"></i> FNG</div>
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="buscadorGlobal" placeholder="Buscar por operador, fecha o dato..." onkeyup="guardarBusqueda()">
+        </div>
+        <div class="user-info">
+            <span><i class="fas fa-user-circle"></i> {{ usuario }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <a href="{{ url_for('logistica', ruta='cryo') }}" class="card">
+            <i class="fas fa-snowflake"></i>
+            <h3>Línea CRYO</h3><p>Control de asistencia Criogénicos</p>
+        </a>
+        <a href="{{ url_for('logistica', ruta='mml') }}" class="card">
+            <i class="fas fa-truck-moving"></i>
+            <h3>Línea MML</h3><p>Control operativo de unidades MML</p>
+        </a>
+        <a href="{{ url_for('logistica', ruta='co2') }}" class="card">
+            <i class="fas fa-wind"></i>
+            <h3>Línea CO2</h3><p>Asignaciones logísticas de CO2</p>
+        </a>
+        <a href="{{ url_for('logistica', ruta='cardenas') }}" class="card">
+            <i class="fas fa-map-marker-alt"></i>
+            <h3>Base CÁRDENAS</h3><p>Monitoreo logístico de Cárdenas</p>
+        </a>
+        <a href="{{ url_for('recursos_humanos') }}" class="card">
+            <i class="fas fa-id-card"></i>
+            <h3>RH y Herramientas</h3><p>Vigencias de Licencias, Médicos e IMEI</p>
+        </a>
+        <a href="{{ url_for('auditoria_dot') }}" class="card">
+            <i class="fas fa-stopwatch"></i>
+            <h3>Auditoría DOT</h3><p>Control de fatiga y bitácoras</p>
+        </a>
+    </div>
+
+    <div class="dock-container">
+        <a href="{{ url_for('dashboard') }}" class="dock-item active">
+            <span class="dock-icon"><i class="fas fa-chart-pie"></i></span><span>Panel</span>
+        </a>
+        <a href="{{ url_for('logistica', ruta='cryo') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-snowflake"></i></span><span>CRYO</span>
+        </a>
+        <a href="{{ url_for('logistica', ruta='mml') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-truck-moving"></i></span><span>MML</span>
+        </a>
+        <a href="{{ url_for('logistica', ruta='co2') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-wind"></i></span><span>CO2</span>
+        </a>
+        <a href="{{ url_for('logistica', ruta='cardenas') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-map-marker-alt"></i></span><span>CARDENAS</span>
+        </a>
+        <a href="{{ url_for('recursos_humanos') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-id-card"></i></span><span>RH</span>
+        </a>
+        <a href="{{ url_for('auditoria_dot') }}" class="dock-item">
+            <span class="dock-icon"><i class="fas fa-stopwatch"></i></span><span>DOT</span>
+        </a>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let busquedaGuardada = localStorage.getItem('fng_busqueda');
+            if(busquedaGuardada) {
+                document.getElementById('buscadorGlobal').value = busquedaGuardada;
+            }
+        });
+
+        function guardarBusqueda() {
+            let valor = document.getElementById('buscadorGlobal').value;
+            localStorage.setItem('fng_busqueda', valor);
+        }
+    </script>
+</body>
+</html>

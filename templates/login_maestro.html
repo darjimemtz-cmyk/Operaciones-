@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Login - GRUPO FNG</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+
+        :root { --fng-blue: #002d5a; --fng-orange: #002d5a; }
+
+        html, body { font-family: 'Poppins', sans-serif; margin: 0; padding: 0; min-height: 100dvh; display: flex; justify-content: center; align-items: center; box-sizing: border-box; overflow: hidden; background-color: #f4f7f6; }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: auto; filter: blur(10px); opacity: 0.85; }
+
+        .login-card { position: relative; z-index: 10; background: rgba(255, 255, 255, 0.45); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.8); padding: 40px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0, 45, 90, 0.1); width: 90%; max-width: 350px; text-align: center; max-height: 90dvh; overflow-y: auto; box-sizing: border-box; }
+        .login-card::-webkit-scrollbar { display: none; }
+        
+        .logo-container { margin-bottom: 15px; }
+        .logo-container img { width: 70px; margin-bottom: 5px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+        .logo-container h3 { color: var(--fng-orange); margin: 0; font-size: 20px; letter-spacing: 3px; font-weight: 800; }
+        
+        .login-card h2 { color: var(--fng-blue); margin: 5px 0; letter-spacing: 0.5px; font-weight: 600; font-size: 22px; }
+        .login-card p { color: #555; font-size: 13px; margin-bottom: 25px; font-weight: 600; }
+
+        .input-box { position: relative; margin: 35px 0; border-bottom: 2px solid rgba(0, 45, 90, 0.3); }
+        .input-box input { width: 100%; height: 40px; background: transparent; border: none; outline: none; color: var(--fng-blue); font-weight: 600; font-size: 16px; padding: 0 5px; box-sizing: border-box; }
+        .input-box label { position: absolute; top: 50%; left: 5px; transform: translateY(-50%); color: #666; font-size: 15px; pointer-events: none; transition: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .input-box input:focus ~ label, .input-box input:valid ~ label { top: -15px; font-size: 12px; color: var(--fng-blue); font-weight: 700; }
+        .input-box input:focus { border-bottom: 2px solid var(--fng-blue); margin-bottom: -2px; }
+
+        .btn-login { background: var(--fng-blue); color: white; border: none; padding: 15px; width: 100%; font-weight: bold; font-size: 16px; border-radius: 12px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,45,90,0.2); }
+        .btn-login:hover { background: var(--fng-orange); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,140,0,0.3); }
+        .error-msg { background: rgba(220, 53, 69, 0.15); color: #dc3545; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-size: 14px; border: 1px solid rgba(220, 53, 69, 0.3); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo FNG">
+            <h3>GRUPO FNG</h3>
+        </div>
+
+        {% if error %}<div class="error-msg">⚠️ {{ error }}</div>{% endif %}
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <input type="hidden" name="device_token" id="device_token">
+            
+            <div class="input-box"><input type="text" name="usuario" required autocomplete="off"><label>Usuario</label></div>
+            <div class="input-box"><input type="password" name="contrasena" required autocomplete="off"><label>Contraseña o PIN</label></div>
+            <button type="submit" class="btn-login">ENTRAR</button>
+        </form>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('fng_device_token');
+        if(!token) {
+            token = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('fng_device_token', token);
+        }
+        document.getElementById('device_token').value = token;
+
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth; let height = canvas.height = window.innerHeight;
+        const blobs = []; const mouse = { x: null, y: null, radius: 150 };
+        window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+        window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+        window.addEventListener('touchmove', (e) => { if(e.touches.length > 0) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }});
+        window.addEventListener('touchend', () => { mouse.x = null; mouse.y = null; });
+        class LavaBlob {
+            constructor() {
+                this.radius = Math.random() * 120 + 100; this.x = Math.random() * width; this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 1.5; this.vy = (Math.random() - 0.5) * 2.0;
+                this.time = Math.random() * 100; this.timeSpeed = 0.015 + Math.random() * 0.02; 
+                const colors = ['rgba(0, 45, 90, 0.7)', 'rgba(255, 140, 0, 0.65)', 'rgba(0, 76, 145, 0.5)'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy; this.time += this.timeSpeed; 
+                if (this.x - this.radius <= -50 || this.x + this.radius >= width + 50) this.vx *= -1;
+                if (this.y - this.radius <= -50 || this.y + this.radius >= height + 50) this.vy *= -1;
+                if (mouse.x != null && mouse.y != null) {
+                    let dx = this.x - mouse.x; let dy = this.y - mouse.y; let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < mouse.radius + this.radius) { this.x += dx * 0.008; this.y += dy * 0.008; }
+                }
+            }
+            draw() {
+                ctx.beginPath(); let numPoints = 10; let angleStep = (Math.PI * 2) / numPoints; let points = [];
+                for(let i = 0; i < numPoints; i++) {
+                    let angle = i * angleStep; let distorsion = Math.sin(this.time + angle * 2) * (this.radius * 0.25) + Math.cos(this.time * 0.8 + angle * 3) * (this.radius * 0.15);
+                    let r = this.radius + distorsion; points.push({ x: this.x + Math.cos(angle) * r, y: this.y + Math.sin(angle) * r });
+                }
+                ctx.moveTo((points[0].x + points[numPoints-1].x) / 2, (points[0].y + points[numPoints-1].y) / 2);
+                for(let i = 0; i < numPoints; i++) { let next = points[(i + 1) % numPoints]; ctx.quadraticCurveTo(points[i].x, points[i].y, (points[i].x + next.x) / 2, (points[i].y + next.y) / 2); }
+                ctx.closePath(); ctx.fillStyle = this.color; ctx.fill();
+            }
+        }
+        const blobCount = Math.min(10, Math.floor((width * height) / 50000));
+        for (let i = 0; i < blobCount; i++) { blobs.push(new LavaBlob()); }
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < blobs.length; i++) { blobs[i].update(); blobs[i].draw(); }
+            if (mouse.x != null && mouse.y != null) {
+                let radialGradient = ctx.createRadialGradient(mouse.x, mouse.y, 10, mouse.x, mouse.y, mouse.radius);
+                radialGradient.addColorStop(0, 'rgba(0, 45, 90, 0.05)'); radialGradient.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = radialGradient; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2); ctx.fill();
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% set active_page = "historial" %}
+{% block title %}FNG - Historial Auditoría{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================================
+       ESTILOS EXCLUSIVOS: HISTORIAL Y AUDITORÍA DE MOVIMIENTOS
+       ======================================================== */
+    /* 1. SECCIONES DE BÚSQUEDA Y EXPORTACIÓN MASIVA */
+    .filtros-box { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 25px; }
+    .seccion-busqueda { flex: 1; min-width: 250px; }
+    .seccion-masivo { flex: 1.5; min-width: 300px; border-left: 2px dashed var(--border-subtle); padding-left: 25px; }
+
+    /* 2. TABLAS Y FILAS DESTACADAS */
+    .novedad-row td:first-child { border-left: 4px solid #dc3545; }
+    .badge-status { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; color: white; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+    .bg-gray { background: #6c757d; }
+
+    .btn-icon { padding: 8px 12px; font-size: 16px; border-radius: 8px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); cursor: pointer; transition: 0.2s;}
+    .btn-icon:hover { transform: scale(1.08); border-color: var(--fng-orange); }
+    .btn-icon.orange-text { color: var(--fng-orange); }
+    .btn-icon.green-text { color: #10b981; }
+
+    /* 3. TRANSICIONES DE MÓDULOS Y PESTAÑAS */
+    .modulo-app, .tab-content { display: none; }
+    .modulo-app.active, .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* 4. MODALES E INSPECTOR DE DATOS */
+    .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 15px; }
+    .modal-content-local { background: var(--bg-surface); width: 100%; max-width: 800px; border-radius: 16px; padding: 25px; box-shadow: var(--shadow-sm); max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-subtle);}
+
+    .data-box { padding: 12px 15px; border-radius: 8px; background: var(--bg-surface-2); border: 1px solid var(--border-subtle);}
+    .foto-galeria { height: 70vh; max-width: 85vw; object-fit: contain; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+
+    @media (max-width: 768px) {
+        .filtros-box { flex-direction: column; gap: 20px;}
+        .seccion-masivo { border-left: none; padding-left: 0; border-top: 2px dashed var(--border-subtle); padding-top: 20px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="margin-top: 10px;">
+
+    <!-- DOCK PRINCIPAL DE MÓDULOS -->
+    {% if session['rol'] == 'super_usuario' %}
+    <div style="display: flex; justify-content: center; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;">
+        <div class="glass-pill-container">
+            <a href="/historial?base_filtro=TODAS" class="glass-pill-btn {% if base_filtro == 'TODAS' %}active-blue{% endif %}"><i class="fas fa-globe"></i> Todas</a>
+            {% for base in bases_activas %}
+            <a href="/historial?base_filtro={{ base }}" class="glass-pill-btn {% if base_filtro == base %}active-blue{% endif %}"><i class="fas fa-building"></i> {{ base }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- FILTROS Y BÚSQUEDA -->
+    <div class="filtros-box">
+        <div class="seccion-busqueda">
+            <h3 style="margin-top:0; color:var(--fng-blue); font-size:16px;"><i class="fas fa-search"></i> Búsqueda Rápida</h3>
+            <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                <input type="text" id="buscador" class="form-control-local" placeholder="Folio, unidad, placa, nombre..." style="flex: 2;">
+                <div style="flex: 1;">
+                    <input type="date" id="filtro-calendario" class="form-control-local" onchange="viajarEnElTiempo(this.value)" style="width: 100%;">
+                </div>
+            </div>
+            <p style="color: #64748b; font-size: 11px; margin: 0; font-weight:600;">* Mostrando últimas 48h. Usa el calendario para el pasado.</p>
+        </div>
+
+        {% if session['rol'] in ['auxiliar_taller', 'super_usuario', 'gerencia', 'administrador', 'autorizador'] %}
+        <div class="seccion-masivo">
+            <h3 style="margin-top:0; color:var(--fng-blue); font-size:16px;"><i class="fas fa-folder-open"></i> Exportación PDF Turno</h3>
+            <form action="/descargar_masivo" method="GET" style="display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+                <input type="date" name="fecha" class="form-control-local" required style="flex:1; min-width: 130px; margin:0;">
+                <select name="turno" class="form-control-local" style="flex:1; min-width: 150px; margin:0;">
+                    <option value="dia">☀️ Día (07:00)</option>
+                    <option value="noche">🌙 Noche (19:00)</option>
+                </select>
+                <select name="tipo" id="select-tipo-pdf" class="form-control-local" onchange="checkMovimiento(this.value)" style="flex:1.5; min-width: 180px; margin:0;">
+                    <option value="" disabled selected>Formato...</option>
+                    <option value="unidades_fng">🚛 Unidades FNG</option>
+                    <option value="utilitarios">🚗 Vehículos Utilitarios</option>
+                    <option value="alcoholimetro">🧪 Pruebas de Alcohol</option>
+                    <option value="personal_externo">👤 Personal Externo</option>
+                </select>
+                <select name="movimiento" id="select-movimiento-pdf" class="form-control-local" style="display:none; flex:1; color: var(--fng-orange); margin:0;">
+                    <option value="TODOS" style="display:none;"></option>
+                    <option value="ENTRA" selected>📥 ENTRADAS</option>
+                    <option value="SALE">📤 SALIDAS</option>
+                </select>
+                <button type="submit" class="btn-action btn-success" style="margin:0;"><i class="fas fa-download"></i> ZIP</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- DOCK PRINCIPAL DE MÓDULOS -->
+    <div style="display: flex; justify-content: center; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;">
+        <div class="glass-pill-container">
+            <button class="glass-pill-btn active-blue" onclick="abrirModulo('mod-es', this)"><i class="fas fa-exchange-alt"></i> E/S</button>
+            <button class="glass-pill-btn" onclick="abrirModulo('mod-reportes', this)"><i class="fas fa-shield-alt"></i> Reportes</button>
+            <button class="glass-pill-btn" onclick="abrirModulo('mod-pases', this)"><i class="fas fa-ticket-alt"></i> Pases</button>
+            <button class="glass-pill-btn" onclick="abrirModulo('mod-relevos', this)"><i class="fas fa-boxes"></i> Control Físico</button>
+        </div>
+    </div>
+
+    {% macro render_row(r) %}
+    <tr class="{{ 'novedad-row' if r.es_novedad else '' }}">
+        <td style="width: 10%;">
+            <b style="color: var(--fng-orange); font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">{{ r.tipo }}</b>
+        </td>
+        <td style="width: 12%;">
+            <b style="font-size:15px; color:var(--fng-blue);">{{ r.fecha.split(' ')[1][:5] }}</b><br>
+            <span style="color:#64748b; font-size:11px; font-weight:600;">{{ r.fecha.split(' ')[0] }}</span>
+        </td>
+        <td style="width: 25%;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--fng-blue);">
+                {% if r.tipo == 'UNIDAD' %}{{ r.datos.get('operador', 'N/A') }}
+                {% elif r.tipo == 'UTILITARIO' %}{{ r.datos.get('empleado', 'N/A') }}
+                {% elif r.tipo == 'EMPLEADO' %}{{ r.datos.get('nombre_empleado', 'N/A') }}
+                {% elif r.tipo in ['EXTERNO', 'PERSONAL EXTERNO', 'SALIDA EXTERNO'] %}
+                    {% set n = r.datos.get('nombre[]', 'N/A') %}
+                    {{ n | join(' | ') if n is iterable and n is not string else n }}
+                {% elif r.tipo in ['PORTONES', 'RONDINES', 'NOVEDAD'] %}{{ r.datos.get('guardia', r.usuario) }}
+                {% elif r.tipo == 'ENTREGA TURNO' %}{{ r.datos.get('quien_entrega', r.usuario) }}
+                {% else %}{{ r.usuario }}{% endif %}
+            </span>
+            {% if r.datos.get('compania') and r.datos.get('compania') != 'N/A' %}
+                <br><span style="font-size:11px; color:#64748b;"><i class="fas fa-building"></i> {{ r.datos.get('compania') }}</span>
+            {% endif %}
+        </td>
+        <td style="width: 20%;">
+            <span style="font-size: 12px; color: #475569; font-weight: 600;">
+                {% if r.tipo == 'UNIDAD' %}Eco: {{ r.datos.get('unidad', 'N/A') }}
+                {% elif r.tipo == 'UTILITARIO' %}Placa: {{ r.datos.get('placa', 'N/A') }}
+                {% elif r.tipo == 'EMPLEADO' %}Depto: {{ r.datos.get('departamento', 'N/A') }}
+                {% elif r.tipo in ['EXTERNO', 'PERSONAL EXTERNO', 'SALIDA EXTERNO'] %}Motivo: {{ r.datos.get('motivo', 'N/A') }}
+                {% elif r.tipo in ['PORTONES', 'RONDINES', 'NOVEDAD'] %}{{ r.datos.get('incidencia', 'Reporte Operativo') }}
+                {% elif r.tipo == 'ENTREGA TURNO' %}Cambio de Guardia
+                {% else %}Ref: {{ r.datos.get('identificador', 'N/A') }}{% endif %}
+            </span>
+            {% if r.datos.get('movimiento') %}
+                <br><span class="badge-status bg-gray" style="margin-top:4px; font-size:9px;">{{ r.datos.get('movimiento') }}</span>
+            {% endif %}
+        </td>
+        <td style="width: 18%;">
+            {% if r.obs == 'N/A' or r.obs == 'SALIDA REGISTRADA' %}
+                <span style="color: #10b981; font-size:11px; font-weight:bold;"><i class="fas fa-check-circle"></i> S/N</span>
+            {% elif '.jpg' in r.obs|lower or '.png' in r.obs|lower %}
+                <button class="btn-action btn-icon" onclick="abrirGaleria('{{ r.obs }}')" style="padding:4px 8px; font-size:10px;"><i class="fas fa-images"></i> Evi.</button>
+            {% else %}
+                <span style="color: #ef4444; font-size:11px; font-weight:bold;"><i class="fas fa-exclamation-triangle"></i> {{ r.obs[:20] }}...</span>
+            {% endif %}
+            
+            {% if r.datos.get('resultado') or (r.datos.get('resultado_alc_ingreso') and r.datos.get('resultado_alc_ingreso') != 'N/A') %}
+                {% set res = r.datos.get('resultado') or r.datos.get('resultado_alc_ingreso') %}
+                <br><span style="background:{{ '#ef4444' if res == 'POSITIVO' else '#10b981' }}; color:white; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:bold; margin-top:4px; display:inline-block;">Alc: {{ res }}</span>
+            {% endif %}
+        </td>
+        <td style="width: 15%; text-align:center; vertical-align:middle;">
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <button class="btn-action btn-icon" title="Inspector de Datos" data-info="{{ r.datos | tojson | forceescape }}" onclick="abrirDetalle(event, this, '{{ r.tipo }}', '{{ r.fecha }}', '{{ r.obs | replace('\n', ' ') | replace('\"', '') | replace('\'', '') }}', '{{ r.fotos }}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <a href="/descargar_pdf/{{ r.id }}" class="btn-action btn-icon green-text" title="Descargar PDF">
+                    <i class="fas fa-file-pdf"></i>
+                </a>
+            </div>
+        </td>
+    </tr>
+    {% endmacro %}
+
+    <div id="mod-es" class="modulo-app active">
+        <!-- DOCK SUB-FILTROS -->
+        <div style="margin-bottom: 20px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;">
+            <div class="glass-pill-container">
+                <button class="glass-pill-btn active-blue" onclick="verTab(this, 'tab-es-general')"><i class="fas fa-globe"></i> General</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-es-unidades')"><i class="fas fa-truck"></i> Unidades</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-es-utilitarios')"><i class="fas fa-car"></i> Utilitarios</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-es-empleados')"><i class="fas fa-id-badge"></i> Empleados</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-es-externos')"><i class="fas fa-hard-hat"></i> Externos</button>
+            </div>
+        </div>
+        
+        <div id="tab-es-general" class="tab-content active">
+            <div class="table-wrapper">
+                <table id="tabla-general">
+                    <thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                    <tbody>
+                        {% for r in registros if r.tipo in ['UNIDAD', 'UTILITARIO', 'EXTERNO', 'EMPLEADO'] %}{{ render_row(r) }}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-es-unidades" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'UNIDAD' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-es-utilitarios" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'UTILITARIO' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-es-empleados" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'EMPLEADO' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-es-externos" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo in ['EXTERNO', 'PERSONAL EXTERNO', 'SALIDA EXTERNO'] %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="mod-reportes" class="modulo-app">
+        <!-- DOCK SUB-FILTROS -->
+        <div style="margin-bottom: 20px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;">
+            <div class="glass-pill-container">
+                <button class="glass-pill-btn active-blue" onclick="verTab(this, 'tab-rep-alertas')"><i class="fas fa-exclamation-circle"></i> Novedad</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-rep-portones')"><i class="fas fa-torii-gate"></i> Portones</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-rep-rondines')"><i class="fas fa-shoe-prints"></i> Rondines</button>
+            </div>
+        </div>
+
+        <div id="tab-rep-alertas" class="tab-content active">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.es_novedad %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-rep-portones" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'PORTONES' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-rep-rondines" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'RONDINES' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="mod-pases" class="modulo-app">
+        <h3 style="margin-top:0; color:var(--fng-blue);"><i class="fas fa-history"></i> Trazabilidad de Pases Autorizados</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead><tr><th>Empleado</th><th>Estado</th><th>Autorizó</th><th>Salida Real</th><th style="text-align:center;">Oficial</th></tr></thead>
+                <tbody>
+                    {% for ph in historial_pases_lista %}
+                    <tr>
+                        <td style="vertical-align: middle;"><b style="color:var(--fng-blue); font-size:14px;">{{ ph[2] }}</b><br><span style="font-size:11px; color:#64748b;">No. {{ ph[3] }}</span></td>
+                        <td style="vertical-align: middle;"><b style="color: {{ '#10b981' if ph[9] == 'AUTORIZADO' or ph[9] == 'SALIDA_CONFIRMADA' else '#ef4444' }}">{{ ph[9] }}</b></td>
+                        <td style="vertical-align: middle;">{{ ph[11] }}</td>
+                        <td style="font-weight:bold; vertical-align: middle;">{{ ph[12] if ph[12] else '---' }}</td>
+                        <td style="text-align:center; vertical-align: middle;">
+                            {% if ph[9] == 'SALIDA_CONFIRMADA' %}
+                            <a href="/descargar_pase_pdf/{{ ph[0] }}" class="btn-action btn-icon orange-text"><i class="fas fa-file-signature"></i></a>
+                            {% else %}
+                            <span class="form-control-local" style="color:#94a3b8; font-size:11px; font-weight:bold; padding:8px 12px; display:inline-block; width:auto; margin:0;"><i class="fas fa-hourglass-half"></i></span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;">Bandeja limpia.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="mod-relevos" class="modulo-app">
+        <!-- DOCK SUB-FILTROS -->
+        <div style="margin-bottom: 20px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;">
+            <div class="glass-pill-container">
+                <button class="glass-pill-btn active-blue" onclick="verTab(this, 'tab-rel-turnos')"><i class="fas fa-clipboard-list"></i> Resguardos</button>
+                <button class="glass-pill-btn" onclick="verTab(this, 'tab-rel-herramientas')"><i class="fas fa-file-signature"></i> Vales de Herramienta</button>
+            </div>
+        </div>
+
+        <div id="tab-rel-turnos" class="tab-content active">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'ENTREGA TURNO' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+
+        <div id="tab-rel-herramientas" class="tab-content">
+            <div class="table-wrapper">
+                <table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Nombre</th><th>Referencia</th><th>Estado</th><th style="text-align:center;">Acciones</th></tr></thead>
+                <tbody>{% for r in registros if r.tipo == 'HERRAMIENTAS' or r.tipo == 'VALE HERRAMIENTA' %}{{ render_row(r) }}{% endfor %}</tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Inspector de Lectura -->
+<div id="modal-detalle" class="modal" onclick="cerrarDetalle(event)">
+    <div class="modal-content-local" style="max-width: 800px; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center; border-bottom: 2px solid #cbd5e1; padding-bottom:10px;">
+            <h3 id="det-titulo" style="color:var(--fng-blue); margin:0; font-size:16px;"><i class="fas fa-search"></i> Auditoría Operativa</h3>
+            <button class="btn-action btn-icon red-text" onclick="cerrarDetalle(event, true)" style="border:none;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; overflow-y: auto; padding-right: 5px;">
+            <div style="flex: 1.5; min-width: 300px;">
+                <div style="margin-bottom:15px;">
+                    <span class="form-control-local" style="padding: 6px 12px; font-size:12px; font-weight:bold; color:var(--fng-blue); display:inline-block; width:auto; margin:0;" id="det-fecha"></span>
+                </div>
+                
+                <div id="det-grid" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                
+                <div id="det-obs-container" style="margin-top:20px; display:none;">
+                    <h4 style="color:var(--fng-orange); margin-bottom:8px; font-size:12px; text-transform:uppercase;"><i class="fas fa-comment-dots"></i> Observaciones Oficiales</h4>
+                    <div id="det-obs" class="form-control-local" style="color:#ef4444; font-weight:600; font-size:13px; line-height:1.5;"></div>
+                </div>
+            </div>
+
+            <div id="det-media-pane" style="flex: 1; min-width: 250px; display: none; flex-direction: column; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; height: fit-content;">
+                <h4 style="color:var(--fng-blue); margin:0 0 15px 0; font-size:13px; text-transform:uppercase; text-align:center;"><i class="fas fa-camera"></i> Evidencia Gráfica</h4>
+                <div id="det-fotos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; justify-items: center;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Galería -->
+<div id="modal-galeria" class="modal" onclick="cerrarGaleria(event)">
+    <div style="max-width: 90vw; padding:20px;" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
+            <h3 style="color:white; margin:0; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="fas fa-camera"></i> Evidencias Capturadas</h3>
+            <button class="btn-action btn-icon red-text" onclick="cerrarGaleria()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="contenedor-fotos-galeria" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; snap-type: x mandatory; align-items: center;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- ENLACE AL NÚCLEO MODULAR DE HISTORIAL Y AUDITORÍA -->
+<script src="{{ url_for('static', filename='js/historial_auditoria.js') }}?v=1.0"></script>
+{% endblock %}
