@@ -4,25 +4,25 @@
 
 /* 1. DICCIONARIO DE VARIABLES Y TOKENS DE COLOR */
 :root {
-    /* Identidad de Marca Institucional */
+    /* Identidad de Marca Institucional y Criogénica */
     --fng-blue: #002d5a;
     --fng-blue-deep: #001f3f;
     --fng-orange: #FF8C00;
     --fng-cyan: #0284c7;
     --fng-cyan-glow: #38bdf8;
 
-    /* Tema Claro (Ergonomía Diurna: Blanco Pizarra / Niebla) */
-    --bg-body: linear-gradient(135deg, #d2e0f0 0%, #eef2f5 50%, #dce5f0 100%);
+    /* Tema Claro (Ergonomía Diurna: Gris Pizarra Suave / Blanco Puro) */
+    --bg-body: #f8fafc;
     --bg-surface: #ffffff;
-    --bg-surface-2: #f8fafc;
-    --bg-surface-hover: #f1f5f9;
-    --text-main: #002d5a;
+    --bg-surface-2: #f1f5f9;
+    --bg-surface-hover: #e2e8f0;
+    --text-main: #0f172a;
     --text-muted: #64748b;
-    --border-subtle: #cbd5e1;
-    --border-light: #e2e8f0;
-    --shadow-sm: 0 4px 15px rgba(0, 45, 90, 0.05);
-    --shadow-md: 0 10px 30px rgba(0, 45, 90, 0.1);
-    --input-bg: rgba(255, 255, 255, 0.85);
+    --border-subtle: #e2e8f0;
+    --border-light: #cbd5e1;
+    --shadow-sm: 0 2px 8px rgba(0, 45, 90, 0.04);
+    --shadow-md: 0 10px 25px rgba(0, 45, 90, 0.08);
+    --input-bg: #ffffff;
 
     /* Semáforos Operativos (Diurnos) */
     --status-green: #10b981;
@@ -36,28 +36,33 @@
 }
 
 body.dark-mode {
-    /* Tema Oscuro (Ergonomía Nocturna: Azul Marino Medianoche Industrial) */
-    --bg-body: linear-gradient(135deg, #070d1e 0%, #0b132b 50%, #0f172a 100%);
-    --bg-surface: #131b2e;         /* Pizarra Marina para Tarjetas y Paneles */
-    --bg-surface-2: #1c2640;       /* Cabeceras de tabla, Docks y Pastillas */
-    --bg-surface-hover: #222f4e;
+    /* Identidad Adaptativa en Oscuro (Azul Eléctrico Criogénico) */
+    --fng-blue: #38bdf8;
+    --fng-blue-deep: #0284c7;
+    --fng-blue-light: #7dd3fc;
+
+    /* Tema Oscuro (Ergonomía Nocturna: Azul Medianoche Criogénico) */
+    --bg-body: #0b132b;
+    --bg-surface: #111a33;         /* Pizarra Marina para Tarjetas y Paneles */
+    --bg-surface-2: #192545;       /* Cabeceras de tabla, Docks y Pastillas */
+    --bg-surface-hover: #22325c;
     --text-main: #f8fafc;          /* Blanco Titanio de alto contraste */
     --text-muted: #94a3b8;         /* Gris Plata suave */
-    --border-subtle: rgba(255, 255, 255, 0.1);
-    --border-light: rgba(255, 255, 255, 0.06);
-    --shadow-sm: 0 6px 20px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 15px 35px rgba(0, 0, 0, 0.6);
-    --input-bg: #0b0f19;
+    --border-subtle: rgba(255, 255, 255, 0.12);
+    --border-light: rgba(255, 255, 255, 0.08);
+    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 12px 30px rgba(0, 0, 0, 0.65);
+    --input-bg: #0f172a;
 
     /* Semáforos Operativos Adaptados a Fondo Oscuro */
     --status-green: #34d399;
-    --status-green-bg: rgba(16, 185, 129, 0.15);
+    --status-green-bg: rgba(16, 185, 129, 0.18);
     --status-yellow: #fbbf24;
-    --status-yellow-bg: rgba(245, 158, 11, 0.15);
+    --status-yellow-bg: rgba(245, 158, 11, 0.18);
     --status-red: #f87171;
-    --status-red-bg: rgba(239, 68, 68, 0.2);
+    --status-red-bg: rgba(239, 68, 68, 0.22);
     --status-purple: #c084fc;
-    --status-purple-bg: rgba(139, 92, 246, 0.2);
+    --status-purple-bg: rgba(139, 92, 246, 0.22);
 }
 
 /* 2. REGLAS BASE Y RESET */
@@ -333,3 +338,169 @@ body.dark-mode select option {
     max-height: 90vh;
     overflow-y: auto;
 }
+
+/* ==========================================================================
+   10. REPARACIONES DE ALTO CONTRASTE Y BLINDAJE EN MODO OSCURO
+   ========================================================================== */
+body.dark-mode a,
+body.dark-mode a[style*="color: var(--fng-blue)"],
+body.dark-mode [style*="color: var(--fng-blue)"],
+body.dark-mode [style*="color:var(--fng-blue)"],
+body.dark-mode [style*="color: #002d5a"],
+body.dark-mode [style*="color:#002d5a"] {
+    color: #38bdf8 !important;
+}
+
+/* Buscador en modo oscuro */
+body.dark-mode .search-bar,
+body.dark-mode .search-bar-slim {
+    background: var(--bg-surface-2) !important;
+    border-color: var(--border-subtle) !important;
+}
+body.dark-mode .search-bar .search-icon,
+body.dark-mode .search-bar-slim .search-icon {
+    color: #94a3b8 !important;
+}
+body.dark-mode .search-bar input,
+body.dark-mode .search-bar-slim input {
+    color: #f8fafc !important;
+}
+
+/* Pestañas y Docks en modo oscuro */
+body.dark-mode .tab-pill-btn,
+body.dark-mode .sub-dock-btn,
+body.dark-mode .glass-pill-btn {
+    color: #94a3b8 !important;
+}
+body.dark-mode .tab-pill-btn.active,
+body.dark-mode .sub-dock-btn.active,
+body.dark-mode .glass-pill-btn.active {
+    background: #192545 !important;
+    color: var(--fng-orange) !important;
+    border: 1px solid rgba(255, 140, 0, 0.4) !important;
+}
+
+/* Neutralizar pantallas blancas en contenedores, predictivo y gráficas */
+body.dark-mode div[style*="background: white"],
+body.dark-mode div[style*="background:white"],
+body.dark-mode div[style*="background: #ffffff"],
+body.dark-mode div[style*="background:#ffffff"],
+body.dark-mode div[style*="background: #fff"],
+body.dark-mode div[style*="background:#fff"],
+body.dark-mode div[style*="background-color: white"],
+body.dark-mode div[style*="background-color: #fff"],
+body.dark-mode div[style*="background-color: #ffffff"],
+body.dark-mode div[style*="background: #f8fafc"],
+body.dark-mode div[style*="background:#f8fafc"],
+body.dark-mode div[style*="background-color: #f8fafc"],
+body.dark-mode div[style*="background: #f1f5f9"],
+body.dark-mode div[style*="background:#f1f5f9"],
+body.dark-mode div[style*="background-color: #f1f5f9"] {
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+/* Columnas y tarjetas del Predictivo */
+body.dark-mode [class*="col-predictivo"],
+body.dark-mode [class*="columna"],
+body.dark-mode .col-dia,
+body.dark-mode [id*="predictivo"] > div {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-subtle) !important;
+    color: var(--text-main) !important;
+}
+
+/* Textos secundarios legibles (Equidad y Predictivo) */
+body.dark-mode [style*="color: #64748b"],
+body.dark-mode [style*="color:#64748b"],
+body.dark-mode [style*="color: #475569"],
+body.dark-mode [style*="color:#475569"],
+body.dark-mode [style*="color: #334155"],
+body.dark-mode [style*="color:#334155"] {
+    color: #94a3b8 !important;
+}
+
+/* Badges de Favoritismo y Alertas en Equidad */
+body.dark-mode [style*="background: #fef3c7"],
+body.dark-mode [style*="background:#fef3c7"],
+body.dark-mode [style*="background: #fffbeb"],
+body.dark-mode [style*="background:#fffbeb"] {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fbbf24 !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Inputs numéricos en Torre de Control */
+body.dark-mode input[type="number"],
+body.dark-mode input.input-unidades {
+    background: #0f172a !important;
+    color: #38bdf8 !important;
+    border: 1.5px solid var(--fng-orange) !important;
+    font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   11. COMPONENTES CENTRALIZADOS: TORRE DE CONTROL Y PREDICTIVO SLP
+   ========================================================================== */
+.controls-acumulado { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: nowrap; gap: 15px; }
+.date-controls-acumulado { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; width: auto; }
+.date-controls-acumulado .btn { width: auto; padding: 8px 16px; font-size: 13px; white-space: nowrap; margin: 0; }
+.date-controls-acumulado input { width: 150px; display: inline-block; text-align: center; font-size: 13px; padding: 7px 10px; margin: 0; }
+
+.btn-save-meta { background: var(--fng-orange); color: white; margin-top: 10px; width: 100%; justify-content: center; box-shadow: 0 4px 10px rgba(255,140,0,0.3); transition: transform 0.2s; border: none; padding: 10px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btn-save-meta:hover { transform: translateY(-2px); }
+
+.bloque-title-bar { background: var(--bg-surface-2); padding: 10px 20px; border-radius: 8px 8px 0 0; margin-bottom: 0; font-weight: 700; display: inline-block; color: var(--text-main); margin-top: 20px; border: 1px solid var(--border-subtle); border-bottom: none; }
+.bloque-title-bar.bloque-cryo { background: var(--fng-orange); color: #ffffff; border-color: var(--fng-orange); }
+th.th-cryo { background: #ea580c !important; color: #ffffff !important; }
+
+.sim-grid-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: start; width: 100%; }
+.sim-grid-layout > div { min-width: 0; box-sizing: border-box; }
+.sim-box-panel { border: 1px solid var(--border-subtle); border-radius: 10px; padding: 15px; background: var(--bg-surface); }
+
+.sim-input-box { width: 60px; padding: 5px; text-align: center; border: 2px solid var(--fng-orange); border-radius: 6px; font-weight: bold; color: var(--text-main); background: var(--input-bg); outline: none; transition: 0.3s; }
+.sim-input-box:focus { box-shadow: 0 0 8px rgba(255, 140, 0, 0.4); }
+
+.row-label-cell { text-align: left; font-weight: 600; background: var(--bg-surface-2); color: var(--text-main); }
+.val-negativo { background: #fee2e2; color: #dc3545; font-weight: 700; }
+.val-positivo { color: #10b981; font-weight: 700; }
+body.dark-mode .val-negativo { background: rgba(239, 68, 68, 0.22) !important; color: #f87171 !important; }
+body.dark-mode .val-positivo { color: #34d399 !important; }
+
+/* Sub-Docks */
+.sub-dock-shelf { display: flex; justify-content: flex-start; margin-bottom: 20px; margin-top: -5px; }
+.sub-dock-pill { display: inline-flex; background: var(--bg-surface-2); padding: 4px; border-radius: 12px; border: 1px solid var(--border-subtle); }
+.sub-dock-pill-btn { padding: 6px 20px; border-radius: 8px; border: none; background: transparent; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.sub-dock-pill-btn.active { background: var(--bg-surface); color: var(--fng-orange); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid var(--border-subtle); }
+
+/* Celdas interactivas Radar */
+.cell-interactive-drill { cursor: pointer; transition: all 0.2s ease; position: relative; }
+.cell-interactive-drill:hover { background: rgba(255, 140, 0, 0.15) !important; transform: scale(1.08); font-weight: 800; border-radius: 4px; box-shadow: 0 0 10px rgba(255,140,0,0.4); z-index: 10; color: var(--fng-orange); }
+
+/* Predictivo Cards y Gráficas */
+.card-grafica-pred { background: var(--bg-surface); padding: 15px; border-radius: 10px; border: 1px solid var(--border-subtle); margin-bottom: 20px; color: var(--text-main); }
+.predictivo-card { background: var(--bg-surface); border-radius: 10px; padding: 10px; border-left: 5px solid var(--border-subtle); box-shadow: var(--shadow-sm); display: flex; align-items: flex-start; gap: 8px; transition: transform 0.2s; color: var(--text-main); }
+.predictivo-card:hover { transform: translateY(-2px); }
+.predictivo-card.blue { border-left-color: #3b82f6; }
+.predictivo-card.yellow { border-left-color: #eab308; }
+.predictivo-card.red { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+body.dark-mode .predictivo-card.red { background: rgba(239, 68, 68, 0.2); }
+.predictivo-card.orange { border-left-color: #f97316; }
+
+/* Contenedor de columnas de 15 días */
+#gridPredictivo .col-dia-pred { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; color: var(--text-main); }
+
+/* Auditoría de Equidad */
+.equidad-header-box { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+.badge-favoritismo { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; }
+
+/* Modal Drilldown */
+.modal-drill-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(7, 13, 30, 0.65); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 4000; }
+.modal-drill-box { background: var(--bg-surface); padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; box-shadow: var(--shadow-md); border: 1px solid var(--border-subtle); max-height: 80vh; display: flex; flex-direction: column; color: var(--text-main); }
+.drill-list { overflow-y: auto; flex-grow: 1; margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+.drill-item { padding: 12px; border-radius: 10px; background: var(--bg-surface-2); border-left: 4px solid var(--fng-blue); display: flex; justify-content: space-between; align-items: center; color: var(--text-main); }
+.drill-item.smart { border-left-color: #10b981; background: rgba(16, 185, 129, 0.12); }
+
+/* Ajustes Responsive */
+@media (max-width: 900px) { .sim-grid-layout { grid-template-columns: 1fr; } }
