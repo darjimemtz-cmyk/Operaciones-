@@ -82,15 +82,15 @@
             <tbody>
                 {% for r in data %}
                 {% if r.get('FIRMA') == 'SI' %}
-                <tr>
+                <tr data-chofer="{{ r.get('CHOFER', '') | forceescape }}">
                     <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>
@@ -126,15 +126,15 @@
             <tbody>
                 {% for r in data %}
                 {% if r.get('FIRMA') != 'SI' %}
-                <tr>
+                <tr data-chofer="{{ r.get('CHOFER', '') | forceescape }}">
                     <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>

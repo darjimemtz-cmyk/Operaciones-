@@ -17,6 +17,14 @@
     .badge-status { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; color: white; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
     .bg-gray { background: #6c757d; }
 
+    /* SEMÁFOROS Y BADGES LIMPIOS */
+    .badge-alc { color: white; padding: 3px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-top: 4px; display: inline-block; }
+    .badge-alc-pos { background: #ef4444; }
+    .badge-alc-neg { background: #10b981; }
+
+    .pase-status-ok { color: #10b981; }
+    .pase-status-bad { color: #ef4444; }
+
     .btn-icon { padding: 8px 12px; font-size: 16px; border-radius: 8px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); cursor: pointer; transition: 0.2s;}
     .btn-icon:hover { transform: scale(1.08); border-color: var(--fng-orange); }
     .btn-icon.orange-text { color: var(--fng-orange); }
@@ -156,12 +164,18 @@
             
             {% if r.datos.get('resultado') or (r.datos.get('resultado_alc_ingreso') and r.datos.get('resultado_alc_ingreso') != 'N/A') %}
                 {% set res = r.datos.get('resultado') or r.datos.get('resultado_alc_ingreso') %}
-                <br><span style="background:{{ '#ef4444' if res == 'POSITIVO' else '#10b981' }}; color:white; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:bold; margin-top:4px; display:inline-block;">Alc: {{ res }}</span>
+                <br><span class="badge-alc {% if res == 'POSITIVO' %}badge-alc-pos{% else %}badge-alc-neg{% endif %}">Alc: {{ res }}</span>
             {% endif %}
         </td>
         <td style="width: 15%; text-align:center; vertical-align:middle;">
             <div style="display:flex; justify-content:center; gap:10px;">
-                <button class="btn-action btn-icon" title="Inspector de Datos" data-info="{{ r.datos | tojson | forceescape }}" onclick="abrirDetalle(event, this, '{{ r.tipo }}', '{{ r.fecha }}', '{{ r.obs | replace('\n', ' ') | replace('\"', '') | replace('\'', '') }}', '{{ r.fotos }}')">
+                <button class="btn-action btn-icon" title="Inspector de Datos" 
+                        data-info="{{ r.datos | tojson | forceescape }}" 
+                        data-tipo="{{ r.tipo }}" 
+                        data-fecha="{{ r.fecha }}" 
+                        data-obs="{{ r.obs | replace('\n', ' ') | forceescape }}" 
+                        data-fotos="{{ r.fotos }}" 
+                        onclick="abrirDetalle(event, this, this.dataset.tipo, this.dataset.fecha, this.dataset.obs, this.dataset.fotos)">
                     <i class="fas fa-eye"></i>
                 </button>
                 <a href="/descargar_pdf/{{ r.id }}" class="btn-action btn-icon green-text" title="Descargar PDF">
@@ -265,7 +279,7 @@
                     {% for ph in historial_pases_lista %}
                     <tr>
                         <td style="vertical-align: middle;"><b style="color:var(--fng-blue); font-size:14px;">{{ ph[2] }}</b><br><span style="font-size:11px; color:#64748b;">No. {{ ph[3] }}</span></td>
-                        <td style="vertical-align: middle;"><b style="color: {{ '#10b981' if ph[9] == 'AUTORIZADO' or ph[9] == 'SALIDA_CONFIRMADA' else '#ef4444' }}">{{ ph[9] }}</b></td>
+                        <td style="vertical-align: middle;"><b class="{% if ph[9] in ['AUTORIZADO', 'SALIDA_CONFIRMADA'] %}pase-status-ok{% else %}pase-status-bad{% endif %}">{{ ph[9] }}</b></td>
                         <td style="vertical-align: middle;">{{ ph[11] }}</td>
                         <td style="font-weight:bold; vertical-align: middle;">{{ ph[12] if ph[12] else '---' }}</td>
                         <td style="text-align:center; vertical-align: middle;">
@@ -346,7 +360,7 @@
             <h3 style="color:white; margin:0; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="fas fa-camera"></i> Evidencias Capturadas</h3>
             <button class="btn-action btn-icon red-text" onclick="cerrarGaleria()"><i class="fas fa-times"></i></button>
         </div>
-        <div id="contenedor-fotos-galeria" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; snap-type: x mandatory; align-items: center;"></div>
+        <div id="contenedor-fotos-galeria" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; scroll-snap-type: x mandatory; align-items: center;"></div>
     </div>
 </div>
 {% endblock %}

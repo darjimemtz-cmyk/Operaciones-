@@ -253,7 +253,7 @@
                 
                 <span onclick="toggleDropdown('dropNotifTop')" style="position: relative; cursor: pointer; margin-right: 10px; font-size: 20px; color: var(--text-main); transition: 0.3s;" title="Notificaciones">
                     <i class="fas fa-bell"></i>
-                    <span class="badge" id="mainBadge" style="position: absolute; top: -6px; right: -8px; display:{% if total_alertas > 0 %}inline-block{% else %}none{% endif %};">{{ total_alertas }}</span>
+                    <span class="badge {% if total_alertas == 0 %}badge-oculto{% endif %}" id="mainBadge" style="position: absolute; top: -6px; right: -8px;">{{ total_alertas }}</span>
                 </span>
                 
                 <div id="dropNotifTop" class="dropdown-panel">
@@ -266,7 +266,12 @@
                         <!-- 1. SOLICITUDES DE AUTORIZACIÓN (EXCLUSIVO JEFE OP) -->
                         {% if rol == 'jefe_op' %}
                             {% for s in solicitudes_globales %}
-                                <div class="notif-card req" id="req-card-{{ s.id }}" style="cursor: pointer;" onclick='abrirModalSolicitudDetalle({{ s.id }}, "revisar", {{ s.datos | tojson | safe }}, "{{ s.usuario }}", "{{ s.fecha }}")'>
+                                <div class="notif-card req" id="req-card-{{ s.id }}" style="cursor: pointer;" 
+                                     data-id="{{ s.id }}" 
+                                     data-usuario="{{ s.usuario }}" 
+                                     data-fecha="{{ s.fecha }}" 
+                                     data-info="{{ s.datos | tojson | forceescape }}" 
+                                     onclick="abrirModalSolicitudDetalle(Number(this.dataset.id), 'revisar', JSON.parse(this.dataset.info), this.dataset.usuario, this.dataset.fecha)">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                         <b style="color: var(--fng-orange);"><i class="fas fa-clock"></i> Solicitud Pendiente</b>
                                         <span style="font-size: 10px; color: var(--text-muted);">{{ s.fecha }}</span>
@@ -283,7 +288,11 @@
 
                         <!-- 2. HISTORIAL DE AVISOS Y NOTIFICACIONES GENERALES -->
                         {% for n in notificaciones_globales %}
-                            <div id="notif-{{ n.id }}" class="notif-card {% if n.leida == 0 %}unread{% endif %}" style="cursor: pointer;" onclick="abrirAviso({{ n.id }}, '{{ n.fecha }}', '{{ n.msj | replace('\'', '\\\'') }}')">
+                            <div id="notif-{{ n.id }}" class="notif-card {% if n.leida == 0 %}unread{% endif %}" style="cursor: pointer;" 
+                                 data-id="{{ n.id }}" 
+                                 data-fecha="{{ n.fecha }}" 
+                                 data-msj="{{ n.msj | forceescape }}" 
+                                 onclick="abrirAviso(Number(this.dataset.id), this.dataset.fecha, this.dataset.msj)">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                                     <b style="color: var(--text-main); font-size: 11px;"><i class="fas fa-info-circle" style="color: #38bdf8;"></i> Aviso</b>
                                     <span style="font-size: 10px; color: var(--text-muted);">{{ n.fecha }}</span>

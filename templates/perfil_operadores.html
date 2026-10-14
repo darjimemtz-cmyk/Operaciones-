@@ -201,7 +201,7 @@
                     
                     {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
                     <td class="sticky-col-acc">
-                        <button class="btn-action" title="Editar Ficha Completa" onclick='abrirModalEditarCompleto({{ op | tojson | safe }})'><i class="fas fa-edit"></i></button>
+                        <button class="btn-action" title="Editar Ficha Completa" data-op='{{ op | tojson | safe }}' onclick="abrirModalEditarCompleto(JSON.parse(this.dataset.op))"><i class="fas fa-edit"></i></button>
                         <button class="btn-action red" title="Dar de Baja" onclick="confirmarBaja('{{ op.id }}', '{{ op.nombre }}')"><i class="fas fa-trash"></i></button>
                     </td>
                     {% endif %}

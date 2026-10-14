@@ -23,6 +23,18 @@
     
     /* CONGELAMIENTO BIDIRECCIONAL (STICKY CABECERAS Y COLUMNAS) */
     table thead th { position: sticky; top: 0; z-index: 10; }
+    
+    /* CABECERAS DE FECHAS DESACOPLADAS */
+    .th-fecha { padding: 6px 4px; text-align: center; font-size: 11px; line-height: 1.2; border: 1px solid #cbd5e1; background: var(--fng-blue, #002d5a); }
+    .th-fecha.es-fin-semana { background: #073b6f; }
+    .th-fecha.es-hoy { background: #e0f2fe; }
+
+    .th-fecha .dia-nombre { display: block; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #ffffff; }
+    .th-fecha.es-fin-semana .dia-nombre { color: var(--fng-orange, #ea580c); }
+    .th-fecha.es-hoy .dia-nombre { color: var(--fng-blue, #002d5a); }
+
+    .th-fecha .dia-formato { font-size: 11.5px; font-weight: 800; color: #ffffff; }
+    .th-fecha.es-hoy .dia-formato { color: var(--fng-blue, #002d5a); }
     .sticky-col-header { position: sticky; left: 0; top: 0; z-index: 12 !important; background: var(--fng-blue) !important; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); min-width: 155px; max-width: 155px; }
     
     .sticky-col-resumen { 
@@ -194,13 +206,9 @@
                 <tr>
                     <th class="sticky-col-header" style="text-align: center;">Operador</th>
                     {% for f in fechas %}
-                    <th class="{% if f.es_hoy %}es-hoy{% endif %}" style="background: {% if f.es_hoy %}#e0f2fe{% elif f.es_fin_semana %}#073b6f{% else %}var(--fng-blue, #002d5a){% endif %}; padding: 6px 4px; text-align: center; font-size: 11px; line-height: 1.2; border: 1px solid #cbd5e1;">
-                        <span style="display: block; font-size: 9.5px; font-weight: 800; color: {% if f.es_hoy %}var(--fng-blue, #002d5a){% elif f.es_fin_semana %}var(--fng-orange, #ea580c){% else %}#ffffff{% endif %}; letter-spacing: 0.5px; text-transform: uppercase;">
-                            {{ f.dia_nombre }}
-                        </span>
-                        <span style="font-size: 11.5px; font-weight: 800; color: {% if f.es_hoy %}var(--fng-blue, #002d5a){% else %}#ffffff{% endif %};">
-                            {{ f.formato_corto }}
-                        </span>
+                    <th class="th-fecha {% if f.es_hoy %}es-hoy{% endif %} {% if f.es_fin_semana %}es-fin-semana{% endif %}">
+                        <span class="dia-nombre">{{ f.dia_nombre }}</span>
+                        <span class="dia-formato">{{ f.formato_corto }}</span>
                     </th>
                     {% endfor %}
                 </tr>
@@ -245,7 +253,7 @@
                     {% for i in range(fechas|length) %}
                     {% set puede_editar = (rol in ['jefe_op', 'super_usuario']) or (rol in ['aux_dot', 'supervisor'] and fechas[i].string >= hoy_str) %}
                     <td class="{% if puede_editar %}cell-hover{% endif %} {% if fechas[i].es_hoy %}es-hoy{% endif %} bg-{{ op.dias[i] }}" 
-                        {% if puede_editar %} onclick="manejarClicCelda({{ op.id }}, '{{ op.nombre }}', '{{ fechas[i].string }}', '{{ op.dias[i] }}', this)" {% endif %}>
+                        {% if puede_editar %} onclick="manejarClicCelda(Number('{{ op.id }}'), '{{ op.nombre }}', '{{ fechas[i].string }}', '{{ op.dias[i] }}', this)" {% endif %}>
                         
                         {% set texto_celda = op.dias[i]|replace('TR', '') if op.dias[i].startswith('TR') else op.dias[i] %}
                         
@@ -451,7 +459,7 @@
 {% block scripts %}
 <!-- Inyección segura de datos desde Python a JSON plano -->
 <script id="raw_sabana_operadores" type="application/json">{{ todos_operadores | tojson | safe }}</script>
-<script id="raw_sabana_config" type="application/json">{"rol": {{ rol | tojson | safe }}, "hoy_str": {{ hoy_str | tojson | safe }}}</script>
+<script id="raw_sabana_config" type="text/plain">{{ {"rol": rol, "hoy_str": hoy_str} | tojson | safe }}</script>
 
 <script>
     // Asignación limpia sin choque de sintaxis en el editor

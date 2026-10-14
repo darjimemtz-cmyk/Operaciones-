@@ -116,10 +116,15 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Contenedores seguros de datos JSON (sin alertas de VS Code) -->
+<script id="raw_diesel_data" type="application/json">{{ data | tojson | safe }}</script>
+<script id="raw_cabeceras" type="application/json">{{ cabeceras | tojson | safe }}</script>
+
 <script>
-    // Inyección limpia de datos desde Python a JavaScript
-    window.DIESEL_DATA = {{ data | tojson | safe }};
-    window.CABECERAS_DIN = {{ cabeceras | tojson | safe }};
+    // Asignación limpia sin choque de sintaxis en el editor
+    window.DIESEL_DATA = JSON.parse(document.getElementById('raw_diesel_data').textContent || '[]');
+    window.CABECERAS_DIN = JSON.parse(document.getElementById('raw_cabeceras').textContent || '{}');
 </script>
+
 <script src="{{ url_for('static', filename='js/diesel.js') }}?v=1.0"></script>
 {% endblock %}
