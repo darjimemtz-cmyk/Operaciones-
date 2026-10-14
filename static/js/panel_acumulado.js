@@ -649,3 +649,4 @@ function abrirHistorialCliente(index) {
     const modal = document.getElementById('modalClienteHistorial');
     if (modal) modal.style.display = 'flex';
 }
+

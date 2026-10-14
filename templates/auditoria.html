@@ -264,7 +264,7 @@
             </div>
 
             {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
-            <button class="btn-export-pdf" onclick="descargarReporteDOT()" title="Exportar Reporte Mensual">
+            <button class="btn-export-pdf" onclick="ejecutarDescargaPDF()" title="Exportar Reporte Mensual">
                 <i class="fas fa-file-pdf"></i> <span>Exportar PDF</span>
             </button>
             {% endif %}

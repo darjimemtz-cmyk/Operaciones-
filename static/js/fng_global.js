@@ -36,6 +36,14 @@ window.addEventListener('click', function(e) {
 });
 
 // 2. CONTROL DE APARIENCIA (LIGHT / DARK MODE)
+if (localStorage.getItem('fng_dark_mode') === 'true') { 
+    document.body.classList.add('dark-mode'); 
+    window.addEventListener('DOMContentLoaded', () => {
+        const ts = document.getElementById('theme-switch'); 
+        if (ts) ts.checked = true;
+    });
+}
+
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
@@ -165,6 +173,53 @@ async function enviarPaseGlobal(e) {
     }
 }
 
+async function procesarSolicitud(id, accion) {
+    if (accion === 'rechazar') {
+        idRechazoActivo = id; 
+        const inputMotivo = document.getElementById('motivoRechazoInput');
+        if (inputMotivo) inputMotivo.value = '';
+        const modal = document.getElementById('modalRechazoGlobal');
+        if (modal) modal.style.display = 'flex'; 
+        return;
+    }
+    ejecutarAccion(id, accion, "Sin observaciones");
+}
+
+function enviarRechazoFinal() {
+    const inputMotivo = document.getElementById('motivoRechazoInput');
+    const motivo = inputMotivo ? inputMotivo.value.trim() : '';
+    if (!motivo) { 
+        showToast("⚠️ Ingresa un motivo para el rechazo", "warning"); 
+        return; 
+    }
+    const modal = document.getElementById('modalRechazoGlobal');
+    if (modal) modal.style.display = 'none';
+    ejecutarAccion(idRechazoActivo, 'rechazar', motivo);
+}
+
+async function ejecutarAccion(id, accion, motivo) {
+    try {
+        const res = await fetch('/api/gestionar_solicitud', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({id: id, accion: accion, motivo: motivo})
+        });
+        if (res.ok) { 
+            const card = document.getElementById(`req-card-${id}`); 
+            if (card) {
+                card.style.opacity = '0'; 
+                setTimeout(() => card.remove(), 300); 
+            }
+            actualizarBadge();
+            showToast(accion === 'rechazar' ? "Solicitud rechazada" : "Solicitud procesada", "success"); 
+        } else {
+            showToast("Error al procesar la solicitud", "warning");
+        }
+    } catch(e) {
+        showToast("Error de conexión", "warning");
+    }
+}
+
 function abrirModalSolicitudDetalle(id, accion, datos, usuario, fecha) {
     solActualData = { id: id, accion: accion, datos: datos };
     const titulo = document.getElementById('modalSolTitulo');
@@ -257,4 +312,51 @@ function buscadorGlobal(inputId, selectorTabla) {
             row.style.display = nameCell.textContent.toLowerCase().includes(input) ? '' : 'none'; 
         }
     });
+}
+
+// 7. INICIALIZADOR DEL TEMA OSCURO AL ARRANCAR
+window.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('fng_dark_mode') === 'true') {
+        document.body.classList.add('dark-mode');
+        const ts = document.getElementById('theme-switch');
+        if (ts) ts.checked = true;
+    }
+});
+
+// 8. ENLACE DE RECHAZO PARA EL MODAL GLOBAL
+function enviarRechazoFinal() {
+    const motivoInput = document.getElementById('motivoRechazoInput');
+    const motivo = motivoInput ? motivoInput.value.trim() : '';
+    if (!motivo) { 
+        showToast("⚠️ Ingresa un motivo para el rechazo", "warning"); 
+        return; 
+    }
+    const modal = document.getElementById('modalRechazoGlobal');
+    if (modal) modal.style.display = 'none';
+    if (typeof idRechazoActivo !== 'undefined' && idRechazoActivo) {
+        ejecutarDecisionFinalConMotivo(idRechazoActivo, motivo);
+    }
+}
+
+async function ejecutarDecisionFinalConMotivo(id, motivo) {
+    try {
+        const res = await fetch('/api/gestionar_solicitud', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id, accion: 'rechazar', motivo: motivo })
+        });
+        if (res.ok) {
+            const card = document.getElementById(`req-card-${id}`);
+            if (card) {
+                card.style.opacity = '0';
+                setTimeout(() => card.remove(), 300);
+            }
+            actualizarBadge();
+            showToast("❌ Solicitud rechazada", "success");
+        } else {
+            showToast("⚠️ Error al rechazar solicitud", "warning");
+        }
+    } catch (e) {
+        showToast("Error de conexión al procesar rechazo", "warning");
+    }
 }
