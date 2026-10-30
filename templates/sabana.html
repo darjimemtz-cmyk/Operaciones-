@@ -1,0 +1,1509 @@
+{% extends "base.html" %}
+{% set active_page = linea | lower %}
+
+{% block title %}Torre de Control {{ linea }}{% endblock %}
+
+{% block topbar_left %}
+    <div><i class="fas fa-route" style="color: var(--fng-orange);"></i> Torre de Control {{ linea }}</div>
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
+    .stat-card { background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 4px solid var(--fng-blue); text-align: center; }
+    .stat-card h4 { margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;}
+    .stat-card p { margin: 0; font-size: 24px; font-weight: 700; color: var(--fng-blue); }
+    .alert-red p { color: #dc3545; }
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;}
+    .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px;}
+    .btn-primary { background: var(--fng-blue); color: white; }
+    .btn-light { background: #e2e8f0; color: var(--fng-blue); }
+    
+    table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-size: 12px; font-weight: 700; }
+    th { color: white; }
+    
+    /* CONGELAMIENTO DE CABECERAS Y COLUMNAS */
+    table thead th { position: sticky; top: 0; z-index: 10; }
+    .sticky-col-header { position: sticky; left: 0; top: 0; z-index: 12 !important; background: var(--fng-blue) !important; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); min-width: 155px; max-width: 155px; }
+    
+    .sticky-col-resumen { 
+        position: sticky; 
+        left: 0; 
+        z-index: 4; 
+        background: #e2e8f0 !important; 
+        color: #475569 !important; 
+        font-size: 11px; 
+        font-weight: 900; 
+        text-align: left; 
+        padding-left: 10px !important;
+        border-right: 2px solid #cbd5e1; 
+        box-shadow: 2px 0 5px rgba(0,0,0,0.05); 
+        min-width: 155px; 
+        max-width: 155px; 
+    }
+    .sticky-col-body { 
+        position: sticky; 
+        left: 0; 
+        z-index: 2; 
+        background: white !important; 
+        color: var(--fng-blue) !important; 
+        font-weight: 700; 
+        text-align: left; 
+        border-right: 2px solid #cbd5e1; 
+        box-shadow: 2px 0 5px rgba(0,0,0,0.05); 
+        min-width: 155px; 
+        max-width: 155px; 
+        padding: 3px 5px !important; 
+    }
+
+    /* ========================================================
+       STICKY CASCADA MULTINIVEL CALIBRADO Y 100% OPACO
+       ======================================================== */
+    /* 1. NIVEL 1: CABECERA DE FECHAS */
+    table thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 30 !important;
+        height: 35px !important;
+        box-sizing: border-box;
+        background-clip: padding-box;
+    }
+    .sticky-col-header {
+        position: sticky !important;
+        left: 0 !important;
+        top: 0 !important;
+        z-index: 35 !important;
+        background: var(--fng-blue) !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.15);
+        min-width: 155px;
+        max-width: 155px;
+        background-clip: padding-box;
+    }
+
+    /* 2. NIVEL 2: BARRA AZUL DE BLOQUE (SELLADO A 34PX) */
+    .fila-separador-bloque td {
+        position: sticky !important;
+        top: 34px !important;
+        z-index: 25 !important;
+        background-color: #002244 !important;
+        color: #ffffff !important;
+        padding: 5px 12px !important;
+        border-top: none !important;
+        border-bottom: 1px solid #001833 !important;
+        text-align: left;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.2) !important;
+        height: 28px !important;
+        box-sizing: border-box;
+        background-clip: padding-box;
+    }
+    .bloque-titulo-sticky {
+        position: sticky;
+        left: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #ffffff !important;
+    }
+
+    /* 3. NIVEL 3: FILA RESUMEN DE ACTIVOS (SELLADO A 61PX) */
+    .fila-resumen-bloque td {
+        position: sticky !important;
+        top: 61px !important;
+        z-index: 20 !important;
+        background-color: #f1f5f9 !important;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1) !important;
+        height: 26px !important;
+        box-sizing: border-box;
+        background-clip: padding-box;
+    }
+    .sticky-col-resumen {
+        position: sticky !important;
+        left: 0 !important;
+        top: 61px !important;
+        z-index: 28 !important;
+        background-color: #e2e8f0 !important;
+        color: #1e293b !important;
+        font-size: 11px;
+        font-weight: 900;
+        text-align: left;
+        padding-left: 10px !important;
+        border-right: 2px solid #cbd5e1 !important;
+        min-width: 155px;
+        max-width: 155px;
+        background-clip: padding-box;
+    }
+    .cell-resumen-num {
+        font-weight: 900;
+        color: var(--fng-blue);
+        font-size: 12px;
+        background-color: #ffffff !important;
+        padding: 2px 2px !important;
+        border: 1px solid #cbd5e1 !important;
+        background-clip: padding-box;
+    }
+
+    /* MODO OSCURO */
+    body.dark-mode .fila-separador-bloque td { background-color: #0b1329 !important; border-bottom-color: #1e293b !important; }
+    body.dark-mode .fila-resumen-bloque td { background-color: #0f172a !important; }
+    body.dark-mode .sticky-col-resumen { background-color: #1e293b !important; color: #cbd5e1 !important; border-right-color: #334155 !important; }
+    body.dark-mode .cell-resumen-num { background-color: #1e293b !important; color: #38bdf8 !important; border-color: #334155 !important; }
+
+    /* MODO ASIGNAR ROL (PINCEL RÁPIDO) */
+    .paleta-pincel-container {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        background: #f1f5f9;
+        padding: 3px 8px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        box-sizing: border-box;
+        height: 38px;
+        animation: fadeIn 0.2s ease-in-out;
+    }
+    .pildora-estatus {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: white;
+        color: #475569;
+        user-select: none;
+    }
+    .pildora-estatus:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .pildora-estatus.active {
+        box-shadow: 0 0 0 2px var(--fng-blue);
+        transform: scale(1.05);
+        border-color: var(--fng-blue);
+    }
+    .modo-pincel-activo table td.cell-hover {
+        cursor: crosshair !important;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-3px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    body.dark-mode .paleta-pincel-container { background: #1e293b; border-color: #334155; }
+    body.dark-mode .pildora-estatus { background: #0f172a; color: #cbd5e1; }
+
+    /* CONTENEDOR COMPACTO DEL OPERADOR (ALTA DENSIDAD) */
+    .op-name-container { 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        cursor: pointer; 
+        transition: 0.2s; 
+        padding: 3px 6px; 
+        border-radius: 5px; 
+        background: #f8fafc; 
+        border: 1px solid transparent; 
+        box-sizing: border-box;
+        min-height: 36px;
+    }
+    .op-name-container:hover { 
+        background: #e0f2fe; 
+        border-color: var(--fng-blue); 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1); 
+        transform: scale(1.02); 
+        z-index: 10; 
+        position: relative; 
+    }
+    .op-firstname { 
+        font-size: 12.5px; 
+        font-weight: 900; 
+        color: var(--fng-blue); 
+        line-height: 1.1; 
+        margin-bottom: 1px; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+    }
+    .op-lastname { 
+        font-size: 10px; 
+        font-weight: 600; 
+        color: #64748b; 
+        line-height: 1.1; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+    }
+    .op-product-badge { 
+        font-size: 8.5px; 
+        padding: 1px 4px; 
+        background: #e2e8f0; 
+        color: #475569; 
+        border-radius: 3px; 
+        display: inline-block; 
+        margin-top: 2px; 
+        font-weight: 800;
+        width: fit-content;
+        line-height: 1.1;
+    }
+
+    .status-TR, .status-TR1 { color: #10b981; font-size: 16px; }
+    .status-TR2 { color: #22c55e; font-size: 16px; }
+    .status-TR3 { color: #84cc16; font-size: 16px; }
+    .status-TR4 { color: #eab308; font-size: 16px; }
+    .status-TR5 { color: #f59e0b; font-size: 16px; }
+    .status-TR6 { color: #ea580c; font-size: 16px; font-weight: 900; }
+    .status-TR7 { color: #ef4444; font-size: 16px; font-weight: 900; }
+    .status-TR8 { color: #b91c1c; font-size: 16px; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
+    
+    .bg-DE { background-color: #f3e8ff !important; color: #7e22ce !important; } 
+    .bg-VA { background-color: #e0f2fe !important; color: #0369a1 !important; } 
+    .bg-PER { background-color: #a855f7 !important; color: white !important; } 
+    .bg-FA, .bg-IN { background-color: #ffe4e6 !important; color: #be123c !important; } 
+    .bg-CAP { background-color: #d1fae5 !important; color: #047857 !important; } 
+    .bg-MED, .bg-LIC { background-color: #fef9c3 !important; color: #a16207 !important; } 
+    .bg-CB-ARG, .bg-CB-NIT, .bg-CB-OXI, .bg-CB-CO2 { background-color: #e2e8f0 !important; color: #475569 !important; font-size: 11px; }
+
+    body.dark-mode .bg-DE { background-color: rgba(168, 85, 247, 0.3) !important; color: #e9d5ff !important; border-color: rgba(168,85,247,0.4) !important;}
+    body.dark-mode .bg-VA { background-color: rgba(2, 132, 199, 0.4) !important; color: #bae6fd !important; border-color: rgba(2,132,199,0.4) !important;}
+    body.dark-mode .bg-PER { background-color: rgba(147, 51, 234, 0.6) !important; color: #f3e8ff !important; border-color: rgba(147,51,234,0.6) !important;}
+    body.dark-mode .bg-FA, body.dark-mode .bg-IN { background-color: rgba(225, 29, 72, 0.4) !important; color: #fecdd3 !important; border-color: rgba(225,29,72,0.4) !important;}
+    body.dark-mode .bg-CAP { background-color: rgba(16, 185, 129, 0.3) !important; color: #d1fae5 !important; border-color: rgba(16,185,129,0.4) !important;}
+    body.dark-mode .bg-MED, body.dark-mode .bg-LIC { background-color: rgba(202, 138, 4, 0.4) !important; color: #fef08a !important; border-color: rgba(202,138,4,0.4) !important;}
+    body.dark-mode .sticky-col-header { background: var(--fng-blue) !important; }
+    body.dark-mode .sticky-col-resumen { background: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important;}
+    body.dark-mode .sticky-col-body { background: #0f172a !important; border-color: #334155 !important; color: white !important; }
+    body.dark-mode .op-name-container { background: rgba(255,255,255,0.05); }
+    body.dark-mode .op-firstname { color: white; }
+
+    .es-hoy { background: #e0f2fe; border-bottom: 3px solid #0ea5e9;}
+    body.dark-mode .es-hoy { background: rgba(255, 140, 0, 0.1) !important; border-bottom: 3px solid var(--fng-orange) !important; }
+    
+    .cell-hover { transition: 0.2s; }
+    .cell-hover:hover { background: #f1f5f9 !important; cursor: pointer; border: 2px solid var(--fng-orange) !important; transform: scale(1.05); box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; position: relative;}
+    body.dark-mode .cell-hover:hover { background: rgba(255,255,255,0.1) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 450px; }
+    .form-control { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;}
+    .prod-title { background: var(--fng-blue); color: white; padding: 10px 20px; border-radius: 8px 8px 0 0; margin-bottom: 0; font-weight: 700; margin-top: 25px;}
+
+    .autocomplete-item { padding: 10px; border-bottom: 1px solid #f1f5f9; cursor: pointer; color: #334155; font-size: 14px;}
+    .autocomplete-item:hover { background: #f8fafc; font-weight: bold; color: var(--fng-blue); }
+
+    /* BARRA DE HERRAMIENTAS CALIBRADA (PUNTO MEDIO ERGONÓMICO) */
+    .toolbar-minimalista {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        background: #ffffff;
+        padding: 8px 16px;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 2px 10px rgba(0, 45, 90, 0.05);
+        min-height: 48px;
+        box-sizing: border-box;
+    }
+    /* TAMAÑO OFICIAL ERGONÓMICO EN ESCRITORIO */
+    .toolbar-minimalista {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 16px;
+        background: #ffffff;
+        padding: 8px 16px;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 2px 10px rgba(0, 45, 90, 0.05);
+        min-height: 52px;
+        box-sizing: border-box;
+    }
+    .toolbar-grupo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .btn-slim {
+        padding: 9px 16px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        height: 40px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        white-space: nowrap;
+    }
+    .btn-slim:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    .mac-dock-slim {
+        display: inline-flex;
+        background: #e2e8f0;
+        padding: 3px;
+        border-radius: 10px;
+        border: 1px solid rgba(0,45,90,0.08);
+        height: 40px;
+        box-sizing: border-box;
+        align-items: center;
+    }
+    .mac-dock-slim .mac-dock-btn {
+        padding: 7px 16px;
+        font-size: 13px;
+        border-radius: 8px;
+        font-weight: 800;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        box-sizing: border-box;
+    }
+    .mac-dock-slim .mac-dock-btn.active {
+        background: var(--fng-blue);
+        color: white;
+        box-shadow: 0 2px 6px rgba(0,45,90,0.25);
+    }
+    .search-bar-slim {
+        width: 40px;
+        height: 40px;
+        background: #f8fafc;
+        border-radius: 20px;
+        border: 1px solid #cbd5e1;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+        box-sizing: border-box;
+    }
+    .search-bar-slim.active {
+        width: 240px;
+        border-color: var(--fng-orange);
+        background: white;
+        box-shadow: 0 3px 10px rgba(255,140,0,0.18);
+    }
+    .search-bar-slim .search-icon {
+        font-size: 14px;
+        color: var(--fng-blue);
+        min-width: 18px;
+        text-align: center;
+    }
+    .search-bar-slim input {
+        border: none;
+        outline: none;
+        background: transparent;
+        width: 100%;
+        min-width: 0;
+        flex: 1;
+        padding-left: 8px;
+        font-size: 13px;
+        color: var(--fng-blue);
+        font-weight: 600;
+        opacity: 0;
+    }
+    .search-bar-slim.active input {
+        opacity: 1;
+    }
+    .search-bar-slim .clear-icon {
+        position: absolute;
+        right: 12px;
+        cursor: pointer;
+        color: #94a3b8;
+        display: none;
+        font-size: 13px;
+    }
+    .search-bar-slim.active .clear-icon {
+        display: block;
+    }
+    .date-controls-slim {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .date-input-slim {
+        height: 40px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        margin: 0 !important;
+        width: auto;
+        color: var(--fng-blue);
+        background: #f8fafc;
+        box-sizing: border-box;
+    }
+
+    body.dark-mode .toolbar-minimalista { background: #0f172a; border-color: #334155; }
+    body.dark-mode .mac-dock-slim { background: #1e293b; border-color: #334155; }
+    body.dark-mode .mac-dock-slim .mac-dock-btn { color: #94a3b8; }
+    body.dark-mode .mac-dock-slim .mac-dock-btn.active { background: var(--fng-orange); color: #0f172a; }
+    body.dark-mode .search-bar-slim { background: #1e293b; border-color: #334155; }
+    body.dark-mode .date-input-slim { background: #1e293b; border-color: #334155; color: white; }
+
+    /* ========================================================
+       ADAPTACIÓN ELÁSTICA SOLO PARA PANTALLAS MENORES A 900PX
+       ======================================================== */
+    @media (max-width: 900px) {
+        .toolbar-minimalista {
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+        }
+        .mac-dock-slim {
+            width: 100%;
+            display: flex;
+        }
+        .mac-dock-slim .mac-dock-btn {
+            flex: 1;
+            justify-content: center;
+            font-size: 12px;
+            padding: 6px 8px;
+        }
+        .toolbar-grupo {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .toolbar-grupo .btn-slim {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 120px;
+            justify-content: center;
+            font-size: 12px !important;
+            height: 38px !important;
+        }
+        .date-controls-slim {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+        }
+        .date-controls-slim .date-input-slim {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* 1. CONTENEDOR COMPACTO CON SCROLL INTERNO */
+        .glass-panel > div[style*="overflow: auto"] {
+            max-height: 65vh !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 2. CABECERA COMPLETA DE FECHAS ANCLADA AL TECHO */
+        table thead th {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 15 !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+        }
+
+        /* 3. LIBERACIÓN LATERAL PARA NO ESTRANGULAR LA PANTALLA MÓVIL */
+        .sticky-col-header,
+        .sticky-col-resumen,
+        .sticky-col-body {
+            position: static !important;
+            box-shadow: none !important;
+            left: auto !important;
+            right: auto !important;
+        }
+
+        th.sticky-col-header {
+            position: sticky !important;
+            top: 0 !important;
+            left: auto !important;
+            z-index: 16 !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+        }
+
+        .sticky-col-resumen,
+        .sticky-col-body {
+            min-width: 135px !important;
+            max-width: 135px !important;
+        }
+
+        .bloque-titulo-sticky {
+            position: static !important;
+        }
+    }
+
+    .sortable-ghost { background-color: rgba(255, 140, 0, 0.25) !important; opacity: 0.7; }
+    .drag-handle { cursor: grab; margin-right: 6px; color: var(--text-muted); }
+    .drag-handle:active { cursor: grabbing; }
+    .modo-orden-activo .op-name-container { border-left: 3px solid var(--fng-orange); }
+
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel">
+
+    <!-- TOOLBAR MAESTRA MINIMALISTA (TODO EN UNA SOLA LÍNEA) -->
+    <div class="toolbar-minimalista">
+        
+        <!-- 1. PESTAÑAS DE LÍNEA (IZQUIERDA) -->
+        <div class="mac-dock-slim">
+            <button class="mac-dock-btn {% if linea == 'CRYO' %}active{% endif %}" onclick="window.location.href='/logistica/cryo'"><i class="fas fa-snowflake"></i> CRYO</button>
+            <button class="mac-dock-btn {% if linea == 'CO2' %}active{% endif %}" onclick="window.location.href='/logistica/co2'"><i class="fas fa-wind"></i> CO2</button>
+            <button class="mac-dock-btn {% if linea == 'VARIOS' %}active{% endif %}" onclick="window.location.href='/logistica/varios'"><i class="fas fa-users-cog"></i> VARIOS</button>
+        </div>
+
+        <!-- 2. ACCIONES RÁPIDAS + BUSCADOR (CENTRO) -->
+        <div class="toolbar-grupo">
+            {% if rol in ['jefe_op', 'aux_dot', 'supervisor'] %}
+                <button onclick="document.getElementById('modalCobertura').style.display='flex'" class="btn-slim" style="background:#8b5cf6; color:white;"><i class="fas fa-user-shield"></i> Cobertura</button>
+            {% endif %}
+            {% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'monitorista', 'aux_bitacoras'] %}
+                <button onclick="abrirModalPDF()" class="btn-slim" style="background: #10b981; color:white;"><i class="fas fa-file-pdf"></i> Rol PDF</button>
+            {% endif %}
+            {% if rol in ['jefe_op', 'aux_dot', 'supervisor'] %}
+                <button type="button" id="btnModoOrden" onclick="toggleModoReordenar()" class="btn-slim" style="background: #e2e8f0; color: var(--fng-blue);">
+                    <i class="fas fa-arrows-alt-v"></i> <span id="txtBtnOrden">Reordenar</span>
+                </button>
+            {% endif %}
+
+            {% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'super_usuario'] %}
+                <button type="button" id="btnModoPincel" onclick="toggleModoPincel()" class="btn-slim" style="background: #e2e8f0; color: var(--fng-blue);">
+                    <i class="fas fa-pencil-alt"></i> <span id="txtBtnPincel">Editar Rol</span>
+                </button>
+
+                <!-- Paleta flotante de estatus -->
+                <div id="paletaPincel" class="paleta-pincel-container">
+                    <span style="font-size: 11px; font-weight: 900; color: #64748b; margin-right: 2px;">Cambiar A:</span>
+                    <button type="button" class="pildora-estatus active" data-estatus="DE" style="color:#7e22ce;" onclick="seleccionarPildora('DE', this)">🟣 DE</button>
+                    <button type="button" class="pildora-estatus" data-estatus="TR" style="color:#10b981;" onclick="seleccionarPildora('TR', this)">🟢 TR</button>
+                    <button type="button" class="pildora-estatus" data-estatus="VA" style="color:#0369a1;" onclick="seleccionarPildora('VA', this)">🔵 VA</button>
+                    <button type="button" class="pildora-estatus" data-estatus="FA" style="color:#be123c;" onclick="seleccionarPildora('FA', this)">🔴 FA</button>
+                    <button type="button" class="pildora-estatus" data-estatus="PER" style="color:#9333ea;" onclick="seleccionarPildora('PER', this)">🟪 PER</button>
+                    <button type="button" class="pildora-estatus" data-estatus="IN" style="color:#e11d48;" onclick="seleccionarPildora('IN', this)">🩸 IN</button>
+                </div>
+            {% endif %}
+
+            <!-- Buscador expansible integrado -->
+            <div class="search-bar search-bar-slim" id="searchBarContainer" style="margin: 0;">
+                <i class="fas fa-search search-icon" onclick="expandirBuscador()"></i>
+                <input type="text" id="buscadorLogistica" placeholder="Buscar..." autocomplete="off" oninput="buscadorGlobal('buscadorLogistica', '.glass-panel table tbody tr')" onfocus="document.getElementById('searchBarContainer').classList.add('active')">
+                <i class="fas fa-times clear-icon" onclick="limpiarYColapsarBuscador(event)"></i>
+            </div>
+        </div>
+
+        <!-- 3. NAVEGACIÓN DE FECHAS (DERECHA) -->
+        <div class="date-controls-slim">
+            <button onclick="window.location.href='?fecha={{ f_atras }}'" class="btn-slim" style="background:#e2e8f0; color:var(--fng-blue);"><i class="fas fa-arrow-left"></i></button>
+            <input type="date" class="date-input-slim" value="{{ centro }}" onchange="window.location.href='?fecha=' + this.value">
+            <button onclick="window.location.href='?fecha={{ f_adelante }}'" class="btn-slim" style="background:#e2e8f0; color:var(--fng-blue);"><i class="fas fa-arrow-right"></i></button>
+        </div>
+
+    </div>
+
+    <!-- TABLA MAESTRA UNIFICADA CON DIVISIONES INTERNAS -->
+    <div style="overflow: auto; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 75vh; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px;">
+        <table style="margin-bottom: 0; border-collapse: collapse; min-width: 1400px; width: 100%;">
+            <thead>
+                <tr>
+                    <th class="sticky-col-header" style="text-align: center;">Operador</th>
+                    {% for f in fechas %}
+                    <th class="{% if f.es_hoy %}es-hoy{% endif %}" style="background: {% if f.es_hoy %}#e0f2fe{% elif f.es_fin_semana %}#073b6f{% else %}var(--fng-blue, #002d5a){% endif %}; padding: 6px 4px; text-align: center; font-size: 11px; line-height: 1.2; border: 1px solid #cbd5e1;">
+                        <span style="display: block; font-size: 9.5px; font-weight: 800; color: {% if f.es_hoy %}var(--fng-blue, #002d5a){% elif f.es_fin_semana %}var(--fng-orange, #ea580c){% else %}#ffffff{% endif %}; letter-spacing: 0.5px; text-transform: uppercase;">
+                            {{ f.dia_nombre }}
+                        </span>
+                        <span style="font-size: 11.5px; font-weight: 800; color: {% if f.es_hoy %}var(--fng-blue, #002d5a){% else %}#ffffff{% endif %};">
+                            {{ f.formato_corto }}
+                        </span>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            {% for esquema, data_esq in bloques.items() %}
+            <tbody class="tabla-bloque-sortable" data-bloque="{{ esquema }}">
+                <!-- Franja Divisoria de Bloque (Nivel 2) -->
+                <tr class="fila-separador-bloque">
+                    <td colspan="{{ fechas|length + 1 }}">
+                        <div class="bloque-titulo-sticky">
+                            <i class="fas fa-layer-group" style="color: var(--fng-orange);"></i> Bloque: {{ esquema }}
+                        </div>
+                    </td>
+                </tr>
+                <!-- Fila de Resumen ACTIVOS del bloque (Nivel 3) -->
+                <tr class="fila-resumen-bloque">
+                    <td class="sticky-col-resumen">ACTIVOS</td>
+                    {% for idx in range(fechas|length) %}
+                    <td class="{% if fechas[idx].es_hoy %}es-hoy{% endif %} cell-resumen-num">
+                        {{ data_esq.resumen_activos[idx] }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% for op in data_esq.operadores %}
+                <tr data-id="{{ op.id }}">
+                    <td class="sticky-col-body">
+                        {% set partes_nombre = op.nombre.split(' ') %}
+                        {% set nombre_pila = partes_nombre[0] %}
+                        {% set apellidos = partes_nombre[1:] | join(' ') %}
+                        
+                        <div class="op-name-container" {% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'super_usuario'] %}onclick="if(!modoOrdenActivo) abrirModalRHRapido({{ op.id }}, '{{ op.nombre }}')"{% endif %}>
+                            <div class="op-firstname">
+                                <i class="fas fa-grip-vertical drag-handle" style="display: none;"></i>{{ nombre_pila }}
+                            </div>
+                            <div class="op-lastname">{{ apellidos }}</div>
+                            <span class="op-product-badge">{{ op.prod }}</span>
+                        </div>
+                    </td>
+                    
+                    {% for i in range(fechas|length) %}
+                    {% set puede_editar = rol in ['jefe_op', 'aux_dot', 'supervisor', 'super_usuario'] %}
+                    <td id="celda-op-{{ op.id }}-{{ fechas[i].string }}" 
+                        data-estatus="{% if op.dias[i].startswith('TR') %}TR{% else %}{{ op.dias[i] }}{% endif %}"
+                        class="{% if puede_editar %}cell-hover{% endif %} {% if fechas[i].es_hoy %}es-hoy{% endif %} bg-{{ op.dias[i] }}" 
+                        {% if puede_editar %} onclick="manejarClicCelda({{ op.id }}, '{{ op.nombre }}', '{{ fechas[i].string }}', '{{ op.dias[i] }}', this)" {% endif %}>
+                        
+                        {% set num_tr = op.dias[i]|replace('TR', '') if op.dias[i].startswith('TR') else '' %}
+                        {% set texto_celda = ('TR' if num_tr == '' else num_tr) if op.dias[i].startswith('TR') else op.dias[i] %}
+                        
+                        {% set clase_color = 'status-' ~ op.dias[i] %}
+                        {% if op.dias[i].startswith('TR') and num_tr != '' %}
+                            {% if num_tr|int >= 8 %}
+                                {% set clase_color = 'status-TR8' %}
+                            {% endif %}
+                        {% endif %}
+
+                        <span class="{{ clase_color }}" style="display: block; width: 100%;">{{ texto_celda }}</span>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'super_usuario'] %}
+<!-- MODAL: EDICIÓN RÁPIDA DE RH DESDE LOGÍSTICA -->
+<div id="modalRHRapido" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top: 0; color: var(--fng-blue);"><i class="fas fa-user-edit"></i> Edición Rápida RH</h3>
+        <p id="rhOpName" style="font-size: 15px; font-weight: 900; color: var(--fng-orange); margin-bottom: 15px; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;"></p>
+        
+        <input type="hidden" id="rhOpId">
+        
+        <!-- SECCIÓN 1: ROL OPERATIVO (Solo Jefe de Operaciones) -->
+        <label style="font-size: 12px; font-weight: bold;">Función / Rol Operativo:</label>
+        <select id="rhRolOp" class="form-control" onchange="evaluarCascadaRH()" {% if rol not in ['jefe_op', 'super_usuario'] %}disabled style="background:#f1f5f9; cursor:not-allowed;"{% endif %}>
+            <option value="OPERADOR">Operador de Carretera</option>
+            <option value="MOVEDOR">Movedor de Patio (Varios)</option>
+            <option value="INSTRUCTOR">Instructor Técnico (Varios)</option>
+        </select>
+
+        <!-- SECCIÓN 2: PRODUCTO (Solo visible si es Operador) -->
+        <div id="contenedorProducto" style="display: block;">
+            <label style="font-size: 12px; font-weight: bold;">Producto Asignado:</label>
+            <select id="rhProducto" class="form-control" onchange="evaluarCascadaRH()" {% if rol not in ['jefe_op', 'super_usuario'] %}disabled style="background:#f1f5f9; cursor:not-allowed;"{% endif %}>
+                <option value="NITROGENO">NITRÓGENO (CRYO)</option>
+                <option value="OXIGENO">OXÍGENO (CRYO)</option>
+                <option value="ARGON">ARGÓN (CRYO)</option>
+                <option value="CO2">CO2 PURO</option>
+            </select>
+        </div>
+
+        <!-- SECCIÓN 3: BLOQUE OPERATIVO (Solo visible si es Criogénico) -->
+        <div id="contenedorBloque" style="display: block;">
+            <label style="font-size: 12px; font-weight: bold;">Bloque Operativo (Esquema):</label>
+            <select id="rhEsquema" class="form-control" {% if rol not in ['jefe_op', 'super_usuario'] %}disabled style="background:#f1f5f9; cursor:not-allowed;"{% endif %}>
+                <option value="1. Tercias">1. Tercias</option>
+                <option value="2. Criogenicos">2. Criogénicos</option>
+                <option value="3. Arrastre">3. Arrastre</option>
+            </select>
+        </div>
+
+        {% if rol not in ['jefe_op', 'super_usuario'] %}
+        <p style="font-size: 11px; color: #dc3545; margin-top: -5px; margin-bottom: 12px; font-weight: 600;">
+            <i class="fas fa-lock"></i> La función, producto y bloque solo pueden ser modificados por el Jefe de Operaciones.
+        </p>
+        {% endif %}
+
+        <!-- SECCIÓN 4: JORNADA Y FECHA ANCLA -->
+        <label style="font-size: 12px; font-weight: bold;">Esquema de Jornada:</label>
+        <select id="rhJornada" class="form-control">
+            <option value="Variable">Variable (Sin Patrón)</option>
+            <option value="8-1-8-6">8-1-8-6</option>
+            <option value="8x4">8x4</option>
+            <option value="4x4">4x4</option>
+        </select>
+
+        <label style="font-size: 12px; font-weight: bold;">Fecha Ancla (Día 1 del ciclo):</label>
+        <input type="date" id="rhFechaAncla" class="form-control" style="margin-bottom: 5px;">
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+            <button onclick="document.getElementById('modalRHRapido').style.display='none'" class="btn btn-light">Cancelar</button>
+            <button onclick="guardarRHRapido()" class="btn btn-primary" style="background: var(--fng-blue);"><i class="fas fa-save"></i> Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalCobertura" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top: 0; color: #8b5cf6;"><i class="fas fa-user-shield"></i> Asignar Cobertura</h3>
+        <p style="font-size: 12px; color: #64748b;">Filtro de seguridad activado: El buscador solo mostrará operadores capacitados para el gas seleccionado.</p>
+        
+        <label style="font-size: 12px; font-weight: bold;">Salvará el viaje en:</label>
+        <select id="cobLinea" class="form-control" onchange="document.getElementById('cobBuscador').value=''; document.getElementById('listaCob').innerHTML=''; document.getElementById('cobOpNameDisplay').style.display = 'none';">
+            <option value="CB-ARG">Ruta Argón (CRYO)</option>
+            <option value="CB-NIT">Ruta Nitrógeno (CRYO)</option>
+            <option value="CB-OXI">Ruta Oxígeno (CRYO)</option>
+            <option value="CB-CO2">Ruta CO2 Puro</option>
+        </select>
+        
+        <label style="font-size: 12px; font-weight: bold;">Fecha de la Cobertura:</label>
+        <input type="date" id="cobFecha" class="form-control" min="{{ hoy_str }}" onchange="document.getElementById('cobBuscador').value=''; document.getElementById('listaCob').innerHTML=''; document.getElementById('cobOpNameDisplay').style.display = 'none';">
+        
+        <label style="font-size: 12px; font-weight: bold;">Operador Capacitado (Comodín):</label>
+        <input type="text" id="cobBuscador" class="form-control" placeholder="Buscar operador..." oninput="filtrarCob()" autocomplete="off">
+        <div id="listaCob" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 150px; overflow-y: auto; display: none;"></div>
+        <input type="hidden" id="cobOpId">
+        
+        <p id="cobOpNameDisplay" style="color:var(--fng-blue); display:none; padding:10px; background:#f8fafc; border-radius:6px; border-left: 4px solid #10b981;"></p>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+            <button onclick="cerrarCob()" class="btn btn-light">Cancelar</button>
+            <button onclick="guardarCobertura()" class="btn btn-primary" style="background:#8b5cf6;">{% if rol in ['aux_dot', 'supervisor'] %}Solicitar Permiso{% else %}Asignar Cobertura{% endif %}</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalEditor" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top: 0;">Editar Turno</h3>
+        <p id="modalOpName" style="font-size: 12px; color: #64748b; margin-bottom: 15px;"></p>
+        <label style="font-size: 12px; font-weight: bold;">Catálogo Operativo:</label>
+        <select id="selectEstatus" class="form-control" style="margin-top: 5px; margin-bottom: 10px;" onchange="evaluarImpactoCentinela()">
+            <optgroup label="Básicos">
+                <option value="TR">🟢 Trabajando (TR)</option>
+                <option value="DE">🟣 Descanso (DE)</option>
+                <option value="VA">🔵 Vacaciones (VA)</option>
+                <option value="FA">🔴 Falta (FA)</option>
+                <option value="IN">🩸 Incapacidad (IN)</option>
+            </optgroup>
+            <optgroup label="Administrativos">
+                <option value="PER">🟪 Permiso (PER)</option>
+                <option value="MED">🩵 Cita Médica (MED)</option>
+                <option value="LIC">🟡 Trámite de Licencia (LIC)</option>
+                <option value="CAP">🟩 Capacitación (CAP)</option>
+            </optgroup>
+        </select>
+
+        <!-- Asignación por rango de fechas -->
+        <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: bold; color: var(--fng-blue); display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-calendar-range"></i> Aplicar en Rango Masivo (Opcional):
+            </label>
+            <p style="font-size: 11px; margin: 5px 0; color: #64748b;">Si dejas este campo vacío, solo se actualizará el día seleccionado.</p>
+            <input type="date" id="fechaFinRango" class="form-control" style="margin-bottom: 0;" onchange="evaluarImpactoCentinela()">
+        </div>
+
+        <!-- TARJETA DE AUDITORÍA PROACTIVA CENTINELA IA -->
+        <div id="cajaCentinelaModal" style="display: none; background: rgba(0, 45, 90, 0.05); border-left: 4px solid var(--fng-orange); border-radius: 10px; padding: 10px 12px; margin-bottom: 15px; font-size: 11.5px; line-height: 1.4;">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 800; color: var(--fng-blue); margin-bottom: 4px;">
+                <i class="fas fa-robot" style="color: var(--fng-orange);"></i>
+                <span>Centinela IA • Copiloto Táctico</span>
+            </div>
+            <div id="textoCentinelaModal" style="color: var(--text-main);">
+                <i class="fas fa-spinner fa-spin"></i> Auditando impacto operativo...
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button onclick="document.getElementById('modalEditor').style.display='none'; document.getElementById('cajaCentinelaModal').style.display='none';" class="btn btn-light">Cancelar</button>
+            <button onclick="guardarTurno()" class="btn btn-primary">{% if rol in ['aux_dot', 'supervisor'] %}Solicitar Autorización{% else %}Guardar{% endif %}</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'monitorista', 'aux_bitacoras'] %}
+<div id="modalGenerarPDF" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="margin-top: 0;"><i class="fas fa-file-pdf" style="color: #10b981;"></i> Generador de Rol Mensual</h3>
+        <input type="text" id="buscadorOpPDF" class="form-control" placeholder="Ej. IGNACIO NARANJO..." oninput="filtrarNombresPDF()" autocomplete="off">
+        <div id="listaAutocompletado" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 150px; overflow-y: auto; display: none;"></div>
+        <div id="cajaDescarga" style="display: none; margin-top: 20px; text-align: center;">
+            <p id="nombreElegido" style="font-weight: bold; color: var(--fng-blue); font-size: 18px; border-bottom: 2px solid var(--fng-orange);"></p>
+            <button onclick="descargarRol()" class="btn btn-primary" style="width: 100%; justify-content: center; background: #10b981; border-color: #10b981;"><i class="fas fa-download"></i> Descargar Calendario</button>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <button onclick="document.getElementById('modalGenerarPDF').style.display='none'" class="btn btn-light">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="contenedorInvisiblePDF" style="position: absolute; left: -9999px; top: 0; width: 800px; z-index: -1;">
+    <div id="plantillaPDF" style="width: 100%; padding: 30px; background: white; color: #002d5a; font-family: 'Poppins', sans-serif; box-sizing: border-box;">
+        <div style="text-align: center; border-bottom: 4px solid #002d5a; padding-bottom: 15px; margin-bottom: 30px;">
+            <h1 style="margin: 0; font-size: 30px; color: #002d5a;">CONTROL MAESTRO FNG</h1>
+            <h2 style="margin: 5px 0 0 0; font-size: 20px; color: #FF8C00;">ROL OPERATIVO MENSUAL</h2>
+        </div>
+        
+        <table style="width: 100%; margin-bottom: 25px; font-size: 13px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; text-align: left;">
+            <tr>
+                <td style="padding: 15px; width: 40%; vertical-align: top;"><b>Operador:</b><br><strong id="pdfNombre" style="color: #002d5a; word-break: break-word; font-size: 15px;"></strong></td>
+                <td style="padding: 15px; width: 30%; vertical-align: top;"><b>Línea/Prod:</b><br><strong id="pdfLinea" style="color: #002d5a; font-size: 15px;"></strong></td>
+                <td style="padding: 15px; width: 30%; vertical-align: top;"><b>Periodo:</b><br><strong id="pdfMes" style="color: #002d5a; text-transform: uppercase; font-size: 15px;"></strong></td>
+            </tr>
+        </table>
+        
+        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; table-layout: fixed; margin-bottom: 10px;">
+            <thead>
+                <tr style="background: #002d5a; color: white;">
+                    <th style="padding: 10px 5px;">Lunes</th>
+                    <th style="padding: 10px 5px;">Martes</th>
+                    <th style="padding: 10px 5px;">Miércoles</th>
+                    <th style="padding: 10px 5px;">Jueves</th>
+                    <th style="padding: 10px 5px;">Viernes</th>
+                    <th style="padding: 10px 5px;">Sábado</th>
+                    <th style="padding: 10px 5px;">Domingo</th>
+                </tr>
+            </thead>
+            <tbody id="pdfTablaBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currId, currFch; const userRole = "{{ rol }}"; const listaOperadoresBackend = {{ todos_operadores|tojson }}; let opPDFSeleccionado = null;
+
+    // --- NUEVAS FUNCIONES DEL BUSCADOR EXPANSIBLE ---
+    function expandirBuscador() {
+        const bar = document.getElementById('searchBarContainer');
+        if (!bar.classList.contains('active')) {
+            bar.classList.add('active');
+            document.getElementById('buscadorLogistica').focus();
+        }
+    }
+
+    function limpiarYColapsarBuscador(e) {
+        if (e) {
+            e.stopPropagation(); // Evita que el clic suba al contenedor y lo vuelva a abrir
+        }
+        const input = document.getElementById('buscadorLogistica');
+        const bar = document.getElementById('searchBarContainer');
+        
+        input.value = '';
+        input.blur();
+        bar.classList.remove('active'); // Se cierra al instante
+        
+        // Restaura las filas de la tabla
+        if (typeof buscadorGlobal === 'function') {
+            buscadorGlobal('buscadorLogistica', '.glass-panel table tbody tr');
+        }
+    }
+
+    // Cierra la barra si se hace clic en cualquier otra parte de la pantalla y no hay texto
+    window.addEventListener('click', function(e) {
+        const bar = document.getElementById('searchBarContainer');
+        const input = document.getElementById('buscadorLogistica');
+        if (bar && !bar.contains(e.target) && input.value.trim() === '') {
+            bar.classList.remove('active');
+        }
+    });
+    // ------------------------------------------------
+
+    // CONTROL EN CASCADA INTELIGENTE DEL MODAL
+    function evaluarCascadaRH() {
+        const rolOp = document.getElementById('rhRolOp').value;
+        const producto = document.getElementById('rhProducto').value;
+        const contProd = document.getElementById('contenedorProducto');
+        const contBloque = document.getElementById('contenedorBloque');
+
+        if (rolOp === 'MOVEDOR' || rolOp === 'INSTRUCTOR') {
+            // Movedor o Instructor: Oculta Producto y Bloque por completo
+            contProd.style.display = 'none';
+            contBloque.style.display = 'none';
+        } else {
+            // Operador de carretera: Muestra selector de Producto
+            contProd.style.display = 'block';
+
+            if (producto === 'CO2') {
+                // En CO2 no hay bloques: Oculta Bloque Operativo
+                contBloque.style.display = 'none';
+            } else {
+                // En Criogénicos (Nitrógeno, Oxígeno, Argón): Muestra Bloque Operativo
+                contBloque.style.display = 'block';
+            }
+        }
+    }
+
+    function abrirModalRHRapido(id, nombre) {
+        const op = listaOperadoresBackend.find(o => o.id === id);
+        document.getElementById('rhOpId').value = id;
+        document.getElementById('rhOpName').innerText = nombre;
+
+        if (op) {
+            // Determinar si es Movedor o Instructor (si su esquema base es Varios)
+            if (op.esquema === 'Varios' && (!op.producto || op.producto === 'VARIOS')) {
+                document.getElementById('rhRolOp').value = 'MOVEDOR';
+            } else {
+                document.getElementById('rhRolOp').value = 'OPERADOR';
+            }
+
+            document.getElementById('rhProducto').value = op.producto || 'NITROGENO';
+            
+            // Mapeo inteligente para asignar siempre a uno de los 3 bloques oficiales
+            const esquemaActual = (op.esquema || '').toLowerCase();
+            if (esquemaActual.includes('tercia')) {
+                document.getElementById('rhEsquema').value = '1. Tercias';
+            } else if (esquemaActual.includes('crio')) {
+                document.getElementById('rhEsquema').value = '2. Criogenicos';
+            } else if (esquemaActual.includes('arrastre')) {
+                document.getElementById('rhEsquema').value = '3. Arrastre';
+            } else {
+                document.getElementById('rhEsquema').value = '1. Tercias';
+            }
+
+            document.getElementById('rhJornada').value = (op.tipo_jornada && op.tipo_jornada !== '8-1-8-1-8-6') ? op.tipo_jornada : 'Variable';
+            document.getElementById('rhFechaAncla').value = (op.fecha_ancla && op.fecha_ancla !== 'N/A') ? op.fecha_ancla : '';
+        }
+
+        evaluarCascadaRH();
+        document.getElementById('modalRHRapido').style.display = 'flex';
+    }
+
+    async function guardarRHRapido() {
+        const id = document.getElementById('rhOpId').value;
+        const rolOp = document.getElementById('rhRolOp').value;
+        const producto = document.getElementById('rhProducto').value;
+        const esquema = document.getElementById('rhEsquema').value;
+        const jornada = document.getElementById('rhJornada').value;
+        const anclaInput = document.getElementById('rhFechaAncla').value;
+
+        if (jornada !== 'Variable' && !anclaInput) {
+            showToast("⚠️ Para esquemas con ciclo debes seleccionar una Fecha Ancla.", "warning");
+            return;
+        }
+
+        const payload = {
+            operador_id: id,
+            rol_op: rolOp,
+            producto: (rolOp === 'OPERADOR') ? producto : 'VARIOS',
+            esquema: (rolOp === 'OPERADOR') ? ((producto === 'CO2') ? 'CO2' : esquema) : 'Varios',
+            patron: jornada,
+            fecha_ancla: anclaInput || 'N/A'
+        };
+
+        const res = await fetch('/api/redibujar_rol', {
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            document.getElementById('modalRHRapido').style.display = 'none';
+            showToast("✅ Datos actualizados correctamente", "success");
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            const data = await res.json();
+            showToast(data.msg || "⚠️ Acción no autorizada.", "warning");
+        }
+    }
+
+    // --- ESTADO Y FUNCIONES DEL MODO ASIGNAR ROL RÁPIDO (PINCEL) ---
+    let modoPincelActivo = false;
+    let estatusPincelActual = 'DE'; // Inicia en Descanso por comodidad operativa
+
+    function toggleModoPincel() {
+        modoPincelActivo = !modoPincelActivo;
+        const btn = document.getElementById('btnModoPincel');
+        const txt = document.getElementById('txtBtnPincel');
+        const paleta = document.getElementById('paletaPincel');
+
+        if (modoPincelActivo) {
+            // Si el modo reordenar estaba activo, apagarlo
+            if (typeof modoOrdenActivo !== 'undefined' && modoOrdenActivo) {
+                toggleModoReordenar();
+            }
+            btn.style.background = 'var(--fng-orange)';
+            btn.style.color = '#ffffff';
+            txt.innerText = 'Listo / Salir';
+            paleta.style.display = 'inline-flex';
+            document.body.classList.add('modo-pincel-activo');
+            showToast("🎨 Modo Asignar Rol activado: Toca las celdas para pintar directo.", "info");
+        } else {
+            btn.style.background = '#e2e8f0';
+            btn.style.color = 'var(--fng-blue)';
+            txt.innerText = 'Asignar Rol';
+            paleta.style.display = 'none';
+            document.body.classList.remove('modo-pincel-activo');
+            showToast("Modo normal restaurado", "success");
+        }
+    }
+
+    function seleccionarPildora(estatus, elementoBtn) {
+        estatusPincelActual = estatus;
+        document.querySelectorAll('.pildora-estatus').forEach(p => p.classList.remove('active'));
+        elementoBtn.classList.add('active');
+    }
+
+    function manejarClicCelda(id, nom, f, est, celdaElem) {
+        if (modoPincelActivo) {
+            pintarCeldaSilenciosa(id, f, celdaElem);
+        } else {
+            const estActual = celdaElem.dataset.estatus || est;
+            abrirEditor(id, nom, f, estActual);
+        }
+    }
+
+    async function pintarCeldaSilenciosa(opId, fechaStr, celdaElem) {
+        const hoy = "{{ hoy_str }}";
+        if (fechaStr < hoy && !['jefe_op', 'supervisor', 'super_usuario'].includes(userRole)) {
+            showToast("⚠️ Los días pasados están bloqueados", "warning");
+            return;
+        }
+
+        const estatusNuevo = estatusPincelActual;
+        const estatusAnterior = celdaElem.dataset.estatus || 'TR';
+
+        // 1. Optimistic UI: Actualizar estatus y recalcular odómetro continuo de la fila
+        celdaElem.dataset.estatus = estatusNuevo.startsWith('TR') ? 'TR' : estatusNuevo;
+        recalcularRachaFila(celdaElem.closest('tr'));
+
+        // 2. Guardado silencioso en segundo plano
+        try {
+            const res = await fetch('/api/actualizar_turno', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    operador_id: opId,
+                    fecha: fechaStr,
+                    fecha_fin: fechaStr,
+                    estatus_nuevo: estatusNuevo
+                })
+            });
+
+            if (!res.ok) {
+                celdaElem.dataset.estatus = estatusAnterior;
+                recalcularRachaFila(celdaElem.closest('tr'));
+                const data = await res.json();
+                showToast(data.msg || "Error al actualizar", "warning");
+            }
+        } catch (err) {
+            celdaElem.dataset.estatus = estatusAnterior;
+            recalcularRachaFila(celdaElem.closest('tr'));
+            showToast("Error de conexión al servidor", "warning");
+        }
+    }
+
+    function abrirEditor(id, nom, f, est) { 
+        const hoy = "{{ hoy_str }}";
+        if (f < hoy && !['jefe_op', 'supervisor', 'super_usuario'].includes(userRole)) {
+            showToast("⚠️ Los días pasados están bloqueados para edición", "warning");
+            return;
+        }
+        currId = id; 
+        currFch = f; 
+        document.getElementById('modalOpName').innerText = nom + ' | Inicia: ' + f; 
+        document.getElementById('selectEstatus').value = (!est || est.startsWith('TR')) ? 'TR' : est; 
+        
+        const inputFechaFin = document.getElementById('fechaFinRango');
+        inputFechaFin.value = '';
+        inputFechaFin.min = (f < hoy && ['jefe_op', 'super_usuario'].includes(userRole)) ? f : (f < hoy ? hoy : f);
+        
+        document.getElementById('modalEditor').style.display = 'flex'; 
+        evaluarImpactoCentinela();
+    }
+
+    let timerCentinelaModal = null;
+    async function evaluarImpactoCentinela() {
+        const estatusNuevo = document.getElementById('selectEstatus').value;
+        const caja = document.getElementById('cajaCentinelaModal');
+        const txt = document.getElementById('textoCentinelaModal');
+        if (!caja || !txt) return;
+
+        caja.style.display = 'block';
+        txt.innerHTML = '<span style="color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Centinela analizando cobertura de 31 unidades y fatiga NOM-087...</span>';
+
+        if (timerCentinelaModal) clearTimeout(timerCentinelaModal);
+        timerCentinelaModal = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/centinela_ia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pregunta: 'Evalúa en 2 renglones si este movimiento desbalancea la meta de 31 unidades o genera riesgos con NOM-087.',
+                        cambio: {
+                            operador_id: currId,
+                            fecha: currFch,
+                            fecha_fin: document.getElementById('fechaFinRango').value || currFch,
+                            estatus_nuevo: estatusNuevo
+                        },
+                        ruta_pantalla: window.location.pathname
+                    })
+                });
+                const d = await res.json();
+                if (d.status === 'success') {
+                    txt.innerHTML = d.respuesta;
+                } else {
+                    txt.innerHTML = '<span style="color:#ef4444;">⚠️ No se pudo obtener dictamen de Centinela.</span>';
+                }
+            } catch (err) {
+                txt.innerHTML = '<span style="color:#ef4444;">⚠️ Centinela fuera de línea temporalmente.</span>';
+            }
+        }, 250);
+    }
+    
+    async function guardarTurno() {
+        const payload = {
+            operador_id: currId, 
+            fecha: currFch, 
+            fecha_fin: document.getElementById('fechaFinRango').value,
+            estatus_nuevo: document.getElementById('selectEstatus').value
+        };
+        // Jefe, Aux DOT y Supervisores guardan directo sin bloqueos
+        const esDirecto = ['jefe_op', 'aux_dot', 'supervisor', 'super_usuario'].includes(userRole);
+        const res = await fetch(esDirecto ? '/api/actualizar_turno' : '/api/solicitar_turno', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+        if (res.ok) {
+            document.getElementById('modalEditor').style.display='none'; 
+            showToast(!esDirecto ? "⏳ Solicitud de Rango Enviada" : "✅ Turnos Guardados", "success"); 
+            setTimeout(() => window.location.reload(), 1500); 
+        } else {
+            const data = await res.json();
+            showToast(data.msg || "⚠️ Acción Bloqueada", "warning"); 
+        }
+    }
+
+    let cobOpSeleccionado = null;
+    function filtrarCob() {
+        const texto = document.getElementById('cobBuscador').value.toLowerCase(); 
+        const lineaElegida = document.getElementById('cobLinea').value;
+        const cont = document.getElementById('listaCob'); cont.innerHTML = '';
+        if (texto.length < 1) { cont.style.display = 'none'; return; }
+        
+        const coins = listaOperadoresBackend.filter(op => {
+            if(!op.nombre.toLowerCase().includes(texto)) return false;
+            let p_desc = (op.productos_descarga || '').toUpperCase();
+            if(lineaElegida === 'CB-CO2') { return p_desc.includes('CO2'); }
+            else { return p_desc.includes('LIN') || p_desc.includes('LAR') || p_desc.includes('LOX') || p_desc.includes('ARGON') || p_desc.includes('NITROGENO') || p_desc.includes('OXIGENO'); }
+        });
+
+        if (coins.length > 0) { 
+            cont.style.display = 'block'; 
+            coins.forEach(op => { 
+                let div = document.createElement('div'); div.className = 'autocomplete-item'; 
+                div.innerHTML = `<b>${op.nombre}</b> <span style="font-size:10px; color:#10b981;">(Certificado)</span>`; 
+                
+                div.onclick = async () => { 
+                    cobOpSeleccionado = op.id; document.getElementById('cobBuscador').value = op.nombre; document.getElementById('cobOpId').value = op.id;
+                    cont.style.display = 'none'; 
+                    
+                    const fch = document.getElementById('cobFecha').value || new Date().toISOString().split('T')[0];
+                    let msjVisual = `✅ <b>${op.nombre}</b><br><span style="font-size:12px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Consultando auditoría DOT...</span>`;
+                    document.getElementById('cobOpNameDisplay').innerHTML = msjVisual; 
+                    document.getElementById('cobOpNameDisplay').style.display = 'block'; 
+                    
+                    const resDOT = await fetch('/api/dot_status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({operador_id: op.id, fecha: fch})});
+                    if(resDOT.ok) {
+                        const dataDOT = await resDOT.json();
+                        let colorDisp = dataDOT.libres > 10 ? '#10b981' : (dataDOT.libres > 0 ? '#FF8C00' : '#ef4444');
+                        msjVisual = `✅ <b>${op.nombre}</b><br><span style="font-size:13px; color:#64748b;">⏱️ Horas Usadas: <b>${dataDOT.usadas}h</b> | <span style="color:${colorDisp};">🟢 Libres esta semana: <b>${dataDOT.libres}h</b></span></span>`;
+                        document.getElementById('cobOpNameDisplay').innerHTML = msjVisual;
+                    }
+                }; 
+                cont.appendChild(div); 
+            }); 
+        } else { 
+            cont.style.display = 'block'; 
+            let div = document.createElement('div'); div.className = 'autocomplete-item'; div.style.color = '#ef4444';
+            div.innerText = '❌ Ningún operador certificado coincide';
+            cont.appendChild(div);
+        }
+    }
+    
+    function cerrarCob() { document.getElementById('modalCobertura').style.display = 'none'; document.getElementById('cobBuscador').value = ''; document.getElementById('cobOpNameDisplay').style.display = 'none'; cobOpSeleccionado = null; }
+    
+    async function guardarCobertura() {
+        if(!cobOpSeleccionado) { showToast("⚠️ Busca y selecciona un operador", "warning"); return; }
+        const fch = document.getElementById('cobFecha').value;
+        if(!fch) { showToast("⚠️ Selecciona el día de la cobertura", "warning"); return; }
+        
+        const payload = { operador_id: cobOpSeleccionado, fecha: fch, estatus_nuevo: document.getElementById('cobLinea').value };
+        const esDirectoCob = ['jefe_op', 'aux_dot', 'super_usuario'].includes(userRole);
+        const res = await fetch(esDirectoCob ? '/api/actualizar_turno' : '/api/solicitar_turno', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+        if(res.ok) {
+            cerrarCob(); 
+            showToast(!esDirectoCob ? "⏳ Solicitud Enviada" : "✅ Cobertura Asignada", "success"); 
+            setTimeout(() => window.location.reload(), 1500); 
+        } else {
+            const data = await res.json();
+            showToast(data.msg || "⚠️ Acción Bloqueada", "warning"); 
+        }
+    }
+
+    function abrirModalPDF() { document.getElementById('buscadorOpPDF').value = ''; document.getElementById('listaAutocompletado').style.display = 'none'; document.getElementById('cajaDescarga').style.display = 'none'; opPDFSeleccionado = null; document.getElementById('modalGenerarPDF').style.display = 'flex'; }
+    
+    function filtrarNombresPDF() {
+        const texto = document.getElementById('buscadorOpPDF').value.toLowerCase(); const cont = document.getElementById('listaAutocompletado'); cont.innerHTML = '';
+        if (texto.length < 1) { cont.style.display = 'none'; return; }
+        const coins = listaOperadoresBackend.filter(op => op.nombre.toLowerCase().includes(texto));
+        if (coins.length > 0) { 
+            cont.style.display = 'block'; 
+            coins.forEach(op => { 
+                let div = document.createElement('div'); div.className = 'autocomplete-item'; div.innerText = op.nombre; 
+                div.onclick = () => { opPDFSeleccionado = op.id; document.getElementById('buscadorOpPDF').value = op.nombre; cont.style.display = 'none'; document.getElementById('nombreElegido').innerText = op.nombre; document.getElementById('cajaDescarga').style.display = 'block'; }; 
+                cont.appendChild(div); 
+            }); 
+        } else { cont.style.display = 'none'; }
+    }
+
+    async function descargarRol() {
+        if(!opPDFSeleccionado) return; 
+        showToast("⏳ Generando Archivo...", "warning");
+        
+        const res = await fetch('/api/obtener_rol_mes', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({operador_id: opPDFSeleccionado}) });
+        
+        if(res.ok) {
+            const data = await res.json(); 
+            document.getElementById('pdfNombre').innerText = data.operador; 
+            document.getElementById('pdfLinea').innerText = data.linea; 
+            document.getElementById('pdfMes').innerText = data.mes;
+            
+            const tbody = document.getElementById('pdfTablaBody'); 
+            tbody.innerHTML = '';
+            
+            let fechaInicio = new Date(data.calendario[0].fecha + 'T00:00:00'); 
+            let celdasVacias = fechaInicio.getDay() === 0 ? 6 : fechaInicio.getDay() - 1;
+            let fila = document.createElement('tr'); 
+            let c = 0;
+            
+            for (let i = 0; i < celdasVacias; i++) { 
+                fila.innerHTML += `<td style="border:1px solid #cbd5e1; background:#f8fafc; height:80px; box-sizing: border-box;"></td>`; 
+                c++; 
+            }
+            
+            data.calendario.forEach(dia => {
+                let colorTxt = '#002d5a'; 
+                let bg = 'transparent';
+                let txtMostrar = dia.estatus;
+
+                if (dia.estatus.startsWith('TR')) {
+                    txtMostrar = dia.estatus.replace('TR', '');
+                    let num = parseInt(txtMostrar) || 1;
+                    bg = '#ffffff';
+                    if (num >= 8) colorTxt = '#b91c1c'; 
+                    else if (num >= 6) colorTxt = '#ea580c';
+                    else if (num >= 4) colorTxt = '#eab308';
+                    else colorTxt = '#10b981';
+                } else if (['FA','IN'].includes(dia.estatus)) {
+                    colorTxt = '#be123c'; bg = '#fecdd3';
+                } else if (dia.estatus === 'DE') {
+                    colorTxt = '#7e22ce'; bg = '#f3e8ff';
+                } else if (dia.estatus === 'VA') {
+                    colorTxt = '#0369a1'; bg = '#e0f2fe';
+                } else if (dia.estatus === 'PER') {
+                    colorTxt = '#ffffff'; bg = '#a855f7';
+                } else if (dia.estatus === 'CAP') {
+                    colorTxt = '#047857'; bg = '#d1fae5';
+                } else if (['MED','LIC'].includes(dia.estatus)) {
+                    colorTxt = '#a16207'; bg = '#fef9c3';
+                } else {
+                    bg = '#f0f9ff';
+                }
+                
+                fila.innerHTML += `<td style="border:1px solid #cbd5e1; height:80px; vertical-align:top; padding:8px; background:${bg}; box-sizing: border-box;">
+                    <div style="font-size:12px; font-weight:bold; text-align:left; color:#64748b;">${dia.dia}</div>
+                    <div style="text-align:center; margin-top:10px; font-size:18px; font-weight:900; color:${colorTxt};">${txtMostrar}</div>
+                </td>`;
+                
+                c++; 
+                if (c === 7) { 
+                    tbody.appendChild(fila); 
+                    fila = document.createElement('tr'); 
+                    c = 0; 
+                }
+            });
+            
+            if (c > 0) { 
+                for (let i = c; i < 7; i++) { 
+                    fila.innerHTML += `<td style="border:1px solid #cbd5e1; background:#f8fafc; height:80px; box-sizing: border-box;"></td>`; 
+                } 
+                tbody.appendChild(fila); 
+            }
+            
+            let element = document.getElementById('plantillaPDF');
+            html2pdf().set({
+                margin: 0.3,
+                filename: `Rol_${data.operador}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            }).from(element).save().then(() => { 
+                document.getElementById('modalGenerarPDF').style.display='none'; 
+                showToast("✅ PDF Descargado.", "success"); 
+            });
+        }
+    }
+
+    let modoOrdenActivo = false;
+    let instanciasSortable = [];
+
+    function toggleModoReordenar() {
+        modoOrdenActivo = !modoOrdenActivo;
+        const btn = document.getElementById('btnModoOrden');
+        const txt = document.getElementById('txtBtnOrden');
+        const handles = document.querySelectorAll('.drag-handle');
+        const tbodies = document.querySelectorAll('.tabla-bloque-sortable');
+
+        if (modoOrdenActivo) {
+            btn.classList.remove('btn-light');
+            btn.classList.add('btn-primary');
+            btn.style.background = 'var(--fng-orange)';
+            txt.innerText = 'Listo / Guardar';
+            handles.forEach(h => h.style.display = 'inline-block');
+            document.body.classList.add('modo-orden-activo');
+
+            // Inicializar Sortable en cada bloque de la sábana
+            tbodies.forEach(tbody => {
+                const sortable = new Sortable(tbody, {
+                    animation: 150,
+                    handle: '.op-name-container', // Arrastrar tomando la tarjeta del nombre
+                    ghostClass: 'sortable-ghost',
+                    onEnd: async function () {
+                        // Al soltar una fila, recolectar los IDs en el nuevo orden de este bloque
+                        const filas = Array.from(tbody.querySelectorAll('tr[data-id]'));
+                        const ordenIds = filas.map(f => parseInt(f.getAttribute('data-id')));
+
+                        try {
+                            const res = await fetch('/api/guardar_orden_operadores', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orden_ids: ordenIds })
+                            });
+                            if (res.ok) {
+                                showToast("Posición actualizada", "success");
+                            }
+                        } catch (err) {
+                            showToast("Error de conexión al reordenar", "warning");
+                        }
+                    }
+                });
+                instanciasSortable.push(sortable);
+            });
+            showToast("Modo reordenar activado. Arrastra a los operadores.", "info");
+
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-light');
+            btn.style.background = '';
+            txt.innerText = 'Reordenar';
+            handles.forEach(h => h.style.display = 'none');
+            document.body.classList.remove('modo-orden-activo');
+
+            // Destruir instancias para volver al comportamiento de clic normal
+                    instanciasSortable.forEach(inst => inst.destroy());
+                    instanciasSortable = [];
+                    showToast("Orden guardado con éxito", "success");
+                }
+            }
+
+            // =====================================================================
+            // ODÓMETRO CONTINUO EN VIVO: RECALCULA LA RACHA (1, 2, 3... 8)
+            // =====================================================================
+            function recalcularRachaFila(tr) {
+                if (!tr) return;
+                const celdas = Array.from(tr.querySelectorAll('td[id^="celda-op-"]'));
+                let racha = 0;
+
+                celdas.forEach((celda, idx) => {
+                    const span = celda.querySelector('span');
+                    let estatus = celda.dataset.estatus || '';
+
+                    if (!estatus) {
+                        const bgMatch = celda.className.match(/\bbg-([A-Za-z0-9-]+)\b/);
+                        if (bgMatch) {
+                            estatus = bgMatch[1].startsWith('TR') ? 'TR' : bgMatch[1];
+                        } else if (span && (span.innerText === 'TR' || /^\d+$/.test(span.innerText.trim()))) {
+                            estatus = 'TR';
+                        }
+                        celda.dataset.estatus = estatus || 'TR';
+                    }
+
+                    const esTR = estatus === 'TR' || estatus.startsWith('TR');
+
+                    if (esTR) {
+                        // Si la primera celda visible ya traía conteo previo desde el backend, respetarlo
+                        if (idx === 0 && racha === 0 && span && /^\d+$/.test(span.innerText.trim())) {
+                            racha = parseInt(span.innerText.trim(), 10) || 1;
+                        } else {
+                            racha++;
+                        }
+
+                        // Limpiar estilos de fondo de ausencia y aplicar conteo
+                        celda.className = celda.className.replace(/\bbg-[A-Za-z0-9-]+\b/g, '').trim();
+
+                        if (span) {
+                            span.innerText = racha;
+                            let numClase = Math.min(racha, 8);
+                            span.className = `status-TR${numClase}`;
+                        }
+                    } else {
+                        racha = 0;
+                        celda.className = celda.className.replace(/\bbg-[A-Za-z0-9-]+\b/g, '').trim();
+                        celda.classList.add(`bg-${estatus}`);
+                        if (span) {
+                            span.innerText = estatus;
+                            span.className = '';
+                        }
+                    }
+                });
+            }
+
+            // =====================================================================
+            // RECEPTOR EN TIEMPO REAL: ACTUALIZACIÓN REACTIVA DE CELDAS
+            // =====================================================================
+            document.addEventListener('live:celda_actualizada', (e) => {
+                const { operador_id, fecha, estatus } = e.detail;
+                const celda = document.getElementById(`celda-op-${operador_id}-${fecha}`);
+                if (!celda) return;
+
+                // 1. Asignar nuevo estatus al elemento y recalcular el odómetro de toda la fila
+                celda.dataset.estatus = estatus.startsWith('TR') ? 'TR' : estatus;
+                recalcularRachaFila(celda.closest('tr'));
+
+                // 2. Destello visual tipo Facebook
+                celda.style.transition = 'box-shadow 0.3s ease, transform 0.2s ease';
+                celda.style.boxShadow = '0 0 12px var(--fng-orange)';
+                celda.style.transform = 'scale(1.08)';
+                celda.style.zIndex = '15';
+                setTimeout(() => {
+                    celda.style.boxShadow = '';
+                    celda.style.transform = '';
+                    celda.style.zIndex = '';
+                }, 1200);
+            });
+
+        </script>
+        {% endblock %}

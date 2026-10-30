@@ -1,0 +1,1272 @@
+{% extends "base.html" %}
+{% set active_page = "acumulado" %}
+
+{% block title %}Panel Maestro SLP{% endblock %}
+
+{% block topbar_left %}
+    <i class="fas fa-shield-alt" style="color: var(--fng-orange);"></i> FNG - PANEL SLP
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* ========================================================
+       ESTILOS GENERALES Y TABLAS
+       ======================================================== */
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: nowrap; gap: 15px;}
+    .date-controls { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; width: auto; }
+    .date-controls .btn { width: auto; padding: 8px 16px; font-size: 13px; white-space: nowrap; margin: 0; }
+    .date-controls input { width: 150px; display: inline-block; text-align: center; font-size: 13px; padding: 7px 10px; margin: 0; }
+
+    .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; text-decoration: none;}
+    .btn-light { background: #e2e8f0; color: var(--fng-blue); }
+    .btn-save { background: var(--fng-orange); color: white; margin-top: 10px; width: 100%; justify-content: center; box-shadow: 0 4px 10px rgba(255,140,0,0.3); transition: transform 0.2s; }
+    .btn-save:hover { transform: translateY(-2px); }
+    .form-control { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-weight: 600;}
+
+    .bloque-title { background: #cbd5e1; padding: 10px 20px; border-radius: 8px 8px 0 0; margin-bottom: 0; font-weight: 700; display: inline-block; color: var(--fng-blue); margin-top: 20px;}
+    .bloque-title.bloque-cryo { background: var(--fng-orange); color: white; }
+    th.th-cryo { background: #ea580c !important; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px;}
+    th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; font-size: 13px; }
+    th { background: var(--fng-blue); color: white; }
+    .es-hoy { background: #e0f2fe; border-bottom: 3px solid #0ea5e9;}
+    .row-label { text-align: left; font-weight: 600; background: #f8fafc; color: var(--fng-blue);}
+    .negativo { background: #fee2e2; color: #dc3545; font-weight: 700; }
+    .positivo { color: #198754; font-weight: 700; }
+    
+    .sim-input { width: 60px; padding: 5px; text-align: center; border: 2px solid var(--fng-orange); border-radius: 6px; font-weight: bold; color: var(--fng-blue); outline: none; transition: 0.3s;}
+    .sim-input:focus { box-shadow: 0 0 8px rgba(255, 140, 0, 0.4); }
+
+    .sim-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: start; width: 100%; }
+    .sim-grid > div { min-width: 0; box-sizing: border-box; }
+    div[style*="overflow-x: auto"] { -webkit-overflow-scrolling: touch; padding-bottom: 5px; }
+    div[style*="overflow-x: auto"]::-webkit-scrollbar { height: 6px; }
+    div[style*="overflow-x: auto"]::-webkit-scrollbar-thumb { background: rgba(0, 45, 90, 0.2); border-radius: 10px; }
+    body.dark-mode div[style*="overflow-x: auto"]::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
+    /* PÍLDORAS DE CRISTAL */
+    .glass-pill-container { display: inline-flex; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(0, 45, 90, 0.15); border-radius: 30px; padding: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .glass-pill-btn { background: transparent; border: none; padding: 6px 18px; border-radius: 25px; font-weight: 700; font-size: 13px; color: #64748b; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+    .glass-pill-btn.active { background: white; color: var(--fng-orange); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
+    
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .glass-pill-btn { color: #94a3b8; }
+    body.dark-mode .glass-pill-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); }
+    body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
+
+    /* ========================================================
+       NUEVOS ESTILOS: DOCK DE 3 APARTADOS Y TABLAS
+       ======================================================== */
+    .sub-dock-container { display: flex; justify-content: flex-start; margin-bottom: 20px; margin-top: -5px; }
+    .sub-dock { display: inline-flex; background: rgba(241, 245, 249, 0.8); padding: 4px; border-radius: 12px; border: 1px solid #cbd5e1; }
+    .sub-dock-btn { padding: 6px 20px; border-radius: 8px; border: none; background: transparent; font-weight: 600; color: #475569; cursor: pointer; transition: 0.2s; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .sub-dock-btn.active { background: white; color: var(--fng-orange); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+
+    body.dark-mode .sub-dock { background: rgba(0,0,0,0.4); border-color: #334155; }
+    body.dark-mode .sub-dock-btn { color: #cbd5e1; }
+    body.dark-mode .sub-dock-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: rgba(255,255,255,0.2); }
+
+    .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; color: white; display: inline-block;}
+    .bg-green { background: #10b981; }
+    .bg-red { background: #ef4444; }
+    .bg-yellow { background: #f59e0b; color: #0f172a; }
+
+    /* INTERACTIVIDAD DEL RADAR */
+    .cell-interactive { cursor: pointer; transition: all 0.2s ease; position: relative; }
+    .cell-interactive:hover { background: rgba(255, 140, 0, 0.15) !important; transform: scale(1.1); font-weight: 800; border-radius: 4px; box-shadow: 0 0 10px rgba(255,140,0,0.4); z-index: 10; color: var(--fng-orange); }
+
+    /* MODAL DRILLDOWN Y CANDIDATOS INTELIGENTES */
+    .modal-drill-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 4000; }
+    .modal-drill-box { background: rgba(255, 255, 255, 0.98); padding: 22px; border-radius: 16px; width: 92%; max-width: 520px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.5); max-height: 82vh; display: flex; flex-direction: column; }
+    body.dark-mode .modal-drill-box { background: rgba(15, 23, 42, 0.98); border-color: rgba(255,255,255,0.1); color: white; }
+    .drill-list { overflow-y: auto; flex-grow: 1; margin-top: 15px; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+    
+    .drill-card-candidato {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .drill-card-candidato:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .drill-card-candidato.card-green { border-left: 6px solid #10b981; background: #f0fdf4; }
+    .drill-card-candidato.card-yellow { border-left: 6px solid #f59e0b; background: #fffbeb; }
+    .drill-card-candidato.card-red { border-left: 6px solid #ef4444; background: #fef2f2; }
+    .drill-card-candidato.card-blue { border-left: 6px solid var(--fng-blue); background: #f8fafc; }
+
+    body.dark-mode .drill-card-candidato { background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.08); }
+    body.dark-mode .drill-card-candidato.card-green { border-left-color: #10b981; background: rgba(16, 185, 129, 0.12); }
+    body.dark-mode .drill-card-candidato.card-yellow { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.12); }
+    body.dark-mode .drill-card-candidato.card-red { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+    body.dark-mode .drill-card-candidato.card-blue { border-left-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+
+    .badge-dot-libre {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 9px;
+        border-radius: 8px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-dot-libre.badge-green { background: #dcfce7; color: #166534; }
+    .badge-dot-libre.badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-dot-libre.badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-dot-libre.badge-blue { background: #e0f2fe; color: #075985; }
+
+    body.dark-mode .badge-dot-libre.badge-green { background: rgba(16, 185, 129, 0.25); color: #34d399; }
+    body.dark-mode .badge-dot-libre.badge-yellow { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+    body.dark-mode .badge-dot-libre.badge-red { background: rgba(239, 68, 68, 0.25); color: #f87171; }
+    body.dark-mode .badge-dot-libre.badge-blue { background: rgba(56, 189, 248, 0.25); color: #38bdf8; }
+
+    /* TARJETAS DEL RESUMEN PREDICTIVO - COMPACTO */
+    .predictivo-card { background: #ffffff; border-radius: 10px; padding: 10px; border-left: 5px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: flex-start; gap: 8px; transition: transform 0.2s;}
+    .predictivo-card:hover { transform: translateY(-2px); }
+    body.dark-mode .predictivo-card { background: rgba(0,0,0,0.4); }
+    .predictivo-card.blue { border-left-color: #3b82f6; }
+    .predictivo-card.yellow { border-left-color: #eab308; }
+    .predictivo-card.red { border-left-color: #ef4444; background: #fef2f2; }
+    body.dark-mode .predictivo-card.red { background: rgba(239, 68, 68, 0.1); }
+    .predictivo-card.orange { border-left-color: #f97316; }
+
+    /* ESTILOS LISTAS TABLA EN VIVO */
+    .lista-celda { display: flex; flex-direction: column; gap: 4px; }
+    .item-lista { padding: 4px; border-bottom: 1px dashed rgba(0,45,90,0.1); white-space: nowrap; }
+    .item-lista:last-child { border-bottom: none; }
+    body.dark-mode .item-lista { border-bottom-color: rgba(255,255,255,0.1); }
+
+    /* Barra superior de acciones alineada en 3 columnas */
+    .header-actions { 
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center; 
+        margin-bottom: 25px; 
+        min-height: 45px; 
+        width: 100%;
+    }
+
+    .header-actions > div:first-child {
+        justify-self: start;
+    }
+
+    .header-actions > div:nth-child(2) { 
+        justify-self: center;
+    }
+
+    #selectorGerencial { 
+        justify-self: end;
+    }
+    #selectorGerencial[style*="display: none"] { display: none !important; }
+
+    /* ========================================================
+       VISTA MÓVIL (PANTALLAS ANGOSTAS)
+       ======================================================== */
+    @media (max-width: 900px) { .sim-grid { grid-template-columns: 1fr; } }
+
+    @media (max-width: 768px) {
+        .header-actions { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px; }
+        .header-actions > div:nth-child(2) { position: static !important; transform: none !important; }
+        #selectorGerencial { margin-left: 0 !important; }
+        .glass-pill-container { display: flex; width: 100%; max-width: 100%; box-sizing: border-box; padding: 4px; border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .glass-pill-container::-webkit-scrollbar { display: none; }
+        .glass-pill-btn { flex: 1 0 auto; padding: 8px 10px; font-size: 12px; white-space: nowrap; justify-content: center; gap: 6px; }
+        #selectorGerencial .glass-pill-btn { flex: 1 1 50%; }
+        .controls { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; margin-bottom: 20px !important; }
+        .date-controls { display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; gap: 6px !important; }
+        .date-controls .btn { flex: 1 1 auto !important; min-width: 0 !important; padding: 8px 6px !important; font-size: 12px !important; white-space: nowrap !important; }
+        .date-controls input { flex: 1.3 1 auto !important; min-width: 0 !important; width: auto !important; max-width: 140px !important; padding: 7px 4px !important; font-size: 12px !important; text-align: center !important; }
+        /* AJUSTE RESPONSIVO PARA EL DOCK SECUNDARIO */
+        .sub-dock-container {
+            width: 100%; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; box-sizing: border-box;
+        }
+        .sub-dock-container::-webkit-scrollbar { display: none; }
+        .sub-dock { width: 100%; display: flex; box-sizing: border-box; padding: 4px; }
+        .sub-dock-btn { flex: 1; justify-content: center; padding: 8px 4px; font-size: 11px; white-space: nowrap; gap: 4px; }
+        .sub-dock-btn i { font-size: 11px; }
+    }
+
+    /* FORZAR TEXTO BLANCO BRILLANTE EN MODO OSCURO (RADAR OPERATIVO) */
+    body.dark-mode table .row-label {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    body.dark-mode table th:first-child {
+        color: #ffffff !important;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-panel" style="background: white;">
+    
+    <div class="header-actions">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <h3 style="margin: 0; font-size: 20px;"><i class="fas fa-calculator"></i> Panel</h3>
+        </div>
+        
+        <div class="glass-pill-container">
+            <button class="glass-pill-btn active-blue" id="btnModoPanel" onclick="cambiarModoPrincipal('panel')"><i class="fas fa-chart-pie"></i> Panel Operativo</button>
+            <button class="glass-pill-btn" id="btnModoEstatus" onclick="cambiarModoPrincipal('estatus')"><i class="fas fa-satellite-dish"></i> Estatus en Vivo</button>
+            <button class="glass-pill-btn" id="btnModoPredictivo" onclick="cambiarModoPrincipal('predictivo')"><i class="fas fa-bolt"></i> Predictivo</button>
+        </div>
+
+        <div class="glass-pill-container" id="selectorGerencial">
+            <button class="glass-pill-btn active" id="btnGerencial" onclick="toggleVista('gerencial')">Unificado</button>
+            <button class="glass-pill-btn" id="btnDetallada" onclick="toggleVista('detallada')">Detallado</button>
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         CONTENEDOR 1: PANEL SIMULADOR
+         ========================================== -->
+    <div id="modoPanelContenedor">
+        <div class="sim-grid">
+            <div style="border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; background: #f8fafc;">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Producto</th>
+                                <th class="col-gerencial" style="background: var(--fng-orange);">LÍNEA CRYO</th>
+                                <th class="col-detallada">Argón</th>
+                                <th class="col-detallada">Nitrógeno</th>
+                                <th class="col-detallada">Oxígeno</th>
+                                <th>CO2</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="row-label">Unidades</td>
+                                <td class="col-gerencial"><input type="number" class="sim-input" id="u_cryo" value="{{ cfg.ARGON + cfg.NITROGENO + cfg.OXIGENO }}" readonly style="background: #fff7ed; border-color: #fed7aa;"></td>
+                                <td class="col-detallada"><input type="number" class="sim-input" id="u_arg" value="{{ cfg.ARGON }}" oninput="calcularSimulador()"></td>
+                                <td class="col-detallada"><input type="number" class="sim-input" id="u_nit" value="{{ cfg.NITROGENO }}" oninput="calcularSimulador()"></td>
+                                <td class="col-detallada"><input type="number" class="sim-input" id="u_oxi" value="{{ cfg.OXIGENO }}" oninput="calcularSimulador()"></td>
+                                <td><input type="number" class="sim-input" id="u_co2" value="{{ cfg.CO2 }}" oninput="calcularSimulador()"></td>
+                                <td id="u_tot" style="font-weight: bold;">0</td>
+                            </tr>
+                            <tr>
+                                <td class="row-label">Operadores</td>
+                                <td class="col-gerencial" id="o_cryo" style="font-weight: 700; color: #475569; background: #f1f5f9; border-radius: 6px;">{{ plantilla.get('CRYO', 0) }}</td>
+                                <td class="col-detallada" id="o_arg" style="font-weight: 700; color: #475569;">{{ plantilla.get('ARGON', 0) }}</td>
+                                <td class="col-detallada" id="o_nit" style="font-weight: 700; color: #475569;">{{ plantilla.get('NITROGENO', 0) }}</td>
+                                <td class="col-detallada" id="o_oxi" style="font-weight: 700; color: #475569;">{{ plantilla.get('OXIGENO', 0) }}</td>
+                                <td id="o_co2" style="font-weight: 700; color: #475569;">{{ plantilla.get('CO2', 0) }}</td>
+                                <td id="o_tot" style="font-weight: bold;">0</td>
+                            </tr>
+                            <tr>
+                                <td class="row-label">Op. Necesarios (1.8)</td>
+                                <td class="col-gerencial" id="r_cryo">0</td>
+                                <td class="col-detallada" id="r_arg">0</td><td class="col-detallada" id="r_nit">0</td><td class="col-detallada" id="r_oxi">0</td>
+                                <td id="r_co2">0</td><td id="r_tot" style="font-weight: bold;">0</td>
+                            </tr>
+                            <tr>
+                                <td class="row-label">Diferencias</td>
+                                <td class="col-gerencial" id="d_cryo">0</td>
+                                <td class="col-detallada" id="d_arg">0</td><td class="col-detallada" id="d_nit">0</td><td class="col-detallada" id="d_oxi">0</td>
+                                <td id="d_co2">0</td><td id="d_tot">0</td>
+                            </tr>
+                            <tr>
+                                <td class="row-label">Factor</td>
+                                <td class="col-gerencial" id="f_cryo" style="font-weight: bold;">0.00</td>
+                                <td class="col-detallada" id="f_arg">0.00</td><td class="col-detallada" id="f_nit">0.00</td><td class="col-detallada" id="f_oxi">0.00</td>
+                                <td id="f_co2">0.00</td><td id="f_tot" style="font-weight: bold;">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% if rol in ['jefe_op', 'gerencia'] %}
+                    <button onclick="guardarBD()" class="btn btn-save"><i class="fas fa-save"></i> Fijar Unidades y Recalcular</button>
+                {% elif rol == 'aux_op' %}
+                    <button onclick="guardarBD()" class="btn btn-save" style="background:#10b981;"><i class="fas fa-paper-plane"></i> Solicitar Cambio de Meta al Jefe</button>
+                {% endif %}
+            </div>
+
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="simuladorChart"></canvas>
+            </div>
+        </div>
+
+        <h3 id="seccion-radar" style="font-size: 20px; margin-top:30px;"><i class="fas fa-chart-line"></i> Radar Operativo por Producto (En Piso)</h3>
+        
+        <div class="controls">
+            <div style="font-weight: 600; color: #64748b; margin-bottom: 5px;">
+                Análisis de 10 días (Realidad Diaria) <br>
+                <span style="font-size: 11px; color: var(--fng-orange);">(Da clic en los números para desglose)</span>
+            </div>
+            
+            <div class="date-controls">
+                <button onclick="window.location.href='?fecha={{ f_atras }}'" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Atrás
+                </button>
+                
+                <input type="date" class="form-control" value="{{ centro }}" onchange="window.location.href='?fecha=' + this.value">
+                
+                <button onclick="window.location.href='?fecha={{ f_adelante }}'" class="btn btn-light">
+                    Adelante <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="tablasGerenciales">
+            {% for p in ['CRYO', 'CO2'] %}
+            <div class="bloque-title {% if p == 'CRYO' %}bloque-cryo{% endif %}"><i class="fas fa-flask"></i> LÍNEA {{ p }}</div>
+            <div style="overflow-x: auto; margin-bottom: 10px; border-radius: 0 10px 10px 10px; border: 1px solid #cbd5e1;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="{% if p == 'CRYO' %}th-cryo{% endif %}" style="text-align: left; min-width: 150px;">Indicador</th>
+                            {% for f in fechas %}<th class="{% if f.es_hoy %}es-hoy{% endif %} {% if p == 'CRYO' %}th-cryo{% endif %}">{{ f.formato_corto }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-label" style="background:#e0f2fe;">UNIDADES</td>
+                            {% for v in data[p]['Unidades'] %}
+                            <td style="background:#e0f2fe; font-weight:700;">{{ v }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">PLANTILLA</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Plantilla')">{{ data[p]['Plantilla'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">ACTIVOS</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" style="font-weight:600;" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Disp')">{{ data[p]['Disp'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">NO ACTIVOS</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'NoDisp')">{{ data[p]['NoDisp'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label" style="font-weight: 700; color: #000;">FALTANTES</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive {% if data[p]['Deficit'][idx] < 0 %}negativo{% else %}positivo{% endif %}" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Deficit')">{{ data[p]['Deficit'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tablasDetalladas" style="display: none;">
+            {% for p in ['ARGON', 'NITROGENO', 'OXIGENO', 'CO2'] %}
+            <div class="bloque-title"><i class="fas fa-flask"></i> {{ p }}</div>
+            <div style="overflow-x: auto; margin-bottom: 10px; border-radius: 0 10px 10px 10px; border: 1px solid #cbd5e1;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; min-width: 150px;">Indicador</th>
+                            {% for f in fechas %}<th class="{% if f.es_hoy %}es-hoy{% endif %}">{{ f.formato_corto }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-label" style="background:#e0f2fe;">UNIDADES</td>
+                            {% for v in data[p]['Unidades'] %}
+                            <td style="background:#e0f2fe; font-weight:700;">{{ v }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">PLANTILLA</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Plantilla')">{{ data[p]['Plantilla'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">ACTIVOS</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" style="font-weight:600;" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Disp')">{{ data[p]['Disp'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label">NO ACTIVO</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'NoDisp')">{{ data[p]['NoDisp'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="row-label" style="font-weight: 700; color: #000;">FALTANTES</td>
+                            {% for idx in range(fechas|length) %}
+                            <td class="cell-interactive {% if data[p]['Deficit'][idx] < 0 %}negativo{% else %}positivo{% endif %}" onclick="abrirDrilldown('{{ p }}', '{{ fechas[idx].string }}', 'Deficit')">{{ data[p]['Deficit'][idx] }}</td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         CONTENEDOR 2: ESTATUS EN VIVO (CON DOCK)
+         ========================================== -->
+    <div id="modoEstatusContenedor" style="display: none; padding: 10px;">
+        <div class="controls" style="margin-bottom: 15px;">
+            <div style="font-weight: 600; color: #64748b;">Monitoreo GPS en Vivo <span style="font-size:11px; color:var(--fng-orange);">(Sincronizado a Pizarra)</span></div>
+            <button class="btn btn-light" onclick="cargarEstatusVivo()"><i class="fas fa-sync-alt"></i> Actualizar Radar</button>
+        </div>
+
+        <div id="subDockEstatusVivo" class="sub-dock-container">
+            <div class="sub-dock">
+                <button class="sub-dock-btn active" onclick="switchSubTab('sub-entregas', this)"><i class="fas fa-truck-loading"></i> Entregas</button>
+                <button class="sub-dock-btn" onclick="switchSubTab('sub-retornos', this)"><i class="fas fa-undo"></i> Retornos</button>
+                <button class="sub-dock-btn" onclick="switchSubTab('sub-checkin', this)"><i class="fas fa-clipboard-check"></i> Check-in Patio</button>
+            </div>
+        </div>
+
+        <!-- TABLA DE ENTREGAS -->
+        <div id="sub-entregas" class="sub-view-section" style="overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
+                <thead>
+                    <tr>
+                        <th>Económico</th>
+                        <th style="text-align:left;">Operador</th>
+                        <th>Salida (Est / Real)</th>
+                        <th>Producto</th>
+                        <th>Estatus / Radar</th>
+                        <th>Tiempo</th>
+                        <th style="text-align:left;">Cliente(s)</th>
+                        <th style="text-align:left;">Llegada (Est / Real)</th>
+                        <th style="text-align:left;">Ubicación / Geocerca</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyEstatusVivo">
+                    <tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Conectando con unidades...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TABLA DE RETORNOS -->
+        <div id="sub-retornos" class="sub-view-section" style="display: none; overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
+                <thead>
+                    <tr>
+                        <th>Económico</th>
+                        <th style="text-align:left;">Operador</th>
+                        <th>Producto</th>
+                        <th>Salida (Est / Real)</th>
+                        <th>Llegada Base (Est / Real)</th>
+                        <th>Estatus / Radar</th>
+                        <th style="text-align:left;">Ubicación / Geocerca</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyRetornos">
+                    <tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b; font-weight:600;"><i class="fas fa-undo" style="font-size:24px; display:block; margin-bottom:10px; color:#94a3b8;"></i>Sin unidades en ruta de retorno.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TABLA DE CHECK-IN PATIO -->
+        <div id="sub-checkin" class="sub-view-section" style="display: none; overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 1000px;">
+                <thead>
+                    <tr>
+                        <th>Económico</th>
+                        <th style="text-align:left;">Operador</th>
+                        <th>Llegada a Base</th>
+                        <th>Diésel (Físico vs GPS)</th>
+                        <th>Neumáticos</th>
+                        <th>Estado Mecánico</th>
+                        <th>Tiempo en Patio</th>
+                        <th>Disponibilidad Final</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyCheckin">
+                    <tr><td colspan="8" style="text-align:center; padding:30px; color:#64748b; font-weight:600;"><i class="fas fa-warehouse" style="font-size:24px; display:block; margin-bottom:10px; color:#94a3b8;"></i>Patio despejado / Sin unidades en inspección.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Contenedor 3: Predictivo -->
+    <div id="modoPredictivoContenedor" style="display: none; padding: 10px;">
+        <div class="controls" style="margin-bottom: 15px;">
+            <div style="font-weight: 600; color: #64748b;"><i class="fas fa-calendar-alt"></i> Escáner Operativo y Predictivo de Clientes</div>
+        </div>
+
+        <!-- DOCK PREDICTIVO -->
+        <div class="sub-dock-container">
+            <div class="sub-dock">
+                <button class="sub-dock-btn pred-btn active" onclick="switchPredictivoTab('sub-pred-ausencias', this)"><i class="fas fa-user-clock"></i> Personal y Ausencias</button>
+                <button class="sub-dock-btn pred-btn" onclick="switchPredictivoTab('sub-pred-clientes', this)"><i class="fas fa-industry"></i> Surtimientos y Clientes</button>
+                {% if rol in ['jefe_op', 'gerencia', 'super_usuario'] %}
+                <button class="sub-dock-btn pred-btn" onclick="switchPredictivoTab('sub-pred-equidad', this)" style="color: var(--fng-blue); font-weight: 700;">
+                    <i class="fas fa-balance-scale" style="color: var(--fng-orange);"></i> Auditoría de Equidad
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- TAB 1: AUSENCIAS Y PERSONAL A 15 DÍAS -->
+        <div id="sub-pred-ausencias" class="sub-pred-section">
+            <div id="gridPredictivo">
+                <div style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Analizando riesgos futuros...</div>
+            </div>
+        </div>
+
+        <!-- Pestaña 2: Analítica de Clientes -->
+        <div id="sub-pred-clientes" class="sub-pred-section" style="display:none;">
+            <!-- GRÁFICA DE VOLUMEN -->
+            <div style="background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: var(--fng-blue);"><i class="fas fa-chart-bar"></i> Volumen de Surtimientos Reales (Top Consumidores)</h4>
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="clientesChart"></canvas>
+                </div>
+            </div>
+
+            <h4 style="color: var(--fng-blue);"><i class="fas fa-stopwatch"></i> Frecuencia y Estado de Surtimiento</h4>
+            <div id="gridClientesPredictivo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                <div style="text-align:center; padding:20px; color:#94a3b8; grid-column: 1 / -1;"><i class="fas fa-spinner fa-spin"></i> Analizando historial de surtimientos...</div>
+            </div>
+        </div>
+
+        <!-- TAB 3: AUDITORÍA DE EQUIDAD / ASIGNACIÓN (EXCLUSIVO GERENCIA) -->
+        {% if rol in ['jefe_op', 'gerencia', 'super_usuario'] %}
+        <div id="sub-pred-equidad" class="sub-pred-section" style="display: none;">
+            <div style="background: rgba(0, 45, 90, 0.04); border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h4 style="margin: 0; color: var(--fng-blue); font-size: 16px;"><i class="fas fa-balance-scale"></i> Análisis de Sesgo</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Auditoría objetiva de viajes foráneos, minas y pernoctas vs. circuitos locales cortos para detectar sobrecargas o favoritismos.</p>
+                    </div>
+                    <button class="btn btn-light" onclick="cargarPredictivo()" style="padding: 6px 14px; font-size: 12px;"><i class="fas fa-sync-alt"></i> Actualizar Análisis</button>
+                </div>
+            </div>
+
+            <!-- GRID DONDE SE PINTAN LAS TARJETAS -->
+            <div id="gridEquidadDespacho" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 25px; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Auditando asignación de rutas...</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+ <!-- MODAL DRILLDOWN (VENTANA DE DESGLOSE DE OPERADORES Y CANDIDATOS) -->
+<div id="modalDrilldown" class="modal-drill-overlay">
+    <div class="modal-drill-box">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+            <div>
+                <h3 id="drillTitulo" style="margin: 0; color: var(--fng-blue); font-size: 18px; font-weight: 800;"></h3>
+                <p id="drillSubtitulo" style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;"></p>
+            </div>
+            <button onclick="document.getElementById('modalDrilldown').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="contenedorCandidatos" class="drill-list">
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL DE CLIENTE (ÚLTIMOS 30 DÍAS) -->
+<div id="modalClienteHistorial" class="modal-drill-overlay">
+    <div class="modal-drill-box" style="max-width: 680px; width: 95%;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+            <div>
+                <h3 id="histClienteNombre" style="margin: 0; color: var(--fng-blue); font-size: 18px;"><i class="fas fa-industry" style="color: var(--fng-orange);"></i> Historial de Surtimientos</h3>
+                <p id="histClienteSub" style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-weight: 600;"></p>
+            </div>
+            <button onclick="document.getElementById('modalClienteHistorial').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div style="background: #f1f5f9; padding: 10px 15px; border-radius: 8px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--fng-blue);"><i class="fas fa-weight-hanging"></i> Total Descargado (30 días):</span>
+            <span id="histTotalTon" style="font-size: 16px; font-weight: 800; color: #10b981;">0.0 Ton</span>
+        </div>
+
+        <div style="overflow-y: auto; max-height: 50vh; margin-top: 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 520px; background: white;">
+                <thead>
+                    <tr>
+                        <th style="font-size: 11px; padding: 8px;">Fecha</th>
+                        <th style="font-size: 11px; padding: 8px;">Producto</th>
+                        <th style="font-size: 11px; padding: 8px; text-align: left;">Operador</th>
+                        <th style="font-size: 11px; padding: 8px;">Tractor / Pipa</th>
+                        <th style="font-size: 11px; padding: 8px;">Descarga</th>
+                    </tr>
+                </thead>
+                <tbody id="histTablaCuerpo">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // FUNCIONALIDAD NAVEGACIÓN DOCKS
+    function switchSubTab(subId, btn) {
+        document.querySelectorAll('.sub-view-section').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.sub-dock-btn:not(.pred-btn)').forEach(b => b.classList.remove('active'));
+        const target = document.getElementById(subId);
+        if (target) target.style.display = 'block';
+        btn.classList.add('active');
+    }
+
+    function switchPredictivoTab(tabId, btn) {
+        document.querySelectorAll('.sub-pred-section').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.sub-dock-btn.pred-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        btn.classList.add('active');
+        if (tabId === 'sub-pred-clientes') {
+            cargarAnaliticaClientes();
+        }
+    }
+
+    function abrirHistorialCliente(index) {
+        const cliente = window.datosClientesAnalitica[index];
+        if (!cliente) return;
+
+        const nombreProd = {
+            'LOX': 'Oxígeno',
+            'LIN': 'Nitrógeno',
+            'LAR': 'Argón',
+            'CO2': 'CO2'
+        };
+
+        // Colores distintivos por producto para la tabla
+        const colorBadges = {
+            'Oxígeno': 'background: #e0f2fe; color: #0284c7;',
+            'Nitrógeno': 'background: #f3e8ff; color: #7e22ce;',
+            'Argón': 'background: #e0f7fa; color: #00838f;',
+            'CO2': 'background: #f1f5f9; color: #475569;'
+        };
+
+        document.getElementById('histClienteNombre').innerHTML = `<i class="fas fa-industry" style="color: var(--fng-orange);"></i> ${cliente.cliente}`;
+        document.getElementById('histClienteSub').innerText = `Línea Principal: ${nombreProd[cliente.producto_dominante] || cliente.producto_dominante} | Frecuencia: Cada ${cliente.frecuencia_promedio} días`;
+
+        const tbody = document.getElementById('histTablaCuerpo');
+        tbody.innerHTML = '';
+
+        let sumaTon = 0;
+        const historial = cliente.historial_30d || [];
+
+        if (historial.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">No hay viajes detallados en el periodo.</td></tr>';
+        } else {
+            historial.forEach(v => {
+                sumaTon += parseFloat(v.toneladas || 0);
+                let fPartes = v.fecha.split('-');
+                let fFormato = `${fPartes[2]}/${fPartes[1]}/${fPartes[0]}`;
+                let estiloBadge = colorBadges[v.producto] || 'background: #f1f5f9; color: #475569;';
+
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+                        <td style="padding: 7px; font-weight: 700; color: #64748b;">${fFormato}</td>
+                        <td style="padding: 7px;">
+                            <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; ${estiloBadge}">
+                                ${v.producto}
+                            </span>
+                        </td>
+                        <td style="padding: 7px; text-align: left; font-weight: 600; color: var(--fng-blue);">${v.operador}</td>
+                        <td style="padding: 7px;">${v.eco} / ${v.pipa}</td>
+                        <td style="padding: 7px; font-weight: 800; color: #10b981;">${v.toneladas.toFixed(1)} Ton</td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('histTotalTon').innerText = `${sumaTon.toFixed(1)} Ton`;
+        document.getElementById('modalClienteHistorial').style.display = 'flex';
+    }
+
+    // Desactivar el efecto hover en fechas pasadas
+    const hoy = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('.cell-interactive').forEach(cell => {
+        const onclickAttr = cell.getAttribute('onclick') || '';
+        const match = onclickAttr.match(/'(\d{4}-\d{2}-\d{2})'/);
+        if (match && match[1] && match[1] < hoy) {
+            cell.classList.remove('cell-interactive');
+            cell.style.cursor = 'default';
+        }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.location.search.includes('fecha=')) {
+            const radar = document.getElementById('seccion-radar');
+            if (radar) {
+                radar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    });
+
+    let myChart = null;
+    let clientesChartInstance = null;
+    let isGerencial = true;
+
+    function cambiarModoPrincipal(modo) {
+        const btnPanel = document.getElementById('btnModoPanel');
+        const btnEstatus = document.getElementById('btnModoEstatus');
+        const btnPredictivo = document.getElementById('btnModoPredictivo');
+        
+        const contenedorPanel = document.getElementById('modoPanelContenedor');
+        const contenedorEstatus = document.getElementById('modoEstatusContenedor');
+        const contenedorPredictivo = document.getElementById('modoPredictivoContenedor');
+        const selectorGerencial = document.getElementById('selectorGerencial');
+
+        btnPanel.classList.remove('active-blue');
+        btnEstatus.classList.remove('active-blue');
+        btnPredictivo.classList.remove('active-blue');
+        contenedorPanel.style.display = 'none';
+        contenedorEstatus.style.display = 'none';
+        contenedorPredictivo.style.display = 'none';
+        selectorGerencial.style.display = 'none';
+
+        if(modo === 'panel') {
+            btnPanel.classList.add('active-blue');
+            contenedorPanel.style.display = 'block';
+            selectorGerencial.style.display = 'inline-flex';
+        } else if(modo === 'estatus') {
+            btnEstatus.classList.add('active-blue');
+            contenedorEstatus.style.display = 'block';
+            cargarEstatusVivo(); 
+        } else if(modo === 'predictivo') {
+            btnPredictivo.classList.add('active-blue');
+            contenedorPredictivo.style.display = 'block';
+            cargarPredictivo(); 
+            // Cargar en background para cuando cambien de pestaña
+            cargarAnaliticaClientes();
+        }
+    }
+
+    // ==========================================
+    // CARGAR MÓDULO DE ANALÍTICA DE CLIENTES (NUEVO)
+    // ==========================================
+    async function cargarAnaliticaClientes() {
+        try {
+            const res = await fetch('/api/analitica_clientes');
+            const json = await res.json();
+            if (json.status === 'success') {
+                const labels = json.data.map(d => d.cliente);
+                const loxData = json.data.map(d => d.productos.LOX);
+                const linData = json.data.map(d => d.productos.LIN);
+                const larData = json.data.map(d => d.productos.LAR);
+                const co2Data = json.data.map(d => d.productos.CO2);
+                
+                if (clientesChartInstance) {
+                    clientesChartInstance.destroy();
+                }
+                const ctx = document.getElementById('clientesChart').getContext('2d');
+                // Mapeo de nombres completos para gases criogénicos
+                clientesChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Oxígeno', data: loxData, backgroundColor: '#3b82f6' },
+                            { label: 'Nitrógeno', data: linData, backgroundColor: '#8b5cf6' },
+                            { label: 'Argón', data: larData, backgroundColor: '#0ea5e9' },
+                            { label: 'CO2', data: co2Data, backgroundColor: '#64748b' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } }
+                });
+                
+                const grid = document.getElementById('gridClientesPredictivo');
+                grid.innerHTML = '';
+                
+                if(json.data.length === 0) {
+                    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px;">Esperando registro de viajes para generar analítica.</div>';
+                    return;
+                }
+
+                // DICCIONARIO DE NOMBRES COMPLETOS
+                const nombreProducto = {
+                    'LOX': 'Oxígeno',
+                    'LIN': 'Nitrógeno',
+                    'LAR': 'Argón',
+                    'CO2': 'CO2'
+                };
+                                
+                window.datosClientesAnalitica = json.data; // Guardamos en memoria
+
+                json.data.forEach((item, idx) => {
+                    let estadoColor = 'green';
+                    let estadoIcon = 'check-circle';
+                    let estadoTexto = 'Abastecido';
+                    
+                    if (item.frecuencia_promedio > 0) {
+                        if (item.dias_transcurridos > item.frecuencia_promedio + 1) {
+                            estadoColor = 'red'; estadoIcon = 'exclamation-triangle'; estadoTexto = 'Riesgo de Desabasto';
+                        } else if (item.dias_transcurridos >= item.frecuencia_promedio - 1) {
+                            estadoColor = 'yellow'; estadoIcon = 'clock'; estadoTexto = 'Ventana de Pedido';
+                        }
+                    }
+                    
+                    let cardColorHex = estadoColor === 'green' ? '#10b981' : estadoColor === 'yellow' ? '#f59e0b' : '#ef4444';
+                    let prodColor = item.producto_dominante === 'CO2' ? '#64748b' : 'var(--fng-blue)';
+                    
+                    let formatFecha = item.ultima_fecha.split('-').reverse().join('/');
+                    let textoHace = item.dias_transcurridos === 0 ? 'Hoy' : `Hace ${item.dias_transcurridos} días`;
+                    let frecStr = item.frecuencia_promedio > 0 ? `Cada ${item.frecuencia_promedio} días` : 'Variable';
+
+                    let html = `
+                        <div style="background: #fff; border-radius: 12px; border: 1px solid #cbd5e1; border-left: 5px solid ${cardColorHex}; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="abrirHistorialCliente(${idx})">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 10px;">
+                                <h5 style="margin: 0; font-size: 14px; color: var(--fng-blue); line-height: 1.2; word-break: break-word; padding-right:10px;">${item.cliente}</h5>
+                                <span style="font-size: 11px; font-weight: bold; background: #f1f5f9; color: ${prodColor}; padding: 3px 8px; border-radius: 10px;">${nombreProducto[item.producto_dominante] || item.producto_dominante}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                                <span style="font-size: 12px; color: #64748b;"><i class="fas fa-calendar-check"></i> Última: <b>${formatFecha}</b></span>
+                                <span style="font-size: 12px; font-weight: 700; color: #475569;">${textoHace}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items: center;">
+                                <span style="font-size: 12px; color: #64748b;"><i class="fas fa-sync-alt"></i> Ritmo: <b>${frecStr}</b></span>
+                                <span style="font-size: 11px; font-weight: 800; color: ${cardColorHex};"><i class="fas fa-${estadoIcon}"></i> ${estadoTexto}</span>
+                            </div>
+                        </div>
+                    `;
+                    grid.insertAdjacentHTML('beforeend', html);
+                });
+            }
+        } catch(e) {
+            document.getElementById('gridClientesPredictivo').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Error al cargar analítica de clientes.</div>';
+        }
+    }
+
+    async function cargarEstatusVivo() {
+        const tbodyEntregas = document.getElementById('bodyEstatusVivo');
+        const tbodyRetornos = document.getElementById('bodyRetornos');
+        const tbodyCheckin = document.getElementById('bodyCheckin');
+
+        tbodyEntregas.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Sincronizando entregas...</td></tr>';
+        
+        try {
+            const res = await fetch('/api/estatus_vivo_mock');
+            const json = await res.json();
+            
+            if(json.status === 'success') {
+                // 1. PINTAR ENTREGAS
+                tbodyEntregas.innerHTML = '';
+                if(!json.data || json.data.length === 0) {
+                    tbodyEntregas.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b; font-weight:600;"><i class="fas fa-clipboard-check" style="font-size:24px; display:block; margin-bottom:10px; color:#94a3b8;"></i>No hay viajes de entrega activos en la Pizarra.</td></tr>';
+                } else {
+                    const ordenColores = { 'red': 1, 'yellow': 2, 'green': 3, 'blue': 4 };
+                    json.data.sort((a, b) => (ordenColores[a.color] || 5) - (ordenColores[b.color] || 5));
+                    
+                    json.data.forEach(item => {
+                        let colorBase = item.color === 'green' ? '#10b981' : item.color === 'yellow' ? '#f59e0b' : item.color === 'blue' ? '#3b82f6' : '#ef4444';
+                        let htmlClientes = item.paradas.map(p => `<div class="item-lista">${p.cliente}</div>`).join('');
+                        let htmlLlegadas = item.paradas.map(p => `<div class="item-lista">${p.llegada}</div>`).join('');
+
+                        tbodyEntregas.innerHTML += `
+                            <tr style="border-bottom: 1px solid #e2e8f0; background: #fff;">
+                                <td style="font-weight:bold; color:var(--fng-blue);">${item.eco}</td>
+                                <td style="text-align:left; font-weight:600;">${item.operador}</td>
+                                <td style="font-weight:bold; color:#475569;">${item.salida}</td>
+                                <td>${item.producto}</td>
+                                <td style="font-weight:bold; color:${colorBase};">${item.icon} ${item.estatus}</td>
+                                <td>${item.tiempo}</td>
+                                <td style="text-align:left; font-size:12px; font-weight:600; color:#475569;"><div class="lista-celda">${htmlClientes}</div></td>
+                                <td style="text-align:left; font-size:12px; font-weight:bold; color:#64748b;"><div class="lista-celda">${htmlLlegadas}</div></td>
+                                <td style="text-align:left; font-size:12px; font-weight:600; color:#0284c7;">${item.ubicacion}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // 2. PINTAR RETORNOS
+                tbodyRetornos.innerHTML = '';
+                if(!json.retornos || json.retornos.length === 0) {
+                    tbodyRetornos.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b; font-weight:600;"><i class="fas fa-undo" style="font-size:24px; display:block; margin-bottom:10px; color:#94a3b8;"></i>Sin unidades en ruta de retorno.</td></tr>';
+                } else {
+                    json.retornos.forEach(item => {
+                        let colorBase = item.color === 'green' ? '#10b981' : item.color === 'yellow' ? '#f59e0b' : '#ef4444';
+                        tbodyRetornos.innerHTML += `
+                            <tr style="border-bottom: 1px solid #e2e8f0; background: #fff;">
+                                <td style="font-weight:bold; color:var(--fng-blue);">${item.eco}</td>
+                                <td style="text-align:left; font-weight:600;">${item.operador}</td>
+                                <td>${item.producto}</td>
+                                <td style="font-weight:bold; color:#475569;">${item.salida}</td>
+                                <td style="font-weight:bold; color:#64748b;">${item.llegada_base}</td>
+                                <td><span class="badge-status" style="background:${colorBase};">${item.icon} ${item.estatus}</span></td>
+                                <td style="text-align:left; font-size:12px; font-weight:600; color:#0284c7;">${item.ubicacion}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // 3. PINTAR CHECK-IN PATIO CON SEMAFORIZACIÓN REAL
+                tbodyCheckin.innerHTML = '';
+                if(!json.checkin || json.checkin.length === 0) {
+                    tbodyCheckin.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#64748b; font-weight:600;"><i class="fas fa-warehouse" style="font-size:24px; display:block; margin-bottom:10px; color:#94a3b8;"></i>Patio despejado / Sin unidades en inspección.</td></tr>';
+                } else {
+                    json.checkin.forEach(item => {
+                        let dieselHtml = item.diesel.includes('Descuadre') || item.diesel.includes('Faltante') || item.diesel.includes('⚠️')
+                            ? `<span style="color:#ef4444; font-weight:700;"><i class="fas fa-exclamation-triangle"></i> ${item.diesel}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.diesel}</span>`;
+
+                        let neuHtml = item.neumaticos.includes('Desgaste') || item.neumaticos.includes('Baja') || item.neumaticos.includes('⚠️')
+                            ? `<span style="color:#f59e0b; font-weight:700;"><i class="fas fa-exclamation-circle"></i> ${item.neumaticos}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.neumaticos}</span>`;
+
+                        let mecHtml = item.mecanico.includes('Falla') || item.mecanico.includes('Taller') || item.mecanico.includes('Fuga') || item.mecanico.includes('⚠️')
+                            ? `<span style="color:#ef4444; font-weight:700;"><i class="fas fa-tools"></i> ${item.mecanico}</span>`
+                            : `<span style="color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> ${item.mecanico}</span>`;
+
+                        let badgeClass = 'bg-green';
+                        if (item.estatus.includes('Retenida') || item.estatus.includes('Taller') || item.estatus.includes('Bloqueada')) {
+                            badgeClass = 'bg-red';
+                        } else if (item.estatus.includes('Revisión') || item.estatus.includes('Cambio') || item.estatus.includes('Espera')) {
+                            badgeClass = 'bg-yellow';
+                        }
+
+                        tbodyCheckin.innerHTML += `
+                            <tr style="border-bottom: 1px solid #e2e8f0; background: #fff;">
+                                <td style="font-weight:bold; color:var(--fng-blue);">${item.eco}</td>
+                                <td style="text-align:left; font-weight:600;">${item.operador}</td>
+                                <td style="font-weight:bold; color:#475569;">${item.llegada}</td>
+                                <td>${dieselHtml}</td>
+                                <td>${neuHtml}</td>
+                                <td>${mecHtml}</td>
+                                <td style="color:#64748b; font-weight:600;">${item.tiempo}</td>
+                                <td><span class="badge-status ${badgeClass}">${item.estatus}</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        } catch(e) {
+            tbodyEntregas.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:#ef4444;">Error de conexión con el radar.</td></tr>';
+        }
+    }
+
+    async function cargarPredictivo() {
+        const grid = document.getElementById('gridPredictivo');
+        const gridEquidad = document.getElementById('gridEquidadDespacho');
+        grid.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Generando proyecciones a 15 días...</div>';
+        if (gridEquidad) {
+            gridEquidad.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Auditando asignaciones de viajes...</div>';
+        }
+
+        try {
+            const res = await fetch('/api/resumen_predictivo');
+            const json = await res.json();
+            
+            if(json.status === 'success') {
+                // 1. PINTAR PERSONAL Y AUSENCIAS
+                grid.innerHTML = '';
+                if(json.data.length === 0) {
+                    grid.innerHTML = '<div style="text-align:center; padding:30px; color:#10b981; font-weight:bold; font-size: 16px;"><i class="fas fa-check-circle" style="font-size:30px; display:block; margin-bottom:10px;"></i> Todo despejado. No hay alertas críticas planificadas a 15 días.</div>';
+                } else {
+                    let agrupado = {};
+                    json.data.forEach(item => {
+                        if(!agrupado[item.fecha]) {
+                            agrupado[item.fecha] = { titulo: item.texto_dias, items: [] };
+                        }
+                        agrupado[item.fecha].items.push(item);
+                    });
+
+                    let fechasOrdenadas = Object.keys(agrupado).sort();
+                    grid.style.display = 'flex';
+                    grid.style.overflowX = 'auto';
+                    grid.style.gap = '15px';
+                    grid.style.paddingBottom = '15px';
+
+                    fechasOrdenadas.forEach(fecha => {
+                        let col = document.createElement('div');
+                        col.style.minWidth = '220px';
+                        col.style.maxWidth = '240px';
+                        col.style.flex = '1';
+                        col.style.background = '#f8fafc';
+                        col.style.padding = '12px';
+                        col.style.borderRadius = '12px';
+                        col.style.border = '1px solid #e2e8f0';
+                        
+                        let formatFecha = fecha.split('-').reverse().join('/'); 
+                        let tituloDia = agrupado[fecha].titulo.toUpperCase();
+                        
+                        let html = `
+                            <div style="font-weight:800; color:var(--fng-blue); font-size:13px; margin-bottom:12px; border-bottom:2px solid #cbd5e1; padding-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                                <span>${tituloDia}</span> 
+                                <span style="font-size:10px; color:#64748b; font-weight:600; background:#e2e8f0; padding:2px 6px; border-radius:8px;">${formatFecha}</span>
+                            </div>
+                        `;
+                        
+                        agrupado[fecha].items.forEach(item => {
+                            html += `
+                                <div class="predictivo-card ${item.color}" style="margin-bottom: 10px;">
+                                    <div style="font-size: 16px; color: var(--fng-blue); opacity: 0.8; width: 25px; text-align:center;"><i class="fas ${item.icon}"></i></div>
+                                    <div>
+                                        <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 3px;">${item.tipo}</div>
+                                        <div style="font-size: 12px; font-weight: 600; color: var(--fng-blue); line-height: 1.3;">${item.mensaje}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        col.innerHTML = html;
+                        grid.appendChild(col);
+                    });
+                }
+
+                // 2. PINTAR AUDITORÍA DE EQUIDAD (EXCLUSIVO GERENCIA)
+                if (gridEquidad && json.auditoria_equidad) {
+                    gridEquidad.innerHTML = '';
+                    if (json.auditoria_equidad.length === 0) {
+                        gridEquidad.innerHTML = `
+                            <div style="grid-column: 1 / -1; text-align:center; padding:35px; background:white; border-radius:12px; border:1px solid #cbd5e1;">
+                                <i class="fas fa-check-circle" style="font-size:36px; color:#10b981; margin-bottom:10px; display:block;"></i>
+                                <h4 style="margin:0; color:var(--fng-blue);">Distribución Equitativa Confirmada</h4>
+                                <p style="margin:5px 0 0 0; color:#64748b; font-size:13px;">No se registran desviaciones anormales de sobrecarga pesada ni privilegios de confort en los últimos 45 días.</p>
+                            </div>
+                        `;
+                    } else {
+                        json.auditoria_equidad.forEach(eq => {
+                            let borderHex = eq.color === 'red' ? '#ef4444' : '#f59e0b';
+                            let bgTag = eq.color === 'red' ? '#fee2e2' : '#fef3c7';
+                            let textTag = eq.color === 'red' ? '#b91c1c' : '#b45309';
+
+                            gridEquidad.innerHTML += `
+                                <div style="background: white; border: 1px solid #cbd5e1; border-left: 6px solid ${borderHex}; border-radius: 12px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                                        <h4 style="margin:0; font-size:15px; color:var(--fng-blue); font-weight:800;">${eq.operador}</h4>
+                                        <span style="font-size:10.5px; font-weight:800; background:${bgTag}; color:${textTag}; padding:3px 8px; border-radius:6px;">
+                                            <i class="fas ${eq.icono}"></i> ${eq.tipo}
+                                        </span>
+                                    </div>
+                                    <p style="margin:6px 0; font-size:13px; font-weight:600; color:#334155;">${eq.detalle}</p>
+                                    <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #e2e8f0; font-size:11px; color:#64748b; font-weight:600;">
+                                        <i class="fas fa-info-circle"></i> ${eq.alerta}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            }
+        } catch(e) {
+            grid.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">Error al cargar predicciones</div>';
+            if (gridEquidad) {
+                gridEquidad.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; padding:20px; color:#ef4444;">Error al cargar auditoría de equidad.</div>';
+            }
+        }
+    }
+
+    function toggleVista(modo) {
+        const btnG = document.getElementById('btnGerencial');
+        const btnD = document.getElementById('btnDetallada');
+        if (modo) {
+            isGerencial = (modo === 'gerencial');
+            localStorage.setItem('fng_vista_gerencial', isGerencial);
+        }
+        if(isGerencial) {
+            btnG.classList.add('active'); btnD.classList.remove('active');
+            document.querySelectorAll('.col-gerencial').forEach(el => el.style.display = 'table-cell');
+            document.querySelectorAll('.col-detallada').forEach(el => el.style.display = 'none');
+            document.getElementById('tablasGerenciales').style.display = 'block';
+            document.getElementById('tablasDetalladas').style.display = 'none';
+        } else {
+            btnD.classList.add('active'); btnG.classList.remove('active');
+            document.querySelectorAll('.col-gerencial').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.col-detallada').forEach(el => el.style.display = 'table-cell');
+            document.getElementById('tablasGerenciales').style.display = 'none';
+            document.getElementById('tablasDetalladas').style.display = 'block';
+        }
+        calcularSimulador();
+    }
+
+    async function abrirDrilldown(producto, fecha, tipo) {
+        const hoy = new Date().toISOString().split('T')[0];
+        if (fecha < hoy) {
+            return;
+        }
+
+        const modal = document.getElementById('modalDrilldown');
+        modal.style.display = 'flex';
+
+        const titulo = document.getElementById('drillTitulo');
+        const sub = document.getElementById('drillSubtitulo');
+        const cont = document.getElementById('contenedorCandidatos');
+
+        let nomTipo = tipo === 'Disp' ? 'Operadores Activos' : 
+                      tipo === 'NoDisp' ? 'Operadores No Activos' : 
+                      tipo === 'Deficit' ? 'Candidatos Inteligentes (Faltantes)' : 'Plantilla Total';
+
+        let iconoHeader = tipo === 'Deficit' ? 'fa-magic' : (tipo === 'Disp' ? 'fa-user-check' : 'fa-users');
+        titulo.innerHTML = `<i class="fas ${iconoHeader}" style="color: var(--fng-orange);"></i> ${nomTipo}`;
+        sub.innerText = `Línea: ${producto} | Fecha: ${fecha}`;
+
+        cont.innerHTML = `
+            <div style="text-align:center; padding:35px 20px; color:#94a3b8;">
+                <i class="fas fa-spinner fa-spin" style="font-size:26px; color:var(--fng-orange); margin-bottom:12px; display:block;"></i>
+                Analizando candidatos y margen DOT...
+            </div>
+        `;
+
+        try {
+            const res = await fetch('/api/drilldown_radar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ producto: producto, fecha: fecha, tipo: tipo })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                cont.innerHTML = '';
+                if (!data.data || data.data.length === 0) {
+                    cont.innerHTML = `
+                        <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
+                            <i class="fas fa-info-circle" style="font-size:24px; display:block; margin-bottom:8px;"></i>
+                            No hay candidatos disponibles en descanso para esta fecha.
+                        </div>
+                    `;
+                    return;
+                }
+
+                data.data.forEach(item => {
+                    let cardClass = item.color === 'green' ? 'card-green' : 
+                                    item.color === 'yellow' ? 'card-yellow' : 
+                                    item.color === 'red' ? 'card-red' : 'card-blue';
+
+                    let badgeClass = item.color === 'green' ? 'badge-green' : 
+                                     item.color === 'yellow' ? 'badge-yellow' : 
+                                     item.color === 'red' ? 'badge-red' : 'badge-blue';
+
+                    let badgeLibres = (tipo === 'Deficit' && typeof item.libres !== 'undefined') ? `
+                        <span class="badge-dot-libre ${badgeClass}">
+                            <i class="fas fa-clock"></i> ${item.libres.toFixed(1)}h libres
+                        </span>
+                    ` : '';
+
+                    cont.innerHTML += `
+                        <div class="drill-card-candidato ${cardClass}">
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                    <span>${item.icono || '🔹'}</span>
+                                    <span>${item.nombre}</span>
+                                </div>
+                                <div style="font-size: 11.5px; font-weight: 600; color: #64748b; margin-top: 3px;">
+                                    ${item.detalle}
+                                </div>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                ${badgeLibres}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                cont.innerHTML = `<div style="text-align:center; padding:25px; color:#ef4444; font-weight:600;"><i class="fas fa-exclamation-triangle"></i> Error: ${data.msg || 'No se pudieron consultar los datos'}</div>`;
+            }
+        } catch (e) {
+            cont.innerHTML = `<div style="text-align:center; padding:25px; color:#ef4444; font-weight:600;"><i class="fas fa-wifi"></i> Error de conexión con el servidor.</div>`;
+        }
+    }
+
+    function calcularSimulador() {
+        let cols = ['arg', 'nit', 'oxi', 'co2'];
+        let tot_u = 0, tot_o = 0, tot_r = 0;
+        let u_cryo = 0, o_cryo = 0, r_cryo = 0;
+
+        cols.forEach(c => {
+            let u = parseInt(document.getElementById('u_'+c).value) || 0;
+            let o = parseInt(document.getElementById('o_'+c).innerText) || 0;
+            let r = Math.round(u * 1.8);
+            let d = o - r; 
+            let f = u > 0 ? (o / u).toFixed(2) : "0.00";
+            
+            document.getElementById('r_'+c).innerText = r;
+            let elD = document.getElementById('d_'+c);
+            elD.innerText = (d > 0 ? "+" : "") + d; 
+            elD.classList.remove('negativo', 'positivo'); elD.classList.add(d < 0 ? 'negativo' : 'positivo');
+            document.getElementById('f_'+c).innerText = f;
+            tot_u += u; tot_o += o; tot_r += r;
+            if(c !== 'co2') { u_cryo += u; o_cryo += o; r_cryo += r; }
+        });
+
+        document.getElementById('u_cryo').value = u_cryo;
+        document.getElementById('o_cryo').innerText = o_cryo;
+        document.getElementById('r_cryo').innerText = r_cryo;
+        let d_cryo = o_cryo - r_cryo;
+        let elD_cryo = document.getElementById('d_cryo');
+        elD_cryo.innerText = (d_cryo > 0 ? "+" : "") + d_cryo; 
+        elD_cryo.classList.remove('negativo', 'positivo'); elD_cryo.classList.add(d_cryo < 0 ? 'negativo' : 'positivo');
+        document.getElementById('f_cryo').innerText = u_cryo > 0 ? (o_cryo / u_cryo).toFixed(2) : "0.00";
+        document.getElementById('u_tot').innerText = tot_u; document.getElementById('o_tot').innerText = tot_o; document.getElementById('r_tot').innerText = tot_r;
+        let d_tot = tot_o - tot_r; let f_tot = tot_u > 0 ? (tot_o / tot_u).toFixed(2) : "0.00";
+        let elDtot = document.getElementById('d_tot'); 
+        elDtot.innerText = (d_tot > 0 ? "+" : "") + d_tot; 
+        elDtot.classList.remove('negativo', 'positivo'); elDtot.classList.add(d_tot < 0 ? 'negativo' : 'positivo');
+        document.getElementById('f_tot').innerText = f_tot;
+
+        if (myChart) {
+            if(isGerencial) {
+                myChart.data.labels = ['LÍNEA CRYO', 'LÍNEA CO2', 'TOTAL'];
+                myChart.data.datasets[0].data = [u_cryo, parseInt(document.getElementById('u_co2').value)||0, tot_u];
+                myChart.data.datasets[1].data = [o_cryo, parseInt(document.getElementById('o_co2').innerText)||0, tot_o];
+                myChart.data.datasets[2].data = [r_cryo, Math.round((parseInt(document.getElementById('u_co2').value)||0)*1.8), tot_r];
+            } else {
+                myChart.data.labels = ['ARGÓN', 'NITRÓGENO', 'OXÍGENO', 'CO2', 'TOTAL'];
+                myChart.data.datasets[0].data = [parseInt(document.getElementById('u_arg').value)||0, parseInt(document.getElementById('u_nit').value)||0, parseInt(document.getElementById('u_oxi').value)||0, parseInt(document.getElementById('u_co2').value)||0, tot_u];
+                myChart.data.datasets[1].data = [parseInt(document.getElementById('o_arg').innerText)||0, parseInt(document.getElementById('o_nit').innerText)||0, parseInt(document.getElementById('o_oxi').innerText)||0, parseInt(document.getElementById('o_co2').innerText)||0, tot_o];
+                myChart.data.datasets[2].data = [Math.round((parseInt(document.getElementById('u_arg').value)||0)*1.8), Math.round((parseInt(document.getElementById('u_nit').value)||0)*1.8), Math.round((parseInt(document.getElementById('u_oxi').value)||0)*1.8), Math.round((parseInt(document.getElementById('u_co2').value)||0)*1.8), tot_r];
+            }
+            myChart.update();
+        }
+    }
+
+    async function guardarBD() {
+        let req = { argon: document.getElementById('u_arg').value, nitrogeno: document.getElementById('u_nit').value, oxigeno: document.getElementById('u_oxi').value, co2: document.getElementById('u_co2').value };
+        const res = await fetch('/api/guardar_simulador', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(req) });
+        const result = await res.json();
+        if(result.status === 'solicitado') showToast("⏳ Solicitud enviada al Jefe Op.", "warning");
+        else showToast("✅ Metas Fijas configuradas.", "success");
+        setTimeout(() => window.location.reload(), 1500); 
+    }
+
+    window.onload = function() {
+        const ctx = document.getElementById('simuladorChart').getContext('2d');
+        myChart = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [ { label: 'Unidades', data: [], backgroundColor: '#3b82f6' }, { label: 'Operadores Reales', data: [], backgroundColor: '#22c55e' }, { label: 'Op. Necesarios', data: [], backgroundColor: '#eab308' } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } } });
+        let vistaGuardada = localStorage.getItem('fng_vista_gerencial');
+        isGerencial = (vistaGuardada !== null) ? (vistaGuardada === 'true') : true; 
+        toggleVista(isGerencial ? 'gerencial' : 'detallada'); 
+    };
+
+    // =====================================================================
+    // RECEPTOR EN TIEMPO REAL: ACTUALIZACIÓN REACTIVA DEL PANEL MAESTRO
+    // =====================================================================
+    document.addEventListener('live:celda_sabana', async () => {
+        try {
+            const res = await fetch(window.location.href);
+            if (!res.ok) return;
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            
+            const nuevoPanel = doc.querySelector('.glass-panel');
+            const panelActual = document.querySelector('.glass-panel');
+            
+            if (nuevoPanel && panelActual) {
+                panelActual.innerHTML = nuevoPanel.innerHTML;
+                panelActual.style.transition = 'box-shadow 0.35s ease';
+                panelActual.style.boxShadow = '0 0 16px rgba(255, 140, 0, 0.45)';
+                setTimeout(() => { panelActual.style.boxShadow = ''; }, 900);
+            }
+        } catch (err) {}
+    });
+</script>
+{% endblock %}

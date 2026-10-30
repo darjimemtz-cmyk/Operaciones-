@@ -4,7 +4,80 @@
 {% block title %}FNG - Caseta SLP{% endblock %}
 
 {% block extra_css %}
-<!-- Estilos centralizados en fng_maestro.css -->
+<style>
+    /* Docks Tipo Píldora (Glassmorphism) */
+    .glass-pill-container { display: inline-flex; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(0, 45, 90, 0.15); border-radius: 30px; padding: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .glass-pill-btn { background: transparent; border: none; padding: 8px 20px; border-radius: 25px; font-weight: 700; font-size: 13px; color: #64748b; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;}
+    .glass-pill-btn.active { background: white; color: var(--fng-blue); box-shadow: 0 4px 10px rgba(0,0,0,0.08); border: 1px solid rgba(0,45,90,0.1); }
+    .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
+    .glass-pill-btn.active-red { background: #dc3545; color: white; box-shadow: 0 4px 10px rgba(220,53,69,0.2); }
+
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .glass-pill-btn { color: #94a3b8; }
+    body.dark-mode .glass-pill-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: rgba(255,255,255,0.2);}
+    body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
+    body.dark-mode .glass-pill-btn.active-red { background: #dc3545; color: white; }
+
+    /* Botones de Acción Generales */
+    .btn-action { padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;}
+    .btn-primary { background: var(--fng-orange); color: white; box-shadow: 0 4px 10px rgba(255,140,0,0.3); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255,140,0,0.4); }
+    .btn-danger { background: #ef4444; color: white; box-shadow: 0 4px 10px rgba(239,68,68,0.3); }
+    .btn-success { background: #10b981; color: white; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
+    .btn-outline { background: white; color: var(--fng-blue); border: 1px solid #cbd5e1; }
+    
+    /* Tablas Corporativas */
+    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; margin-bottom: 20px; background: white;}
+    .tabla-es { width: 100%; border-collapse: collapse; min-width: 800px; }
+    .tabla-es thead th { background: var(--fng-blue); color: white; padding: 15px 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
+    .tabla-es tbody td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #333; vertical-align: middle; }
+    .tabla-es tbody tr:hover { background: #f8fafc; }
+    body.dark-mode .table-wrapper { background: transparent; border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .tabla-es tbody td { border-bottom-color: rgba(255,255,255,0.05); color: #cbd5e1; }
+    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.05); }
+
+    .badge-tipo { background: var(--fng-blue); color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; }
+
+    /* Modales y Formularios */
+    .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 15px; }
+    .modal-content-local { background: white; width: 100%; max-width: 500px; border-radius: 16px; padding: 25px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.1);}
+    body.dark-mode .modal-content-local { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.1); color: white; }
+
+    .form-control-local { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; background: #f8fafc; color: var(--fng-blue); font-weight: 600; outline: none; transition: 0.3s; box-sizing: border-box; }
+    .form-control-local:focus { border-color: var(--fng-orange); box-shadow: 0 0 5px rgba(255,140,0,0.3); }
+    body.dark-mode .form-control-local { background: rgba(0,0,0,0.5); color: white; border-color: rgba(255,255,255,0.2); }
+
+    .sub-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+    body.dark-mode .sub-box { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
+    
+    .btn-toggle { flex: 1; padding: 10px; font-size: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; color: #64748b; font-weight: 600; transition: 0.2s;}
+    .btn-toggle.active { border-color: var(--fng-blue); color: var(--fng-blue); box-shadow: 0 4px 10px rgba(0,45,90,0.1); }
+    .btn-toggle.active.green-text { border-color: #10b981; color: #10b981; box-shadow: 0 4px 10px rgba(16,185,129,0.1); }
+    .btn-toggle.active.red-text { border-color: #ef4444; color: #ef4444; box-shadow: 0 4px 10px rgba(239,68,68,0.1); }
+    body.dark-mode .btn-toggle { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+    
+    .check-item { display: flex; align-items: center; background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid #cbd5e1; transition: 0.2s;}
+    body.dark-mode .check-item { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.1); }
+
+    .btn-upload-master { background: #f8fafc; border: 2px dashed #cbd5e1; color: var(--fng-blue); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; display: block; font-size: 14px; margin: 10px 0; transition: 0.3s; font-weight: 600;}
+    body.dark-mode .btn-upload-master { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); color: #38bdf8; }
+
+    .seccion-app { display: none; animation: fadeIn 0.3s ease; }
+    .seccion-app.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .btn-group { display: flex; gap: 10px; margin: 5px 0 15px 0; }
+    .preview-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;}
+    .preview-box { width: 75px; height: 75px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid #cbd5e1;}
+    .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+    
+    @media (max-width: 768px) {
+        .glass-pill-container { padding: 4px; border-radius: 14px; }
+        .glass-pill-btn { padding: 8px 12px; font-size: 12px; }
+        .header-actions-caseta { flex-direction: column; align-items: stretch; gap: 15px;}
+        .btn-action { width: 100%; }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -441,6 +514,501 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- NÚCLEO MODULAR DE CASETA Y CONTROL DE ACCESOS -->
-<script src="{{ url_for('static', filename='js/caseta_control.js') }}?v=1.0"></script>
+<script>
+    function abrirSeccion(id, btn) {
+        document.querySelectorAll('.seccion-app').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.glass-pill-btn').forEach(b => b.classList.remove('active-blue'));
+        document.getElementById(id).classList.add('active');
+        if(btn) btn.classList.add('active-blue');
+        if(id === 'sec-turno') cargarMiTurno();
+    }
+
+    function abrirMenuNuevo() { document.getElementById('modal-menu-nuevo').style.display = 'flex'; }
+    function cerrarMenuNuevo(e, force = false) {
+        if (force || (e && e.target && e.target.id === 'modal-menu-nuevo')) {
+            document.getElementById('modal-menu-nuevo').style.display = 'none';
+        }
+    }
+    function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function filtrarTabla(tipo, btn) {
+        const group = btn.parentElement;
+        group.querySelectorAll('.glass-pill-btn').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.fila-activo').forEach(f => {
+            f.style.display = (tipo === 'TODOS' || f.dataset.tipo === tipo) ? '' : 'none';
+        });
+    }
+
+    function cambiarTipoReporte(tipo, btn) {
+        const group = btn.parentElement;
+        group.querySelectorAll('.glass-pill-btn').forEach(c => c.classList.remove('active', 'active-red'));
+        if(tipo === 'NOVEDAD') btn.classList.add('active-red');
+        else btn.classList.add('active');
+        document.getElementById('tipo_reporte_input').value = tipo;
+    }
+
+    function abrirFormIngreso(tipo) {
+        cerrarMenuNuevo(null, true);
+        document.getElementById('titulo-ingreso').innerText = `Registrar ${tipo}`;
+        document.getElementById('input-tipo-activo').value = tipo;
+        
+        document.querySelectorAll('.campos-dinamicos').forEach(div => {
+            div.style.display = 'none';
+            div.querySelectorAll('input, select, textarea').forEach(inp => inp.disabled = true);
+        });
+        
+        const activeDiv = document.getElementById(`campos-${tipo.toLowerCase()}`);
+        if(activeDiv) {
+            activeDiv.style.display = 'block';
+            activeDiv.querySelectorAll('input, select, textarea').forEach(inp => {
+                if(inp.type !== 'hidden') inp.disabled = false;
+            });
+        }
+
+        document.getElementById('bloque-alcoholimetro').style.display = 'block';
+        document.getElementById('bloque-alcoholimetro').querySelectorAll('input').forEach(i => i.disabled = false);
+
+        if(tipo === 'EXTERNO' || tipo === 'EMPLEADO') {
+            document.getElementById('seccion-equipo-compartido').style.display = 'block';
+        } else {
+            document.getElementById('seccion-equipo-compartido').style.display = 'none';
+            toggleEquipo('NO'); 
+        }
+
+        if(tipo === 'UNIDAD') {
+            let b = activeDiv.querySelector('.btn-toggle');
+            if(b) setConfigUnidad('TRACTO', b);
+        }
+        if(tipo === 'UTILITARIO') {
+            let b = activeDiv.querySelector('.btn-toggle');
+            if(b) setMovUtilitario('ENTRADA', b);
+        }
+        
+        document.getElementById('modal-ingreso').style.display = 'flex';
+    }
+
+    const ctpatBase = ["1. Defensa y Cofre", "2. Motor", "3. Llantas y Rines", "4. Piso y Chasis", "5. Tanques de Aire/Diésel", "6. Cabina y Litera", "7. Baterías", "8. Quinta Rueda"];
+    const ctpatSencillo = ["9. R1: Pared exterior", "10. R1: Pisos y techos interiores", "11. R1: Puertas y Bisagras", "12. R1: Mecanismo de cierre", "13. R1: Sellos de Seguridad"];
+    const ctpatFull = ["14. Dolly: Chasis y Quinta Rueda", "15. Dolly: Líneas y Llantas", "16. R2: Pared exterior", "17. R2: Techos y Puertas", "18. R2: Sellos de Seguridad"];
+
+    function setConfigUnidad(config, btn) {
+        setToggle(btn, 'config_unidad', config, 'active');
+        const reqR1 = document.getElementById('eco_r1');
+        const secDollyR2 = document.getElementById('seccion-dolly-r2');
+        const reqDolly = document.getElementById('eco_dolly');
+        const reqR2 = document.getElementById('eco_r2');
+        
+        if(config === 'TRACTO') {
+            document.getElementById('seccion-remolques').style.display = 'none';
+            reqR1.required = reqDolly.required = reqR2.required = false;
+            secDollyR2.style.display = 'none';
+        } else if(config === 'SENCILLO') {
+            document.getElementById('seccion-remolques').style.display = 'block';
+            secDollyR2.style.display = 'none';
+            reqR1.required = true; reqDolly.required = reqR2.required = false;
+        } else {
+            document.getElementById('seccion-remolques').style.display = 'block';
+            secDollyR2.style.display = 'block';
+            reqR1.required = reqDolly.required = reqR2.required = true;
+        }
+        renderCTPAT(config);
+    }
+
+    function renderCTPAT(config) {
+        let pts = [...ctpatBase];
+        if(config === 'SENCILLO' || config === 'FULL') pts = pts.concat(ctpatSencillo);
+        if(config === 'FULL') pts = pts.concat(ctpatFull);
+
+        let html = '';
+        pts.forEach((p, i) => {
+            html += `
+            <div class="check-item" style="display:block;">
+                <label style="margin-top:0; font-size:12px; text-transform:none;"><b>${p}</b></label>
+                <input type="hidden" name="ctpat_${i}" id="ctpat_val_${i}" value="BUENO">
+                <div class="btn-group" style="margin-top:5px; margin-bottom:5px;">
+                    <div class="btn-toggle active green-text" style="padding:8px; font-size:12px;" onclick="setToggleCTPAT(this, 'ctpat_val_${i}', 'BUENO', 'active', 'green-text', ${i})">✔️ BUENO</div>
+                    <div class="btn-toggle" style="padding:8px; font-size:12px;" onclick="setToggleCTPAT(this, 'ctpat_val_${i}', 'MALO', 'active', 'red-text', ${i})">❌ MALO</div>
+                </div>
+                <div id="ctpat_obs_div_${i}" style="display:none; margin-top:5px;">
+                    <textarea name="ctpat_obs_${i}" id="ctpat_obs_inp_${i}" class="form-control-local" rows="1" placeholder="Detalle la anomalía..." style="font-size:12px; padding:8px;"></textarea>
+                </div>
+            </div>`;
+        });
+        document.getElementById('ctpat-container').innerHTML = html;
+    }
+
+    function setToggleCTPAT(btn, inputId, val, activeClass, textColorClass, idx) {
+        const group = btn.parentElement;
+        group.querySelectorAll('.btn-toggle').forEach(b => {
+            b.classList.remove('active', 'green-text', 'red-text');
+        });
+        btn.classList.add(activeClass, textColorClass);
+        document.getElementById(inputId).value = val;
+        
+        const obsDiv = document.getElementById('ctpat_obs_div_' + idx);
+        const obsInp = document.getElementById('ctpat_obs_inp_' + idx);
+        if(val === 'MALO') {
+            obsDiv.style.display = 'block'; obsInp.required = true;
+        } else {
+            obsDiv.style.display = 'none'; obsInp.required = false; obsInp.value = '';
+        }
+    }
+
+    function setMovUtilitario(mov, btn) {
+        setToggle(btn, 'mov_utilitario', mov, 'active');
+        const divAlc = document.getElementById('bloque-alcoholimetro');
+        if(mov === 'ENTRADA') {
+            divAlc.style.display = 'block';
+            divAlc.querySelectorAll('input').forEach(i => i.disabled = false);
+        } else {
+            divAlc.style.display = 'none';
+            divAlc.querySelectorAll('input').forEach(i => i.disabled = true);
+            let toggleNO = divAlc.querySelector('.btn-toggle');
+            if(toggleNO) toggleAlcIngreso(toggleNO, 'NO');
+        }
+    }
+
+    let streamAlc = null;
+    function toggleAlcIngreso(btn, val) {
+        const group = btn.parentElement;
+        group.querySelectorAll('.btn-toggle').forEach(b => {
+            b.classList.remove('active', 'green-text', 'red-text');
+        });
+        btn.classList.add('active');
+        if(val === 'SI') btn.classList.add('red-text');
+        else btn.classList.add('green-text');
+
+        const divRes = document.getElementById('contenedor-res-alc-ingreso');
+        const inputRes = document.getElementById('input-res-alc-ingreso');
+        if (val === 'SI') { 
+            divRes.style.display = 'block'; 
+            inputRes.value = ''; 
+            document.getElementById('btn-evidencia-alc').innerHTML = '<i class="fas fa-camera"></i> Evidencia fotográfica';
+            document.getElementById('btn-evidencia-alc').className = 'btn-action btn-outline';
+        } else { 
+            divRes.style.display = 'none'; 
+            inputRes.value = 'N/A'; 
+            document.getElementById('input-foto-alc-b64').value = ''; 
+        }
+    }
+
+    async function abrirCamaraAlcohol() {
+        document.getElementById('modal-camara').style.display = 'flex';
+        document.getElementById('btn-tomar-foto').style.display = 'block';
+        document.getElementById('controles-foto').style.display = 'none';
+        document.getElementById('foto-preview').style.display = 'none';
+        
+        const video = document.getElementById('video-alc');
+        video.style.display = 'block';
+
+        try {
+            streamAlc = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', aspectRatio: { exact: 0.75 } }, audio: false });
+            video.srcObject = streamAlc;
+        } catch (err) {
+            try {
+                streamAlc = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = streamAlc;
+            } catch(e) { alert("Permisos de cámara denegados."); }
+        }
+    }
+
+    function tomarFotoAlc() {
+        const video = document.getElementById('video-alc');
+        const canvas = document.getElementById('canvas-alc');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        document.getElementById('foto-preview').src = dataUrl;
+        document.getElementById('input-foto-alc-b64').value = dataUrl;
+
+        video.style.display = 'none';
+        document.getElementById('foto-preview').style.display = 'block';
+        document.getElementById('btn-tomar-foto').style.display = 'none';
+        document.getElementById('controles-foto').style.display = 'flex';
+    }
+
+    function rechazarFotoAlc() {
+        document.getElementById('foto-preview').style.display = 'none';
+        document.getElementById('video-alc').style.display = 'block';
+        document.getElementById('btn-tomar-foto').style.display = 'block';
+        document.getElementById('controles-foto').style.display = 'none';
+        document.getElementById('input-foto-alc-b64').value = '';
+    }
+
+    function confirmarFotoAlc() {
+        cerrarCamara();
+        const btnEvi = document.getElementById('btn-evidencia-alc');
+        btnEvi.innerHTML = '<i class="fas fa-check-circle"></i> Evidencia Capturada';
+        btnEvi.className = 'btn-action btn-success';
+    }
+
+    function cerrarCamara() {
+        if (streamAlc) streamAlc.getTracks().forEach(t => t.stop());
+        document.getElementById('modal-camara').style.display = 'none';
+    }
+
+    function toggleEquipo(val) {
+        const btns = document.getElementById('seccion-equipo-compartido').querySelectorAll('.btn-toggle');
+        if(btns.length > 0) {
+            btns.forEach(b => b.classList.remove('active', 'green-text'));
+            let activeBtn = val === 'SI' ? btns[1] : btns[0];
+            if(activeBtn) activeBtn.classList.add('active', 'green-text');
+        }
+        
+        const cont = document.getElementById('contenedor-herramientas');
+        if(val === 'SI') {
+            cont.style.display = 'block';
+            cont.querySelectorAll('.herr-input').forEach(i => i.disabled = false);
+        } else {
+            cont.style.display = 'none';
+            cont.querySelectorAll('.herr-input').forEach(i => i.disabled = true);
+        }
+    }
+
+    function agregarHerramientaIngreso() {
+        const d = document.createElement('div'); d.className = 'herramienta-row';
+        d.innerHTML = '<input type="text" name="desc_herramienta[]" class="form-control-local herr-input" placeholder="Descripción del equipo..." required style="margin:0; flex:2;"><input type="number" name="cant_herramienta[]" class="form-control-local herr-input" placeholder="Cant." min="1" required style="margin:0; flex:1;">';
+        document.getElementById('lista-herramientas-ingreso').appendChild(d);
+    }
+
+    function agregarFilaExterno() {
+        const d = document.createElement('div'); d.className = 'persona-row';
+        d.style.cssText = "display:flex; gap:10px; margin-bottom:10px;";
+        d.innerHTML = '<input type="text" name="nombre[]" class="form-control-local" placeholder="NOMBRE:" required style="margin:0;"><input type="text" name="gafete[]" class="form-control-local" placeholder="GAFETE:" style="margin:0;">';
+        document.getElementById('lista-personas').appendChild(d);
+    }
+
+    let arrayB64Salida = [];
+    let tipoSalidaActivo = '';
+
+    function procesarFotosSalida(input) {
+        if(!input.files || input.files.length === 0) return;
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1280;
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    agregarMiniaturaSalida(dataUrl);
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+        input.value = '';
+    }
+
+    function agregarMiniaturaSalida(b64) {
+        const id = 'foto_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+        arrayB64Salida.push({id: id, data: b64});
+        renderizarMiniaturasSalida();
+    }
+
+    function removerFotoSalida(id) {
+        arrayB64Salida = arrayB64Salida.filter(f => f.id !== id);
+        renderizarMiniaturasSalida();
+    }
+
+    function renderizarMiniaturasSalida() {
+        const container = document.getElementById('preview-salida-container');
+        const hiddenCont = document.getElementById('hidden-b64-container');
+        container.innerHTML = ''; hiddenCont.innerHTML = '';
+        
+        arrayB64Salida.forEach(foto => {
+            const div = document.createElement('div');
+            div.className = 'preview-box';
+            div.style.position = 'relative';
+            div.innerHTML = `
+                <img src="${foto.data}">
+                <button type="button" onclick="removerFotoSalida('${foto.id}')" style="position:absolute; top:-5px; right:-5px; background:#dc3545; color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:12px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">✖</button>
+            `;
+            container.appendChild(div);
+            
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'fotos_salida_b64[]'; inp.value = foto.data;
+            hiddenCont.appendChild(inp);
+        });
+        validarBotonSalida();
+    }
+
+    function validarBotonSalida() {
+        const btnCapturar = document.getElementById('btn-capturar-salida');
+        if(tipoSalidaActivo === 'UNIDAD' || tipoSalidaActivo === 'UTILITARIO') {
+            if(arrayB64Salida.length > 0) { btnCapturar.disabled = false; btnCapturar.style.opacity = '1'; } 
+            else { btnCapturar.disabled = true; btnCapturar.style.opacity = '0.5'; }
+        }
+    }
+
+    function abrirModalSalida(id, tipo, identificador, jsonStr) {
+        document.getElementById('salida-id-activo').value = id;
+        document.getElementById('titulo-salida').innerText = `Salida: ${identificador}`;
+        
+        let datos = JSON.parse(jsonStr || "{}");
+        const btnCapturar = document.getElementById('btn-capturar-salida');
+        
+        document.getElementById('salida-bloque-unidad').style.display = 'none';
+        document.getElementById('salida-bloque-personas').style.display = 'none';
+        document.getElementById('salida-bloque-herramientas').style.display = 'none';
+        document.getElementById('salida-bloque-evidencia').style.display = 'none';
+        
+        arrayB64Salida = []; renderizarMiniaturasSalida(); tipoSalidaActivo = tipo;
+        btnCapturar.disabled = false; btnCapturar.style.opacity = '1';
+        
+        if(tipo === 'UNIDAD' || tipo === 'UTILITARIO') {
+            document.getElementById('salida-bloque-evidencia').style.display = 'block';
+            btnCapturar.disabled = true; btnCapturar.style.opacity = '0.5'; 
+            
+            if(tipo === 'UNIDAD') {
+                document.getElementById('salida-bloque-unidad').style.display = 'block';
+                document.getElementById('lbl-estado-ingreso').innerText = datos['estatus_carga'] || 'N/A';
+            }
+        } 
+        else if (tipo === 'EXTERNO' || tipo === 'EMPLEADO') {
+            if (tipo === 'EXTERNO') {
+                let nombres = datos['nombre[]'] || [];
+                if(!Array.isArray(nombres)) nombres = [nombres];
+                const contPers = document.getElementById('salida-checklist-personas');
+                contPers.innerHTML = '';
+                if (nombres.length > 0 && nombres[0] !== "") {
+                    document.getElementById('salida-bloque-personas').style.display = 'block';
+                    nombres.forEach((n, i) => {
+                        contPers.innerHTML += `<label class="check-item"><input type="checkbox" name="personas_check[]" value="${n}" onchange="verificarSalidaPersonas()"> <span style="font-weight:600; color:var(--fng-blue);">${n}</span></label>`;
+                    });
+                    btnCapturar.disabled = true; btnCapturar.style.opacity = '0.5';
+                }
+            }
+
+            let desc = datos['desc_herramienta[]'] || [];
+            let cant = datos['cant_herramienta[]'] || [];
+            if(!Array.isArray(desc)) desc = [desc];
+            if(!Array.isArray(cant)) cant = [cant];
+            
+            const contHerr = document.getElementById('salida-checklist-herramientas');
+            contHerr.innerHTML = '';
+            if (desc.length > 0 && desc[0] !== "") {
+                document.getElementById('salida-bloque-herramientas').style.display = 'block';
+                desc.forEach((d, i) => {
+                    contHerr.innerHTML += `<label class="check-item"><input type="checkbox" name="herramientas_check[]" value="${d}"> <span style="font-weight:600; color:var(--fng-blue);">[${cant[i]}] ${d}</span></label>`;
+                });
+            }
+        }
+        document.getElementById('modal-salida').style.display = 'flex';
+    }
+
+    function verificarSalidaPersonas() {
+        if(document.getElementById('salida-bloque-personas').style.display === 'block') {
+            let pMarcadas = document.querySelectorAll('input[name="personas_check[]"]:checked').length;
+            let btn = document.getElementById('btn-capturar-salida');
+            if(pMarcadas > 0) { btn.style.opacity = '1'; btn.disabled = false; } 
+            else { btn.style.opacity = '0.5'; btn.disabled = true; }
+        }
+    }
+
+    function cerrarSalida() { document.getElementById('modal-salida').style.display = 'none'; }
+
+    function setToggle(btn, inputId, val, activeClass, optTextColorClass) {
+        const group = btn.parentElement;
+        group.querySelectorAll('.btn-toggle').forEach(b => {
+            b.classList.remove('active', 'green-text', 'red-text', 'orange-text');
+        });
+        btn.classList.add(activeClass);
+        if(optTextColorClass) btn.classList.add(optTextColorClass);
+        document.getElementById(inputId).value = val;
+    }
+
+    function previewMultiple(inputElement, containerId) {
+        const container = document.getElementById(containerId); container.innerHTML = ''; 
+        if (inputElement.files) {
+            Array.from(inputElement.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div'); div.className = 'preview-box';
+                    const img = document.createElement('img'); img.src = e.target.result;
+                    div.appendChild(img); container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+
+    let contResguardos = 100;
+    function agregarResguardoNuevo() {
+        contResguardos++; const id = contResguardos;
+        const d = document.createElement('div');
+        d.id = 'res_row_' + id; d.className = 'sub-box'; d.style.cssText = 'display:flex; flex-direction:column; gap:10px;';
+        d.innerHTML = `
+            <div style="display:flex; gap:10px;">
+                <input type="number" name="res_cant[]" class="form-control-local" placeholder="Cant" style="width:70px; font-weight:bold; margin:0;" required>
+                <input type="text" name="res_desc[]" class="form-control-local" placeholder="Descripción del artículo" style="flex:1; font-weight:bold; margin:0;" required>
+                <button type="button" onclick="eliminarResguardo('res_row_${id}')" style="background:none; border:none; color:#dc3545; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <input type="hidden" name="res_estado[]" id="chk_res_${id}" value="BUENO">
+            <div class="btn-group" style="margin-top:0;">
+                <div class="btn-toggle active green-text" onclick="setToggleResguardo(this, 'chk_res_${id}', 'BUENO', 'active', '${id}', 'green-text')">✔️ BUENO</div>
+                <div class="btn-toggle" onclick="setToggleResguardo(this, 'chk_res_${id}', 'MALO', 'active', '${id}', 'red-text')">❌ MALO</div>
+            </div>
+            <div id="defecto_res_${id}" style="display:none; margin-top:5px;">
+                <textarea name="res_obs[]" id="obs_res_${id}" class="form-control-local" rows="2" placeholder="Especifica el daño/faltante..." style="margin:0;"></textarea>
+            </div>
+        `;
+        document.getElementById('lista-resguardos-dinamica').appendChild(d);
+    }
+
+    function eliminarResguardo(idRow) { document.getElementById(idRow).remove(); }
+
+    function setToggleResguardo(btn, inputId, valor, claseActiva, indexId, textColorClass) {
+        setToggle(btn, inputId, valor, claseActiva, textColorClass);
+        const cajaDefecto = document.getElementById('defecto_res_' + indexId);
+        const inputObs = document.getElementById('obs_res_' + indexId);
+        if(valor === 'MALO') { cajaDefecto.style.display = 'block'; inputObs.required = true; } 
+        else { cajaDefecto.style.display = 'none'; inputObs.required = false; inputObs.value = 'N/A'; }
+    }
+
+    function cargarMiTurno() {
+        fetch('/api/mi_turno').then(res => res.json()).then(data => {
+            if(!data.error) {
+                document.getElementById('c_alc_tot').innerText = data.alcohol_total;
+                document.getElementById('c_alc_pos').innerText = data.alcohol_positivos;
+                const s = data.stats;
+                document.getElementById('u_ent').innerText = s.UNIDAD.ent;
+                document.getElementById('u_sal').innerText = s.UNIDAD.sal;
+                document.getElementById('ut_ent').innerText = s.UTILITARIO.ent;
+                document.getElementById('ut_sal').innerText = s.UTILITARIO.sal;
+                document.getElementById('em_ent').innerText = s.EMPLEADO.ent;
+                document.getElementById('em_sal').innerText = s.EMPLEADO.sal;
+                
+                let htmlExt = "";
+                if(data.externos && data.externos.length > 0) {
+                    let grouped = {};
+                    data.externos.forEach(e => {
+                        if(!grouped[e.empresa]) grouped[e.empresa] = [];
+                        grouped[e.empresa].push(e);
+                    });
+
+                    for(let emp in grouped) {
+                        let personas = grouped[emp];
+                        personas.forEach((p, idx) => {
+                            let badgeSalida = p.hora_salida === 'Aún en base' ? `<span style="background:#ffc107; color:#000; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px;">Aún en base</span>` : `<span style="background:#10b981; color:#fff; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${p.hora_salida}</span>`;
+                            htmlExt += `<tr style="border-bottom:1px solid rgba(0,45,90,0.1);">`;
+                            if(idx === 0) { htmlExt += `<td rowspan="${personas.length}" style="padding:12px; font-weight:600; color:var(--fng-blue); vertical-align:middle; border-right:1px solid rgba(0,45,90,0.1); background:#f8fafc;">${p.empresa}</td>`; }
+                            htmlExt += `<td style="padding:12px;">${p.nombre}</td><td style="padding:12px;">${p.motivo}</td><td style="padding:12px;">${p.area}</td><td style="padding:12px; text-align:center; font-weight:600;">${p.hora_entrada}</td><td style="padding:12px; text-align:center;">${badgeSalida}</td></tr>`;
+                        });
+                    }
+                } else {
+                    htmlExt = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">No hay ingresos de personal externo.</td></tr>`;
+                }
+                document.getElementById('tabla_turno_externos').innerHTML = htmlExt;
+            }
+        }).catch(err => console.error("Error cargando el turno:", err));
+    }
+</script>
 {% endblock %}

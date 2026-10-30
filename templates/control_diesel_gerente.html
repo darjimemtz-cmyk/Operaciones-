@@ -3,7 +3,49 @@
 {% block title %}Control Diésel - Gerencia{% endblock %}
 
 {% block extra_css %}
-<!-- Estilos centralizados en fng_maestro.css -->
+<style>
+    .glass-pill-container { display: inline-flex; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(0, 45, 90, 0.15); border-radius: 30px; padding: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .glass-pill-btn { background: transparent; border: none; padding: 8px 20px; border-radius: 25px; font-weight: 700; font-size: 13px; color: #64748b; cursor: pointer; transition: all 0.3s ease; }
+    .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
+    
+    .btn-action { padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;}
+    .btn-success { background: #10b981; color: white; box-shadow: 0 4px 10px rgba(16,185,129,0.3);}
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16,185,129,0.4);}
+    .btn-primary { background: var(--fng-blue); color: white; }
+
+    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; margin-bottom: 20px; background: white;}
+    .tabla-es { width: 100%; border-collapse: collapse; min-width: 1050px; font-size: 13px;}
+    .tabla-es thead th { background: var(--fng-blue); color: white; padding: 12px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; border-right: 1px solid rgba(255,255,255,0.1);}
+    .tabla-es tbody td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: middle; border-right: 1px solid #e2e8f0; }
+    .tabla-es tbody tr:hover { background: #f8fafc; }
+    
+    .chofer-name { text-align: left !important; font-weight: bold; color: var(--fng-blue); }
+    .lts-cell { font-weight: bold; border-radius: 6px; }
+    .celda-descanso { color: #94a3b8 !important; font-size: 11px; font-style: italic; }
+
+    /* Switch Bonos CSS - Estilo iOS */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; margin-bottom: -5px;}
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ef4444; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* LUPA DE AUDITORÍA Y HOVER DE CELDAS */
+    .cell-hover:not(.celda-descanso) { transition: 0.2s; }
+    .cell-hover:not(.celda-descanso):hover { background: #f1f5f9 !important; cursor: pointer; border: 2px solid var(--fng-orange) !important; transform: scale(1.05); box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; position: relative;}
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content-large { background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+
+    body.dark-mode .table-wrapper { background: transparent; border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .tabla-es tbody td { border-bottom-color: rgba(255,255,255,0.05); border-right-color: rgba(255,255,255,0.05); color: #cbd5e1; }
+    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.05); }
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .glass-pill-btn { color: #94a3b8; }
+    body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
+    body.dark-mode .cell-hover:not(.celda-descanso):hover { background: rgba(255,255,255,0.1) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    body.dark-mode .modal-content-large { background: #0f172a; color: white; border: 1px solid #334155; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -40,15 +82,15 @@
             <tbody>
                 {% for r in data %}
                 {% if r.get('FIRMA') == 'SI' %}
-                <tr data-chofer="{{ r.get('CHOFER', '') | forceescape }}">
+                <tr>
                     <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>
@@ -84,15 +126,15 @@
             <tbody>
                 {% for r in data %}
                 {% if r.get('FIRMA') != 'SI' %}
-                <tr data-chofer="{{ r.get('CHOFER', '') | forceescape }}">
+                <tr>
                     <td class="chofer-name">{{ r.get('CHOFER', 'N/A') }}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">{{ r.get('NOMINA', 'N/A') }}</span></td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
-                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje(this.closest('tr').dataset.chofer, 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MIÉ')">{{ r.get('dias', {}).get('MIÉ')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'JUE')">{{ r.get('dias', {}).get('JUE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'VIE')">{{ r.get('dias', {}).get('VIE')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'SÁB')">{{ r.get('dias', {}).get('SÁB')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'DOM')">{{ r.get('dias', {}).get('DOM')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'LUN')">{{ r.get('dias', {}).get('LUN')|default('DESCANSO', true) }}</td>
+                    <td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('{{ r.get('CHOFER') | replace('\'', '\\\'') }}', 'MAR')">{{ r.get('dias', {}).get('MAR')|default('DESCANSO', true) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S27') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S28') or 0)|round(1) }}</td>
                     <td class="col-mensual lts-cell" style="display:none;">{{ (r.get('semanas', {}).get('S29') or 0)|round(1) }}</td>
@@ -138,15 +180,151 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Contenedores seguros de datos JSON (sin alertas de VS Code) -->
-<script id="raw_diesel_data" type="application/json">{{ data | tojson | safe }}</script>
-<script id="raw_cabeceras" type="application/json">{{ cabeceras | tojson | safe }}</script>
-
 <script>
-    // Asignación limpia sin choque de sintaxis en el editor
-    window.DIESEL_DATA = JSON.parse(document.getElementById('raw_diesel_data').textContent || '[]');
-    window.CABECERAS_DIN = JSON.parse(document.getElementById('raw_cabeceras').textContent || '{}');
-</script>
+    let datosGlobales = {{ data | tojson | safe }};
+    let cabecerasDin = {{ cabeceras | tojson | safe }};
+    const ordenDias = ['MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM', 'LUN', 'MAR'];
 
-<script src="{{ url_for('static', filename='js/diesel.js') }}?v=1.0"></script>
+    // NUEVO MOTOR DE INTERPOLACIÓN TÉRMICA INVERTIDA
+    function getColorTermal(valor, esPorcentaje=false) {
+        let val = parseFloat(valor);
+        if (isNaN(val)) return '#cbd5e1'; 
+        
+        // Todo número positivo representa ahorro (gastar menos de lo esperado). Verde automático.
+        if (val > 0) return '#10b981';
+
+        // Lógica de Pérdidas (Números negativos)
+        let limiteVerde = esPorcentaje ? -2.0 : -20.0;
+        let limiteRojo = esPorcentaje ? -7.5 : -70.0;
+
+        if (val >= limiteVerde) return '#10b981'; // Ej: -10 >= -20 (Verde)
+        if (val <= limiteRojo) return '#ef4444';  // Ej: -80 <= -70 (Rojo Crítico)
+
+        // Transición fluida (Ej: -45)
+        let rango = limiteVerde - limiteRojo; 
+        let progreso = (limiteVerde - val) / rango; 
+        
+        let hue;
+        if (progreso < 0.5) { 
+            hue = 45 + (1 - (progreso * 2)) * 75; // Amarillo a Verde 
+        } else { 
+            let factorAlerta = (progreso - 0.5) * 2; 
+            hue = 45 - (factorAlerta * 45); // Amarillo a Rojo 
+        }
+        return `hsl(${hue}, 85%, 45%)`;
+    }
+
+    function switchVista(vista) {
+        if(vista === 'diaria') {
+            document.getElementById('btn-diario').classList.add('active-blue');
+            document.getElementById('btn-mensual').classList.remove('active-blue');
+            document.querySelectorAll('.col-diaria').forEach(el => el.style.display = 'table-cell');
+            document.querySelectorAll('.col-mensual').forEach(el => el.style.display = 'none');
+        } else {
+            document.getElementById('btn-diario').classList.remove('active-blue');
+            document.getElementById('btn-mensual').classList.add('active-blue');
+            document.querySelectorAll('.col-diaria').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.col-mensual').forEach(el => el.style.display = 'table-cell');
+        }
+    }
+
+    window.onload = function() {
+        if(cabecerasDin && Object.keys(cabecerasDin).length > 0){
+            ['th-MIE', 'th-JUE', 'th-VIE', 'th-SÁB', 'th-DOM', 'th-LUN', 'th-MAR'].forEach((id, idx) => {
+                let text = cabecerasDin[ordenDias[idx]];
+                if(document.getElementById(id)) document.getElementById(id).innerText = text;
+                if(document.getElementById(id + '-2')) document.getElementById(id + '-2').innerText = text;
+            });
+        }
+        
+        document.querySelectorAll('.lts-cell').forEach(c => {
+            let valStr = c.innerText.replace('L','').replace('%','').trim();
+            if(valStr === 'DESCANSO' || valStr === 'None') {
+                c.innerText = 'DESCANSO';
+                c.className = c.className + ' celda-descanso';
+            } else {
+                let val = parseFloat(valStr);
+                let isPct = c.classList.contains('pct-cell');
+                c.style.color = getColorTermal(val, isPct);
+            }
+        });
+    };
+
+    // FUNCIÓN LUPA FORENSE (DRILL-DOWN) GERENCIA
+    function abrirDetalleViaje(chofer, dia) {
+        let op = datosGlobales.find(r => r.CHOFER === chofer);
+        if(!op || !op.detalles_dias || !op.detalles_dias[dia] || op.detalles_dias[dia].length === 0) {
+            showToast("Día de descanso o sin viajes registrados.", "warning");
+            return;
+        }
+
+        document.getElementById('mdlChofer').innerText = chofer;
+        document.getElementById('mdlDia').innerText = cabecerasDin[dia] || dia;
+        
+        let tbody = document.querySelector('#tablaListaViajes tbody');
+        tbody.innerHTML = '';
+        
+        op.detalles_dias[dia].forEach(v => {
+            let colorLts = getColorTermal(v.diferencia_lts, false);
+            let colorPct = getColorTermal(v.variacion_pct * 100, true);
+            
+            let tr = `<tr>
+                <td style="font-size:11px; white-space:nowrap;">${v.fecha}</td>
+                <td style="font-weight:900; color:var(--fng-blue);">${v.unidad}</td>
+                <td style="font-size:11px;"><b>${v.tipo_carga}</b><br><span style="color:#64748b;">${v.estacion}</span></td>
+                <td style="font-size:11px;">${v.destino}</td>
+                <td style="font-size:12px; font-weight:bold; color:#475569;">${v.km_total} <span style="font-weight:normal; color:#94a3b8;">/ ${v.km_geo}</span></td>
+                <td style="font-size:12px; font-weight:bold; color:#475569;">${v.lts_fisico} <span style="font-weight:normal; color:#94a3b8;">/ ${v.lts_geo}</span></td>
+                <td style="font-size:14px; font-weight:900; color:${colorLts}">${v.diferencia_lts.toFixed(2)} L</td>
+                <td style="font-size:14px; font-weight:900; color:${colorPct}">${(v.variacion_pct * 100).toFixed(2)} %</td>
+            </tr>`;
+            tbody.innerHTML += tr;
+        });
+        
+        document.getElementById('modalDetalleViajes').style.display = 'flex';
+    }
+
+    async function enviarBonosAdmin() {
+        if (!confirm("🔐 FIREWALL FINANCIERO: ¿Estás seguro de generar el PDF oficial de bonos y enviarlo por correo a Administración? Esta acción es final y solo puede realizarse los días Miércoles.")) return;
+
+        let btn = event.target.closest('.btn-action');
+        let originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando PDF...';
+        btn.disabled = true;
+
+        let aprobados = [];
+        document.querySelectorAll('.bono-toggle').forEach(el => {
+            aprobados.push({
+                NOMINA: el.getAttribute('data-nomina'),
+                CHOFER: el.getAttribute('data-chofer'),
+                TOTAL_LTS: parseFloat(el.getAttribute('data-lts')),
+                TOTAL_PCT: parseFloat(el.getAttribute('data-pct')),
+                BONO: el.checked
+            });
+        });
+
+        try {
+            const req = await fetch('/api/generar_bonos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ bonos: aprobados })
+            });
+            const res = await req.json();
+            if(res.error) showToast("⛔ " + res.error, "warning");
+            else showToast("✅ " + res.msg, "success");
+        } catch(e) {
+            showToast("Error de conexión con el núcleo de Bonos.", "warning");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    async function dispararWhatsappPrueba() {
+        if(!confirm("⚠️ ATENCIÓN: Se despacharán mensajes multimedia simulados a las líneas maestras registradas.")) return;
+        const req = await fetch('/api/whatsapp_multimedia', { method: 'POST' });
+        const res = await req.json();
+        showToast(res.msg, "success");
+    }
+</script>
 {% endblock %}

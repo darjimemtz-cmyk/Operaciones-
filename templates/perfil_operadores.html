@@ -10,97 +10,295 @@
 {% block extra_css %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-    /* ========================================================
-       ESTILOS EXCLUSIVOS: EXPEDIENTE RH Y MATRIZ F-OPE-01
-       ======================================================== */
-    /* 1. ENCABEZADOS Y BADGES INSTITUCIONALES */
+    /* ENCABEZADO INSTITUCIONAL F-OPE-01 */
     .fng-meta-header {
-        display: flex; justify-content: space-between; align-items: center;
-        background: var(--bg-surface-2); border: 1px solid var(--border-subtle);
-        border-radius: 12px; padding: 12px 20px; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 12px 20px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    body.dark-mode .fng-meta-header {
+        background: var(--bg-surface-2) !important;
+        border-color: var(--border-subtle) !important;
     }
     .fng-meta-badge {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: var(--bg-surface); border: 1px solid var(--border-subtle);
-        padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--text-main);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: white;
+        border: 1px solid #cbd5e1;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--fng-blue);
+    }
+    body.dark-mode .fng-meta-badge {
+        background: var(--bg-surface) !important;
+        color: #ffffff !important;
+        border-color: var(--border-subtle) !important;
     }
 
-    /* 2. SELECTOR DE PESTAÑAS (ACTIVOS VS BAJAS) */
-    .tab-pills-container { display: inline-flex; background: rgba(0, 45, 90, 0.06); padding: 4px; border-radius: 10px; gap: 5px; }
-    body.dark-mode .tab-pills-container { background: rgba(255, 255, 255, 0.05); }
-    .tab-pill-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
-    .tab-pill-btn.active { background: var(--bg-surface); color: var(--fng-blue); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-    body.dark-mode .tab-pill-btn.active { background: var(--fng-orange); color: #0f172a; }
+    /* SELECTOR DE PESTAÑAS (ACTIVOS VS BAJAS) */
+    .tab-pills-container {
+        display: inline-flex;
+        background: rgba(0, 45, 90, 0.05);
+        padding: 4px;
+        border-radius: 10px;
+        gap: 5px;
+    }
+    body.dark-mode .tab-pills-container { background: rgba(255,255,255,0.05); }
+    .tab-pill-btn {
+        border: none;
+        background: transparent;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 12px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .tab-pill-btn.active {
+        background: white;
+        color: var(--fng-blue);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .tab-pill-btn.active {
+        background: var(--fng-orange);
+        color: #0f172a;
+    }
 
-    /* 3. MATRIZ EXTENDIDA CON TRIPLE ANCLAJE (STICKY) */
-    .table-responsive { width: 100%; max-height: 72vh; overflow-y: auto; overflow-x: auto; margin-top: 15px; }
-    table { min-width: 2200px; }
-    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+    /* MATRIZ DE TABLA EXTENDIDA F-OPE-01 */
+    .table-responsive { 
+        width: 100%; 
+        max-height: 72vh;
+        overflow-y: auto;
+        overflow-x: auto; 
+        margin-top: 15px; 
+        border-radius: 12px; 
+        border: 1px solid #cbd5e1; 
+        background: white;
+    }
+    body.dark-mode .table-responsive {
+        background: var(--bg-surface) !important;
+        border-color: var(--border-subtle) !important;
+    }
+    
+    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 2200px; background: white; }
+    body.dark-mode table { background: transparent !important; }
+    
+    th, td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 7px 10px; text-align: center; font-size: 12px; white-space: nowrap; }
+    body.dark-mode th, body.dark-mode td { border-color: var(--border-subtle) !important; }
 
-    /* Columna 1: No. Empleado (Fija en 0px) */
-    .sticky-col-id { position: sticky; left: 0; background: var(--bg-surface); z-index: 5; width: 70px; min-width: 70px; font-weight: 800; color: var(--text-muted); }
-    th.sticky-col-id { left: 0; z-index: 20 !important; }
+    /* TECHO FIJO */
+    th { 
+        position: sticky; 
+        top: 0; 
+        background: var(--fng-blue); 
+        color: white; 
+        font-weight: 700; 
+        z-index: 10; 
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    body.dark-mode th {
+        background: var(--bg-surface-2) !important;
+        color: var(--fng-orange) !important;
+    }
 
-    /* Columna 2: Nombre Operador (Fija en 70px con sombra divisoria) */
-    .sticky-col-op { position: sticky; left: 70px; background: var(--bg-surface); z-index: 5; width: 260px; min-width: 260px; text-align: left !important; box-shadow: 4px 0 8px -3px rgba(0,0,0,0.08); }
-    th.sticky-col-op { left: 70px; z-index: 20 !important; box-shadow: 4px 2px 8px -3px rgba(0,0,0,0.15); }
+    /* COLUMNA 1 (ID) Y COLUMNA 2 (OPERADOR) FIJAS A LA IZQUIERDA */
+    .sticky-col-id {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 5;
+        width: 70px;
+        min-width: 70px;
+        font-weight: 800;
+        color: #64748b;
+    }
+    th.sticky-col-id {
+        left: 0;
+        z-index: 20 !important;
+        background: var(--fng-blue) !important;
+        color: white !important;
+    }
+    body.dark-mode th.sticky-col-id { background: var(--bg-surface-2) !important; color: var(--fng-orange) !important; }
+    body.dark-mode td.sticky-col-id { background: var(--bg-surface) !important; color: var(--text-muted) !important; }
 
-    /* Columna 3: Acciones (Fija a la derecha) */
-    .sticky-col-acc { position: sticky; right: 0; background: var(--bg-surface); z-index: 5; width: 90px; min-width: 90px; box-shadow: -4px 0 8px -3px rgba(0,0,0,0.08); }
-    th.sticky-col-acc { right: 0; z-index: 20 !important; box-shadow: -4px 2px 8px -3px rgba(0,0,0,0.15); }
+    .sticky-col-op {
+        position: sticky;
+        left: 70px;
+        background: white;
+        z-index: 5;
+        width: 260px;
+        min-width: 260px;
+        text-align: left !important;
+        box-shadow: 4px 0 8px -3px rgba(0,0,0,0.08);
+    }
+    th.sticky-col-op {
+        left: 70px;
+        z-index: 20 !important;
+        background: var(--fng-blue) !important;
+        color: white !important;
+        box-shadow: 4px 2px 8px -3px rgba(0,0,0,0.15);
+    }
+    body.dark-mode th.sticky-col-op { background: var(--bg-surface-2) !important; color: var(--fng-orange) !important; }
+    body.dark-mode td.sticky-col-op { background: var(--bg-surface) !important; }
 
-    /* 4. ALERTAS DE VIGENCIA Y DISTINTIVOS */
+    /* COLUMNA DE ACCIONES FIJA A LA DERECHA */
+    .sticky-col-acc {
+        position: sticky;
+        right: 0;
+        background: white;
+        z-index: 5;
+        width: 90px;
+        min-width: 90px;
+        box-shadow: -4px 0 8px -3px rgba(0,0,0,0.08);
+    }
+    th.sticky-col-acc {
+        right: 0;
+        z-index: 20 !important;
+        background: var(--fng-blue) !important;
+        color: white !important;
+        box-shadow: -4px 2px 8px -3px rgba(0,0,0,0.15);
+    }
+    body.dark-mode th.sticky-col-acc { background: var(--bg-surface-2) !important; color: var(--fng-orange) !important; }
+    body.dark-mode td.sticky-col-acc { background: var(--bg-surface) !important; }
+
+    /* ALERTAS DE VIGENCIA */
     .danger { background: #fee2e2 !important; color: #dc2626 !important; font-weight: 800; border-radius: 4px; }
     .warning { background: #fef3c7 !important; color: #d97706 !important; font-weight: 800; border-radius: 4px; }
     .success { background: #dcfce7 !important; color: #16a34a !important; font-weight: 700; border-radius: 4px; }
-    body.dark-mode .danger { background: rgba(239, 68, 68, 0.25) !important; color: #f87171 !important; }
-    body.dark-mode .warning { background: rgba(245, 158, 11, 0.25) !important; color: #fbbf24 !important; }
-    body.dark-mode .success { background: rgba(16, 185, 129, 0.25) !important; color: #34d399 !important; }
 
     .pill-estatus-op { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #dcfce7; color: #16a34a; display: inline-block; }
     .pill-estatus-baja { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #fee2e2; color: #dc2626; display: inline-block; }
-    body.dark-mode .pill-estatus-op { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    body.dark-mode .pill-estatus-baja { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-
     .pill-unidad-full { background: #e0f2fe; color: #0284c7; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
     .pill-unidad-sencillo { background: #fef3c7; color: #d97706; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
-    body.dark-mode .pill-unidad-full { background: rgba(2, 132, 199, 0.25); color: #38bdf8; }
-    body.dark-mode .pill-unidad-sencillo { background: rgba(217, 119, 6, 0.25); color: #fcd34d; }
 
-    .product-badge { display: inline-block; padding: 2px 6px; margin: 1px; background-color: var(--bg-surface-2); color: var(--text-main); border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid var(--border-subtle); }
-    
+    .product-badge { display: inline-block; padding: 2px 6px; margin: 1px; background-color: #f1f5f9; color: var(--fng-blue); border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid #cbd5e1; }
+    body.dark-mode .product-badge { background: var(--bg-surface-2); color: #fff; border-color: var(--border-subtle); }
+
+    .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .btn-primary { background: var(--fng-orange); color: white; border: none; padding: 9px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12px; transition: 0.2s;}
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-action { background: transparent; border: none; color: var(--fng-blue); cursor: pointer; font-size: 15px; transition: 0.2s; margin: 0 4px;}
+    .btn-action:hover { color: var(--fng-orange); transform: scale(1.1); }
     .btn-action.red:hover { color: #ef4444; }
 
-    /* 5. FORMULARIOS EN REJILLA PARA MODALES */
+    /* MODALES */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-box { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 650px; max-height: 90vh; overflow-y: auto;}
+    body.dark-mode .modal-box { background: var(--bg-surface) !important; color: #fff; border: 1px solid var(--border-subtle); }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
     .form-group { display: flex; flex-direction: column; gap: 5px; }
     .form-group.full { grid-column: span 2; }
+    .form-control { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 13px;}
     
     .expediente-header-flex { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
-    .expediente-avatar { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 3px solid var(--fng-orange); background: var(--bg-surface-2); }
+    .expediente-avatar { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 3px solid var(--fng-orange); background: #f1f5f9; }
 
-    /* 6. CÁPSULAS INTERACTIVAS (CAPACITACIONES Y ROLES) */
-    .capsule-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    /* BUSCADOR EXPANSIBLE */
+    .search-bar { position: relative; width: 42px; height: 42px; background: white; border-radius: 50px; display: flex; align-items: center; padding: 0 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 1px solid rgba(0,45,90,0.15); transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; cursor: pointer; box-sizing: border-box; }
+    .search-bar.active { width: 320px; cursor: text; border-color: var(--fng-orange); box-shadow: 0 4px 20px rgba(255,140,0,0.15); }
+    .search-bar .search-icon { font-size: 15px; color: var(--fng-blue); min-width: 22px; text-align: center; }
+    .search-bar input { border: none !important; outline: none !important; background: transparent !important; box-shadow: none !important; width: 100%; min-width: 0; flex: 1; padding-left: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; color: var(--fng-blue); font-weight: 600; opacity: 0; transition: opacity 0.2s ease; }
+    .search-bar.active input { opacity: 1; }
+    .search-bar .clear-icon { position: absolute; right: 12px; cursor: pointer; color: #94a3b8; display: none; font-size: 14px; }
+    .search-bar.active .clear-icon { display: block; }
+
+    @media (max-width: 768px) {
+        .modal-box {
+            width: 95% !important;
+            padding: 15px !important;
+        }
+        .form-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+        }
+        .form-group.full {
+            grid-column: span 1 !important;
+        }
+
+        /* LIBERA EL CONGELAMIENTO EN MÓVILES PARA VER TODA LA INFORMACIÓN */
+        .sticky-col-id,
+        th.sticky-col-id,
+        .sticky-col-op,
+        th.sticky-col-op,
+        .sticky-col-acc,
+        th.sticky-col-acc {
+            position: static !important;
+            box-shadow: none !important;
+            left: auto !important;
+            right: auto !important;
+        }
+
+        .sticky-col-op {
+            min-width: 190px !important;
+            width: auto !important;
+            white-space: normal !important;
+            line-height: 1.3 !important;
+        }
+
+        .sticky-col-op a {
+            display: inline-block;
+            font-size: 11.5px !important;
+        }
+
+        /* Desplazamiento táctil suave */
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+
+    /* ESTILOS DE CÁPSULAS INTERACTIVAS (PARA COMPUTADORAS Y MÓVILES) */
+    .capsule-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 8px;
+    }
     .capsule-btn {
-        padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--border-subtle);
-        background: var(--bg-surface-2); color: var(--text-muted); font-size: 12px; font-weight: 700;
-        cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-        transition: all 0.2s ease; user-select: none; box-sizing: border-box;
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1.5px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        user-select: none;
+        box-sizing: border-box;
     }
-    .capsule-btn:hover { border-color: var(--fng-blue); background: rgba(125,125,125,0.08); transform: translateY(-1px); }
+    .capsule-btn:hover {
+        border-color: var(--fng-blue);
+        background: #e2e8f0;
+        transform: translateY(-1px);
+    }
     .capsule-btn.active {
-        background: var(--fng-blue) !important; color: #ffffff !important;
-        border-color: var(--fng-blue) !important; box-shadow: 0 3px 8px rgba(0, 45, 90, 0.3) !important;
+        background: var(--fng-blue) !important;
+        color: #ffffff !important;
+        border-color: var(--fng-blue) !important;
+        box-shadow: 0 3px 8px rgba(0, 45, 90, 0.3) !important;
     }
-    .capsule-btn.active-orange {
-        background: var(--fng-orange) !important; color: #ffffff !important;
-        border-color: var(--fng-orange) !important; box-shadow: 0 3px 8px rgba(255, 140, 0, 0.3) !important;
+    body.dark-mode .capsule-btn {
+        background: var(--bg-surface-2);
+        color: #94a3b8;
+        border-color: var(--border-subtle);
     }
 
-    @media (max-width: 650px) {
-        .form-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
-        .form-group.full { grid-column: span 1 !important; }
-    }
 </style>
 {% endblock %}
 
@@ -201,7 +399,7 @@
                     
                     {% if rol in ['jefe_op', 'aux_op', 'super_usuario'] %}
                     <td class="sticky-col-acc">
-                        <button class="btn-action" title="Editar Ficha Completa" data-op='{{ op | tojson | safe }}' onclick="abrirModalEditarCompleto(JSON.parse(this.dataset.op))"><i class="fas fa-edit"></i></button>
+                        <button class="btn-action" title="Editar Ficha Completa" onclick='abrirModalEditarCompleto({{ op | tojson | safe }})'><i class="fas fa-edit"></i></button>
                         <button class="btn-action red" title="Dar de Baja" onclick="confirmarBaja('{{ op.id }}', '{{ op.nombre }}')"><i class="fas fa-trash"></i></button>
                     </td>
                     {% endif %}
@@ -223,6 +421,7 @@
                     <th>Tipo Unidad</th>
                     <th>Fecha Ingreso</th>
                     <th>Fecha de Baja</th>
+                    <th>Causa de Baja</th>
                     <th>Teléfono</th>
                 </tr>
             </thead>
@@ -240,11 +439,16 @@
                     <td>{{ b.tipo_unidad }}</td>
                     <td>{{ b.fecha_alta }}</td>
                     <td style="font-weight: 800; color: #dc2626;">{{ b.fecha_baja }}</td>
+                    <td>
+                        <a href="javascript:void(0)" onclick="mostrarDetalleBaja('{{ b.nombre | e }}', '{{ b.causa_baja or 'No especificada' }}', '{{ b.detalle_baja or 'Sin detalles registrados' }}')" style="color: #dc2626; font-weight: 700; text-decoration: underline; cursor: pointer;">
+                            {{ b.causa_baja or 'Ver Detalle' }}
+                        </a>
+                    </td>
                     <td>{{ b.tel }}</td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; padding: 25px; color: #64748b; font-weight: 600;">
+                    <td colspan="9" style="text-align: center; padding: 25px; color: #64748b; font-weight: 600;">
                         Sin registros en el archivo de bajas.
                     </td>
                 </tr>
@@ -357,14 +561,15 @@
                 <table style="width: 100%; border-collapse: collapse; min-width: 480px;">
                     <thead>
                         <tr style="background: rgba(0,45,90,0.04); border-bottom: 1px solid var(--border-subtle);">
-                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 85px; color: var(--text-main);">Fecha</th>
-                            <th style="font-size: 11px; padding: 7px; text-align: left; width: 150px; color: var(--text-main);">Tipo Falta</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 80px; color: var(--text-main);">Fecha</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: left; width: 160px; color: var(--text-main);">Tipo Falta</th>
                             <th style="font-size: 11px; padding: 7px; text-align: left; color: var(--text-main);">Observación</th>
-                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 95px; color: var(--text-main);">Estatus</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 85px; color: var(--text-main);">Estatus</th>
+                            <th style="font-size: 11px; padding: 7px; text-align: center; width: 65px; color: var(--text-main);">Doc</th>
                         </tr>
                     </thead>
                     <tbody id="tablaAmonestacionesCuerpo">
-                        <tr><td colspan="4" style="text-align: center; padding: 12px; color: #94a3b8; font-size: 11px;">Cargando...</td></tr>
+                        <tr><td colspan="5" style="text-align: center; padding: 12px; color: #94a3b8; font-size: 11px;">Cargando...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -485,8 +690,10 @@
                     <input type="date" id="amon_fecha" class="form-control" required style="width: 100%;">
                 </div>
                 <div>
-                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Tipo de Falta:</label>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Tipo de Falta / Incidencia:</label>
                     <select id="amon_tipo" class="form-control" required style="width: 100%;">
+                        <option value="ALCOHOLIMETRÍA POSITIVA">🍷 ALCOHOLIMETRÍA POSITIVA</option>
+                        <option value="NO APTO (MÉDICO / PSICOFÍSICO)">🩺 NO APTO (MÉDICO / PSICOFÍSICO)</option>
                         <option value="ACTA ADMINISTRATIVA">ACTA ADMINISTRATIVA</option>
                         <option value="EXCESO DE COMBUSTIBLE">EXCESO DE COMBUSTIBLE (DIÉSEL)</option>
                         <option value="DAÑO A UNIDAD">DAÑO A UNIDAD / EQUIPO</option>
@@ -497,7 +704,11 @@
                 </div>
                 <div>
                     <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Motivo / Observación Detallada:</label>
-                    <textarea id="amon_descripcion" class="form-control" rows="3" required placeholder="Describe los hechos..." style="width: 100%; resize: none;"></textarea>
+                    <textarea id="amon_descripcion" class="form-control" rows="3" required placeholder="Describe los hechos, hallazgos o dictamen..." style="width: 100%; resize: none;"></textarea>
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Adjuntar Evidencia (PDF / Dictamen):</label>
+                    <input type="file" id="amon_pdf" accept="application/pdf" class="form-control" style="width: 100%; padding: 5px;">
                 </div>
                 <div>
                     <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Estatus Inicial:</label>
@@ -518,7 +729,7 @@
 
 <!-- MODAL BITÁCORA 30 DÍAS -->
 <div id="modalCalendario30" class="modal-overlay" style="z-index: 2500;">
-    <div class="modal-box" style="max-width: 800px;">
+    <div class="modal-box" style="max-width: 860px;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fng-orange); padding-bottom: 10px; margin-bottom: 15px;">
             <h3 style="margin: 0; color: var(--fng-blue);"><i class="fas fa-history"></i> Bitácora Operativa (Últimos 30 Días)</h3>
             <button class="btn-action red" onclick="document.getElementById('modalCalendario30').style.display='none'"><i class="fas fa-times"></i></button>
@@ -530,7 +741,7 @@
             <div><i class="fas fa-plane"></i> Vacaciones/Permisos: <span id="cal_count_va">0</span></div>
         </div>
         
-        <div id="cal_30_grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 50vh; overflow-y: auto; padding-right: 5px;"></div>
+        <div id="cal_30_grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 55vh; overflow-y: auto; padding-right: 5px;"></div>
     </div>
 </div>
 
@@ -659,29 +870,695 @@
 
 <!-- MODAL CONFIRMAR BAJA -->
 <div id="modalBajaGlobal" class="modal-overlay">
-    <div class="modal-box" style="text-align: center; max-width: 400px;">
-        <i class="fas fa-exclamation-triangle" style="font-size: 45px; color: #f59e0b; margin-bottom: 15px;"></i>
-        <h3 style="margin-top: 0; color: var(--fng-blue);">Confirmar Baja</h3>
-        <p style="color: #64748b; font-size: 13px;">¿Estás seguro de dar de BAJA al operador <br><strong id="bajaNombreVisual" style="color: var(--fng-orange); font-size: 15px;"></strong>?</p>
+    <div class="modal-box" style="text-align: left; max-width: 450px;">
+        <div style="text-align: center; margin-bottom: 12px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 40px; color: #ef4444;"></i>
+            <h3 style="margin: 8px 0 4px 0; color: var(--fng-blue);">Confirmar Baja de Operador</h3>
+            <p style="color: #64748b; font-size: 12.5px; margin: 0;">Operador: <strong id="bajaNombreVisual" style="color: var(--fng-orange);"></strong></p>
+        </div>
         <input type="hidden" id="bajaIdOculto">
-        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
-            <button onclick="document.getElementById('modalBajaGlobal').style.display='none'" style="padding: 10px 18px; border-radius: 8px; border: none; background: #e2e8f0; color: #002d5a; font-weight: bold; cursor: pointer;">Cancelar</button>
-            <button onclick="ejecutarBajaFinal()" style="padding: 10px 18px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer;">Sí, Dar de Baja</button>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+            <div>
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Causa de Baja:</label>
+                <select id="baja_causa_input" class="form-control" style="width: 100%; margin-top: 3px;">
+                    <option value="Renuncia Voluntaria">Renuncia Voluntaria</option>
+                    <option value="Abandono de Trabajo">Abandono de Trabajo</option>
+                    <option value="Rescisión de Contrato">Rescisión de Contrato</option>
+                    <option value="Robo / Pérdida de Confianza">Robo / Pérdida de Confianza</option>
+                    <option value="No Apto Médico (NOM-087 / IT-SAL)">No Apto Médico (NOM-087 / IT-SAL)</option>
+                    <option value="Alcoholimetría / Sustancias">Alcoholimetría / Sustancias</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted);">Detalles y Observaciones:</label>
+                <textarea id="baja_detalles_input" class="form-control" rows="3" placeholder="Ingresa los hechos o motivos específicos..." style="width: 100%; resize: none; margin-top: 3px; font-size: 12px;"></textarea>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <button type="button" onclick="document.getElementById('modalBajaGlobal').style.display='none'" style="padding: 8px 16px; border-radius: 8px; border: none; background: #e2e8f0; color: #002d5a; font-weight: bold; cursor: pointer; font-size: 12px;">Cancelar</button>
+            <button type="button" onclick="ejecutarBajaFinal()" style="padding: 8px 16px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer; font-size: 12px;">Confirmar Baja</button>
         </div>
     </div>
 </div>
 {% endif %}
 
+<!-- MODAL DETALLE DE CAUSA DE BAJA -->
+<div id="modalDetalleBaja" class="modal-overlay" style="z-index: 2600;">
+    <div class="modal-box" style="max-width: 480px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #991b1b;"><i class="fas fa-file-invoice"></i> Motivo de Baja</h3>
+            <button class="btn-action red" onclick="document.getElementById('modalDetalleBaja').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        <p style="margin: 0 0 10px 0; font-size: 13px;"><b>Operador:</b> <span id="detBaja_nombre" style="color: var(--fng-blue); font-weight: 700;"></span></p>
+        <p style="margin: 0 0 10px 0; font-size: 13px;"><b>Causa Principal:</b> <span id="detBaja_causa" style="color: #dc2626; font-weight: 800;"></span></p>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-top: 10px;">
+            <label style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 5px;">Detalles y Observaciones:</label>
+            <p id="detBaja_obs" style="margin: 0; font-size: 12.5px; color: #334155; white-space: pre-wrap; line-height: 1.4;"></p>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+            <button class="btn btn-light" onclick="document.getElementById('modalDetalleBaja').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<!-- Inyección segura de datos JSON (sin advertencias en VS Code) -->
-<script id="raw_operadores_rh" type="application/json">{{ operadores | tojson | safe }}</script>
-
 <script>
-    window.OPERADORES_DATA = JSON.parse(document.getElementById('raw_operadores_rh').textContent || '[]');
-</script>
+    let expActual = null;
+    let calendarioDataGlobal = [];
+    let operadorExpedienteActualId = null;
 
-<!-- ENLACE AL NÚCLEO MODULAR DE EXPEDIENTES RH -->
-<script src="{{ url_for('static', filename='js/perfil_operadores.js') }}?v=1.0"></script>
+    // CONTROL DE PESTAÑAS (ACTIVOS VS BAJAS)
+    function cambiarVistaOperadores(vista) {
+        const btnAct = document.getElementById('btnTabActivos');
+        const btnBaj = document.getElementById('btnTabBajas');
+        const tAct = document.getElementById('vistaTablaActivos');
+        const tBaj = document.getElementById('vistaTablaBajas');
+        const contador = document.getElementById('contadorFilas');
+
+        // Limpiar estilos forzados
+        btnAct.style.background = '';
+        btnAct.style.color = '';
+        btnBaj.style.background = '';
+        btnBaj.style.color = '';
+
+        if (vista === 'activos') {
+            btnAct.classList.add('active');
+            btnBaj.classList.remove('active');
+            tAct.style.display = 'block';
+            tBaj.style.display = 'none';
+            contador.innerText = {{ operadores|length }};
+        } else {
+            btnBaj.classList.add('active');
+            btnAct.classList.remove('active');
+            tBaj.style.display = 'block';
+            tAct.style.display = 'none';
+            contador.innerText = {{ bajas|length }};
+        }
+        document.getElementById('buscadorRH').value = '';
+    }
+
+    // BUSCADOR EXPANSIBLE
+    function expandirBuscadorRH() {
+        const bar = document.getElementById('searchBarContainerRH');
+        if (!bar.classList.contains('active')) {
+            bar.classList.add('active');
+            document.getElementById('buscadorRH').focus();
+        }
+    }
+
+    function limpiarYColapsarBuscadorRH(e) {
+        if (e) e.stopPropagation();
+        const input = document.getElementById('buscadorRH');
+        const bar = document.getElementById('searchBarContainerRH');
+        input.value = '';
+        input.blur();
+        bar.classList.remove('active');
+        filtrarRH();
+    }
+
+    window.addEventListener('click', function(e) {
+        const bar = document.getElementById('searchBarContainerRH');
+        const input = document.getElementById('buscadorRH');
+        if (bar && !bar.contains(e.target) && input.value.trim() === '') {
+            bar.classList.remove('active');
+        }
+    });
+
+    // FILTRO DINÁMICO MULTIVARIABLE
+    function filtrarRH() {
+        const texto = document.getElementById('buscadorRH').value.toLowerCase().trim();
+        const esVistaActivos = document.getElementById('btnTabActivos').classList.contains('active');
+        const selector = esVistaActivos ? '#tablaRH tbody tr' : '#tablaBajas tbody tr';
+        const filas = document.querySelectorAll(selector);
+        let contadorVisibles = 0;
+        
+        filas.forEach(fila => {
+            const contenido = fila.textContent.toLowerCase();
+            if (contenido.includes(texto)) {
+                fila.style.display = '';
+                contadorVisibles++;
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('contadorFilas').innerText = contadorVisibles;
+    }
+
+    // EXPEDIENTE DIGITAL LIMPIO
+    function abrirExpediente(element) {
+        expActual = JSON.parse(element.getAttribute('data-op'));
+        operadorExpedienteActualId = expActual.id;
+        document.getElementById('expNombre').innerText = expActual.nombre;
+        document.getElementById('expIdBD').value = expActual.id;
+        
+        const fotoPerfil = expActual.foto && expActual.foto !== 'N/A' ? `/static/fotos_perfil/${expActual.foto}` : `/static/fotos_perfil/default.png`;
+        document.getElementById('expFotoPerfil').src = fotoPerfil;
+
+        document.getElementById('disp_usuario_app').innerText = expActual.usuario_app || 'N/A';
+        document.getElementById('disp_pass_app').innerText = expActual.no_empleado || 'N/A';
+
+        document.getElementById('disp_imp').innerText = expActual.imp || '--';
+        document.getElementById('disp_imei').innerText = expActual.imei || '--';
+        document.getElementById('disp_vacaciones').innerText = expActual.vacaciones ? expActual.vacaciones + ' días acumulados' : '0 días';
+
+        document.getElementById('modalExpediente').style.display = 'flex';
+
+        cargarHistorialOperativo(expActual.id);
+        cargarAmonestaciones(expActual.id);
+    }
+
+    function cerrarExpediente() { document.getElementById('modalExpediente').style.display = 'none'; }
+
+    async function subirFotoDirecta(input) {
+        if (!input.files || !input.files[0]) return;
+        const formData = new FormData();
+        formData.append('id', document.getElementById('expIdBD').value);
+        formData.append('foto_perfil', input.files[0]);
+
+        const res = await fetch('/api/actualizar_expediente', { method: 'POST', body: formData });
+        if(res.ok) {
+            showToast("✅ Fotografía actualizada", "success");
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    }
+
+    async function cargarHistorialOperativo(op_id) {
+        try {
+            const res = await fetch('/api/expediente_historial', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({operador_id: op_id})
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                document.getElementById('disp_ult_descanso').innerText = data.ultimo_descanso;
+                let estHoy = data.estatus_hoy;
+                let colorHoy = estHoy.startsWith('TR') ? '#10b981' : (estHoy === 'DE' ? '#8b5cf6' : '#f59e0b');
+                document.getElementById('disp_estatus_hoy').innerHTML = `<span style="background: ${colorHoy}; color: white; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight:800;">${estHoy}</span>`;
+                document.getElementById('disp_horas_dot').innerText = `${data.horas_dot} hrs`;
+                calendarioDataGlobal = data.calendario;
+            }
+        } catch(e) {}
+    }
+
+    function abrirCalendario30Dias() {
+        const grid = document.getElementById('cal_30_grid');
+        grid.innerHTML = '';
+        let c_tr = 0, c_de = 0, c_va = 0;
+        calendarioDataGlobal.forEach(dia => {
+            let est = dia.estatus;
+            let bgEstatus = '#e2e8f0', colorEstatus = '#475569';
+            if (est.startsWith('TR') || est.startsWith('CB')) { bgEstatus = '#10b981'; colorEstatus = 'white'; c_tr++; }
+            else if (est === 'DE') { bgEstatus = '#8b5cf6'; colorEstatus = 'white'; c_de++; }
+            else if (['VA', 'IN', 'PER', 'MED'].includes(est)) { bgEstatus = '#3b82f6'; colorEstatus = 'white'; c_va++; }
+
+            const clientesTxt = dia.clientes && dia.clientes !== '' ? dia.clientes : '--';
+            const hDia = dia.horas_dia !== undefined ? dia.horas_dia : 0;
+            const hAcum = dia.horas_acum !== undefined ? dia.horas_acum : 0;
+            const hRest = dia.horas_rest !== undefined ? dia.horas_rest : 0;
+
+            grid.innerHTML += `
+                <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 6px; background: white; text-align: center; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 800; color: var(--fng-blue);">${dia.dia_str}</div>
+                        <div style="background: ${bgEstatus}; color: ${colorEstatus}; border-radius: 6px; font-size: 11px; font-weight: 800; padding: 2px; margin: 3px 0;">${est}</div>
+                        <div style="font-size: 10px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 4px; min-height: 26px; display: flex; align-items: center; justify-content: center; word-break: break-word;" title="Clientes visitados">
+                            <i class="fas fa-building" style="margin-right: 4px; color: #94a3b8; font-size: 9px;"></i> ${clientesTxt}
+                        </div>
+                    </div>
+                    <div style="margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1; font-size: 9.5px; display: flex; justify-content: space-around; font-weight: 700; color: #334155;">
+                        <span title="Horas hoy">⏱️ ${hDia}h</span>
+                        <span style="color: var(--fng-blue);" title="Acumuladas semana">📈 ${hAcum}h</span>
+                        <span style="color: #16a34a;" title="Restantes semana">⏳ ${hRest}h</span>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('cal_count_tr').innerText = c_tr;
+        document.getElementById('cal_count_de').innerText = c_de;
+        document.getElementById('cal_count_va').innerText = c_va;
+        document.getElementById('modalCalendario30').style.display = 'flex';
+    }
+
+    // AMONESTACIONES
+    function abrirModalNuevaAmonestacion() {
+        if (!operadorExpedienteActualId) return;
+        document.getElementById('amon_fecha').value = new Date().toISOString().split('T')[0];
+        document.getElementById('formAmonestacion').reset();
+        document.getElementById('amon_fecha').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modalNuevaAmonestacion').style.display = 'flex';
+    }
+    function cerrarModalNuevaAmonestacion() { document.getElementById('modalNuevaAmonestacion').style.display = 'none'; }
+
+    async function cargarAmonestaciones(operadorId) {
+        const tbody = document.getElementById('tablaAmonestacionesCuerpo');
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>`;
+        try {
+            const res = await fetch('/api/obtener_amonestaciones', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operador_id: operadorId })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                document.getElementById('kpi_actas').innerText = data.kpis.actas;
+                document.getElementById('kpi_combustible').innerText = data.kpis.combustible;
+                document.getElementById('kpi_danos').innerText = data.kpis.danos;
+                document.getElementById('kpi_retardos').innerText = data.kpis.retardos;
+                document.getElementById('kpi_incidentes').innerText = data.kpis.incidentes;
+
+                tbody.innerHTML = '';
+                if (data.historial.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#10b981; font-weight:600;"><i class="fas fa-check-circle"></i> Sin amonestaciones registradas.</td></tr>`;
+                    return;
+                }
+                data.historial.forEach(reg => {
+                    let f = reg.fecha.split('-');
+                    let docLink = reg.archivo_pdf 
+                        ? `<a href="/static/evidencias_amonestaciones/${reg.archivo_pdf}" target="_blank" style="color: #ef4444; font-size: 13px;" title="Ver Evidencia"><i class="fas fa-file-pdf"></i></a>`
+                        : `<span style="color: #cbd5e1;">--</span>`;
+
+                    tbody.innerHTML += `
+                        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+                            <td style="padding: 6px; text-align: center; font-weight: 700; color: #64748b;">${f[2]}/${f[1]}/${f[0]}</td>
+                            <td style="padding: 6px; text-align: left; font-weight: 700; color: var(--fng-blue);">${reg.tipo}</td>
+                            <td style="padding: 6px; text-align: left; color: #334155;">${reg.descripcion}</td>
+                            <td style="padding: 6px; text-align: center;"><span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background:#f1f5f9;">${reg.estatus}</span></td>
+                            <td style="padding: 6px; text-align: center;">${docLink}</td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#ef4444;">Error al cargar.</td></tr>`;
+        }
+    }
+
+    async function enviarNuevaAmonestacion(event) {
+        event.preventDefault();
+        const formData = new FormData();
+        formData.append('operador_id', operadorExpedienteActualId);
+        formData.append('fecha', document.getElementById('amon_fecha').value);
+        formData.append('tipo', document.getElementById('amon_tipo').value);
+        formData.append('descripcion', document.getElementById('amon_descripcion').value);
+        formData.append('estatus', document.getElementById('amon_estatus').value);
+
+        const pdfFile = document.getElementById('amon_pdf').files[0];
+        if (pdfFile) {
+            formData.append('evidencia_pdf', pdfFile);
+        }
+
+        const res = await fetch('/api/guardar_amonestacion', {
+            method: 'POST',
+            body: formData
+        });
+        if (res.ok) {
+            cerrarModalNuevaAmonestacion();
+            cargarAmonestaciones(operadorExpedienteActualId);
+            showToast("✅ Amonestación registrada con éxito", "success");
+        }
+    }
+
+    function seleccionarRolOperativo(btn, valor) {
+        document.querySelectorAll('#grupoRolOperativo .capsule-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editFull_libOp').value = valor;
+    }
+
+    function toggleCapsulaProducto(btn) {
+        btn.classList.toggle('active');
+        actualizarProductosSeleccionados();
+    }
+
+    function actualizarProductosSeleccionados() {
+        const activas = Array.from(document.querySelectorAll('#grupoProductosCapsulas .capsule-btn.active'))
+                             .map(b => b.getAttribute('data-prod'));
+        
+        document.getElementById('editFull_prods').value = activas.join('-') || 'NINGUNO';
+    }
+
+    // ACCIONES ADMINISTRATIVAS (EDITAR COMPLETO / BAJA / REACTIVAR)
+    function abrirModalEditarCompleto(op) {
+        document.getElementById('editFull_id').value = op.id;
+        document.getElementById('editFull_nombre').value = op.nombre || '';
+        document.getElementById('editFull_ingreso').value = op.fecha_alta !== '--' ? op.fecha_alta : '';
+        document.getElementById('editFull_nac').value = op.fecha_nacimiento !== '--' ? op.fecha_nacimiento : '';
+        document.getElementById('editFull_expDesde').value = op.experiencia_desde !== '--' ? op.experiencia_desde : '';
+        
+        document.getElementById('editFull_noEmp').value = op.no_empleado !== '--' ? op.no_empleado : '';
+        document.getElementById('editFull_tipoUnidad').value = op.tipo_unidad || 'FULL';
+        document.getElementById('editFull_tel').value = op.tel || '';
+        document.getElementById('editFull_tipoLic').value = op.tipo_licencia !== '--' ? op.tipo_licencia : 'E';
+        document.getElementById('editFull_noLic').value = op.no_licencia !== '--' ? op.no_licencia : '';
+        document.getElementById('editFull_lic').value = op.lic !== '--' ? op.lic : '';
+        document.getElementById('editFull_med').value = op.med !== '--' ? op.med : '';
+        document.getElementById('editFull_cryo').value = op.liberacion_cryo !== '--' ? op.liberacion_cryo : '';
+        document.getElementById('editFull_imp').value = op.imp !== '--' ? op.imp : '';
+        document.getElementById('editFull_imei').value = op.imei !== '--' ? op.imei : '';
+
+        // Preservar en segundo plano su rol y bloque asignados en la sábana
+        document.getElementById('editFull_libOp').value = op.liberado_operativamente || 'CLIENTES';
+        document.getElementById('editFull_esquema').value = op.esquema || 'Arrastre';
+
+        // Encender visualmente las cápsulas de productos autorizados
+        const prods = (op.productos_descarga || 'LIN-LOX-LAR').toUpperCase();
+        document.querySelectorAll('#grupoProductosCapsulas .capsule-btn').forEach(b => {
+            const p = b.getAttribute('data-prod');
+            if (prods.includes(p)) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        actualizarProductosSeleccionados();
+
+        document.getElementById('modalEditarCompleto').style.display = 'flex';
+    }
+
+    async function guardarEdicionCompleta(e) {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('id', document.getElementById('editFull_id').value);
+        formData.append('nombre', document.getElementById('editFull_nombre').value);
+        formData.append('fecha_alta', document.getElementById('editFull_ingreso').value || 'N/A');
+        formData.append('fecha_nacimiento', document.getElementById('editFull_nac').value || 'N/A');
+        formData.append('experiencia_desde', document.getElementById('editFull_expDesde').value || 'N/A');
+        formData.append('no_empleado', document.getElementById('editFull_noEmp').value || 'N/A');
+        formData.append('tel', document.getElementById('editFull_tel').value || 'N/A');
+        formData.append('tipo_licencia', document.getElementById('editFull_tipoLic').value || 'E');
+        formData.append('no_licencia', document.getElementById('editFull_noLic').value || 'N/A');
+        formData.append('lic', document.getElementById('editFull_lic').value || 'N/A');
+        formData.append('med', document.getElementById('editFull_med').value || 'N/A');
+        formData.append('tipo_unidad', document.getElementById('editFull_tipoUnidad').value || 'FULL');
+        formData.append('liberacion_cryo', document.getElementById('editFull_cryo').value || 'N/A');
+        formData.append('liberado_operativamente', document.getElementById('editFull_libOp').value || 'CLIENTES');
+        formData.append('productos_descarga', document.getElementById('editFull_prods').value || 'LIN-LOX-LAR');
+        formData.append('esquema', document.getElementById('editFull_esquema').value || 'Arrastre');
+        formData.append('imp', document.getElementById('editFull_imp').value || 'N/A');
+        formData.append('imei', document.getElementById('editFull_imei').value || 'N/A');
+
+        const res = await fetch('/api/actualizar_expediente', { method: 'POST', body: formData });
+        if(res.ok) {
+            showToast("✅ Operador actualizado", "success");
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    }
+
+    function seleccionarAltaRol(btn, valor) {
+        document.querySelectorAll('#grupoAltaRolOperativo .capsule-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('alta_libOp').value = valor;
+    }
+
+    function toggleAltaCapsula(btn) {
+        btn.classList.toggle('active');
+        const activas = Array.from(document.querySelectorAll('#grupoAltaProductosCapsulas .capsule-btn.active'))
+                             .map(b => b.getAttribute('data-prod'));
+        document.getElementById('alta_prods').value = activas.join('-') || 'NINGUNO';
+        
+        const tieneCryo = activas.some(p => ['LIN', 'LOX', 'LAR'].includes(p));
+        const caja = document.getElementById('cajaAltaBloqueCriogenico');
+        if (caja) caja.style.display = tieneCryo ? 'block' : 'none';
+    }
+
+    function seleccionarAltaEsquema(btn, valor) {
+        document.querySelectorAll('#grupoAltaEsquemaCapsulas .capsule-btn').forEach(b => b.classList.remove('active-orange'));
+        btn.classList.add('active-orange');
+        document.getElementById('alta_esquema').value = valor;
+    }
+
+    function confirmarBaja(id, nombre) { 
+        document.getElementById('bajaNombreVisual').innerText = nombre; 
+        document.getElementById('bajaIdOculto').value = id; 
+        document.getElementById('baja_detalles_input').value = ''; 
+        document.getElementById('baja_causa_input').selectedIndex = 0; 
+        document.getElementById('modalBajaGlobal').style.display = 'flex'; 
+    }
+
+    async function ejecutarBajaFinal() {
+        const id = document.getElementById('bajaIdOculto').value; 
+        const nombre = document.getElementById('bajaNombreVisual').innerText; 
+        const causa = document.getElementById('baja_causa_input').value;
+        const detalles = document.getElementById('baja_detalles_input').value;
+
+        document.getElementById('modalBajaGlobal').style.display = 'none';
+        const payload = { id: id, causa: causa, detalle: detalles, causa_baja: causa, detalles_baja: detalles };
+        const res = await fetch('/api/baja_operador', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload) 
+        }); 
+        if(res.ok) { 
+            showToast(`🗑️ ${nombre} archivado en bajas`, "success"); 
+            setTimeout(() => window.location.reload(), 1200); 
+        }
+    }
+
+    async function reactivarOperador(id, nombre) {
+        if(confirm(`¿Deseas reactivar al operador ${nombre} a la plantilla activa?`)) {
+            const res = await fetch('/api/reactivar_operador', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({id: id}) });
+            if(res.ok) { showToast(`♻️ ${nombre} reactivado con éxito`, "success"); setTimeout(() => window.location.reload(), 1200); }
+        }
+    }
+
+    async function liberarDispositivo() {
+        const id = document.getElementById('expIdBD').value;
+        if(confirm("¿Seguro que deseas liberar el teléfono del operador?")) {
+            const res = await fetch('/api/liberar_dispositivo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({id: id}) });
+            if(res.ok) showToast("✅ Celular liberado", "success");
+        }
+    }
+    
+    async function generarPIN() {
+        const id = document.getElementById('expIdBD').value;
+        const res = await fetch('/api/generar_pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({id: id}) });
+        if(res.ok) { 
+            const data = await res.json();
+            alert("🚨 PIN TEMPORAL (15 MIN):\n\n" + data.pin);
+        }
+    }
+
+    function abrirModalCargaMasiva() {
+        document.getElementById('excel-input').value = "";
+        document.getElementById('excel-dropzone').style.display = 'block';
+        document.getElementById('excel-loading').style.display = 'none';
+        document.getElementById('modalCargaMasiva').style.display = 'flex';
+    }
+
+    function procesarArchivoExcel(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        document.getElementById('excel-dropzone').style.display = 'none'; 
+        document.getElementById('excel-loading').style.display = 'block';
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                let sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('plantilla')) || workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rawJson = XLSX.utils.sheet_to_json(sheet, {header: 1, raw: false, dateNF: 'yyyy-mm-dd'});
+                
+                let headerIdx = -1;
+                for(let i=0; i < Math.min(10, rawJson.length); i++){ 
+                    if(rawJson[i] && rawJson[i].some(cell => typeof cell === 'string' && cell.includes("No. Empleado"))) { 
+                        headerIdx = i; break; 
+                    } 
+                }
+                if(headerIdx === -1) { 
+                    alert("❌ Formato inválido: Falta columna 'No. Empleado'."); 
+                    abrirModalCargaMasiva(); return; 
+                }
+
+                const jsonFinal = XLSX.utils.sheet_to_json(sheet, {range: headerIdx, raw: false, dateNF: 'yyyy-mm-dd'});
+                const operadoresMapeados = jsonFinal.map(row => ({
+                    no_empleado: row["No. Empleado"] || 'N/A', 
+                    nombre: row["CONDUCTOR"] || '', 
+                    estatus: row["ESTATUS"] || 'Activo',
+                    base: row["BASE"] || 'San Luis Potosí',
+                    fecha_alta: row["FECHA DE \r\nINGRESO"] || row["FECHA DE \nINGRESO"] || 'N/A', 
+                    fecha_nacimiento: row["FECHA DE NACIMIENTO"] || 'N/A',
+                    edad: row["EDAD\r\n(AÑOS)"] || row["EDAD\n(AÑOS)"] || 'N/A', 
+                    tipo_licencia: row["TIPO DE LICENCIA"] || 'N/A',
+                    vigencia_licencia: row["FECHA DE VENCIMIENTO DE LICENCIA"] || 'N/A', 
+                    no_licencia: row["NO. LICENCIA"] || 'N/A',
+                    vigencia_medica: row["FECHA DE APTITUD PSICOFISICA"] || 'N/A', 
+                    liberacion_cryo: row["LIBERACIÓN POR \r\nCRYOINFRA"] || row["LIBERACIÓN POR \nCRYOINFRA"] || 'N/A',
+                    productos_descarga: row["PRODUCTOS\r\nQUE DESCARGA"] || row["PRODUCTOS\nQUE DESCARGA"] || 'N/A',
+                    liberado_operativamente: row["LIBERADO OPERATIVAMENTE EN:"] || 'N/A',
+                    experiencia_desde: row["EXPERIENCIA\r\nEN MANEJO DESDE"] || row["EXPERIENCIA\nEN MANEJO DESDE"] || 'N/A',
+                    tipo_unidad: row["LIBERADO EN TIPO DE UNIDAD"] || 'FULL', 
+                    telefono_red: row["TELÉFONO CELULAR DE CONTACTO"] || 'N/A'
+                })).filter(op => op.nombre.trim() !== '' && op.no_empleado !== 'N/A');
+
+                const res = await fetch('/api/carga_masiva_rh', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(operadoresMapeados) });
+                const result = await res.json();
+                
+                if(res.ok) { 
+                    showToast(`✅ Matriz Procesada: ${result.actualizados} Actualizados | ${result.nuevos} Nuevos`, "success"); 
+                    document.getElementById('modalCargaMasiva').style.display='none'; 
+                    setTimeout(() => window.location.reload(), 2000);
+                }
+            } catch (error) { 
+                alert("❌ Error al procesar el archivo Excel."); 
+                abrirModalCargaMasiva(); 
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function abrirModalAlta() { 
+        const inputIngreso = document.getElementById('alta_ingreso');
+        if (inputIngreso) inputIngreso.value = new Date().toISOString().split('T')[0];
+        document.getElementById('modalAlta').style.display = 'flex'; 
+    }
+
+    // --- LÓGICA DE CAPACITACIONES Y CASCADA EN NUEVO INGRESO ---
+    function toggleAltaCapsula(btn) {
+        btn.classList.toggle('active');
+        const activas = Array.from(document.querySelectorAll('#grupoAltaProductosCapsulas .capsule-btn.active'))
+                             .map(b => b.getAttribute('data-prod'));
+        document.getElementById('alta_prods').value = activas.join('-') || 'NINGUNO';
+    }
+
+    function seleccionarAltaRol(btn, valor) {
+        document.querySelectorAll('#grupoAltaRolOperativo .capsule-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('alta_libOp').value = valor;
+        evaluarCascadaAlta();
+    }
+
+    function evaluarCascadaAlta() {
+        const rol = document.getElementById('alta_libOp').value;
+        const prodBase = document.getElementById('alta_producto_base').value;
+        const cajaProd = document.getElementById('cajaAltaProductoBase');
+        const cajaBloque = document.getElementById('cajaAltaBloqueCriogenico');
+
+        if (rol === 'MOVEDOR' || rol === 'INSTRUCTOR') {
+            cajaProd.style.display = 'none';
+            cajaBloque.style.display = 'none';
+        } else {
+            cajaProd.style.display = 'block';
+            if (prodBase === 'CO2') {
+                cajaBloque.style.display = 'none';
+            } else {
+                cajaBloque.style.display = 'block';
+            }
+        }
+    }
+
+    function seleccionarAltaEsquema(btn, valor) {
+        document.querySelectorAll('#grupoAltaEsquemaCapsulas .capsule-btn').forEach(b => b.classList.remove('active-orange'));
+        btn.classList.add('active-orange');
+        document.getElementById('alta_esquema').value = valor;
+    }
+    
+    async function guardarAltaCompleta(e) {
+        e.preventDefault();
+        const rolOp = document.getElementById('alta_libOp').value;
+        const prodBase = document.getElementById('alta_producto_base').value;
+        const esquemaElegido = document.getElementById('alta_esquema').value;
+
+        // Calcular asignación exacta para que nazca en el bloque correcto de la sábana
+        let productoFinal = 'NITROGENO';
+        let esquemaFinal = '1. Tercias';
+
+        if (rolOp === 'MOVEDOR' || rolOp === 'INSTRUCTOR') {
+            productoFinal = 'VARIOS';
+            esquemaFinal = 'Varios';
+        } else if (prodBase === 'CO2') {
+            productoFinal = 'CO2';
+            esquemaFinal = 'CO2';
+        } else {
+            productoFinal = prodBase;
+            esquemaFinal = esquemaElegido;
+        }
+
+        const formData = new FormData();
+        formData.append('no_empleado', document.getElementById('alta_noEmp').value);
+        formData.append('nombre', document.getElementById('alta_nombre').value);
+        formData.append('fecha_alta', document.getElementById('alta_ingreso').value);
+        formData.append('fecha_nacimiento', document.getElementById('alta_nac').value || 'N/A');
+        formData.append('tel', document.getElementById('alta_tel').value || 'N/A');
+        formData.append('tipo_licencia', document.getElementById('alta_tipoLic').value || 'E');
+        formData.append('no_licencia', document.getElementById('alta_noLic').value || 'N/A');
+        formData.append('lic', document.getElementById('alta_vigLic').value || 'N/A');
+        formData.append('med', document.getElementById('alta_vigMed').value || 'N/A');
+        formData.append('liberacion_cryo', document.getElementById('alta_libCryo').value || 'N/A');
+        formData.append('tipo_unidad', document.getElementById('alta_tipoUnidad').value);
+        formData.append('experiencia_desde', document.getElementById('alta_expDesde').value || 'N/A');
+        
+        // Separación de conceptos
+        formData.append('productos_descarga', document.getElementById('alta_prods').value || 'LIN-LOX-LAR');
+        formData.append('liberado_operativamente', rolOp);
+        formData.append('producto', productoFinal);
+        formData.append('esquema', esquemaFinal);
+
+        formData.append('imp', document.getElementById('alta_imp').value || 'N/A');
+        formData.append('imei', document.getElementById('alta_imei').value || 'N/A');
+
+        const fotoFile = document.getElementById('alta_foto').files[0];
+        if (fotoFile) formData.append('foto_perfil', fotoFile);
+
+        const res = await fetch('/api/agregar_operador', { method: 'POST', body: formData });
+        if (res.ok) {
+            showToast("✅ Operador agregado y asignado a su bloque", "success");
+            document.getElementById('modalAlta').style.display = 'none';
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showToast("Error al dar de alta el operador", "warning");
+        }
+    }
+
+    function mostrarDetalleBaja(nombre, causa, detalles) {
+        document.getElementById('detBaja_nombre').innerText = nombre;
+        document.getElementById('detBaja_causa').innerText = causa;
+        document.getElementById('detBaja_obs').innerText = detalles;
+        document.getElementById('modalDetalleBaja').style.display = 'flex';
+    }
+
+    // =====================================================================
+    // RECEPTOR EN TIEMPO REAL: ACTUALIZACIÓN REACTIVA DE OPERADORES
+    // =====================================================================
+    document.addEventListener('live:rh_actualizado', async () => {
+        try {
+            // Guardar estado actual de pestaña y filtro antes de actualizar
+            const esVistaBajas = document.getElementById('btnTabBajas')?.classList.contains('active');
+            const textoBusqueda = document.getElementById('buscadorRH')?.value || '';
+
+            const res = await fetch(window.location.href);
+            if (!res.ok) return;
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+
+            const nuevoContenido = doc.querySelector('.glass-panel');
+            const contenidoActual = document.querySelector('.glass-panel');
+
+            if (nuevoContenido && contenidoActual) {
+                contenidoActual.innerHTML = nuevoContenido.innerHTML;
+
+                // Restaurar vista previa (Bajas o Activos) y filtro si había búsqueda
+                if (esVistaBajas && typeof cambiarVistaOperadores === 'function') {
+                    cambiarVistaOperadores('bajas');
+                }
+                if (textoBusqueda) {
+                    const inputActual = document.getElementById('buscadorRH');
+                    if (inputActual) {
+                        inputActual.value = textoBusqueda;
+                        filtrarRH();
+                    }
+                }
+
+                // Destello verde de sincronización completada
+                contenidoActual.style.transition = 'box-shadow 0.35s ease';
+                contenidoActual.style.boxShadow = '0 0 18px rgba(16, 185, 129, 0.45)';
+                setTimeout(() => { contenidoActual.style.boxShadow = ''; }, 900);
+            }
+        } catch (err) {}
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,2138 @@
+{% extends "base.html" %}
+{% set active_page = "dot" %}
+
+{% block title %}Auditoría DOT - FNG{% endblock %}
+
+{% block topbar_left %}
+    <div style="font-weight: 700; font-size: 20px;"><i class="fas fa-stopwatch" style="color: var(--fng-orange);"></i> FNG - Auditoría DOT</div>
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src='https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js'></script>
+
+<style>
+    /* ========================================================
+       TARJETA FLOTANTE INDEPENDIENTE: KPIS DOT (NOM-087)
+       ======================================================== */
+    .kpi-panel-dot {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .kpi-row {
+        display: flex;
+        width: 100%;
+        min-width: 850px;
+    }
+    .kpi-row-1 {
+        border-top: 3px solid #0284c7;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .kpi-row-2 {
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .kpi-cell {
+        flex: 1;
+        padding: 10px 8px;
+        text-align: center;
+        border-right: 1px solid #e2e8f0;
+        box-sizing: border-box;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.15s ease;
+        user-select: none;
+    }
+    .kpi-cell:hover {
+        background-color: #f0f9ff;
+    }
+    body.dark-mode .kpi-cell:hover {
+        background-color: rgba(2, 132, 199, 0.18) !important;
+    }
+    .kpi-cell:last-child {
+        border-right: none;
+    }
+    .kpi-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0284c7;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+    .kpi-value {
+        font-size: 16px;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    /* ========================================================
+       BARRA SUPERIOR Y CONTROLES CENTRADOS
+       ======================================================== */
+    .header-toolbar { display: flex; align-items: center; justify-content: space-between; position: relative; min-height: 48px; margin-bottom: 20px; gap: 15px; }
+    .header-title-box { display: flex; align-items: center; }
+    .date-navigator-box { display: flex; align-items: center; gap: 8px; }
+
+    @media (min-width: 992px) {
+        .date-navigator-box { position: absolute; left: 50%; transform: translateX(-50%); z-index: 5; }
+    }
+
+    .header-actions-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .btn-nav-week { background: #f1f5f9; color: var(--fng-blue); border: 1px solid #cbd5e1; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; }
+    .btn-nav-week:hover { background: var(--fng-blue); color: white; border-color: var(--fng-blue); }
+    .week-display-badge { background: white; padding: 5px 16px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 700; color: var(--fng-blue); text-align: center; line-height: 1.25; position: relative; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: border-color 0.2s; }
+    .week-display-badge:hover { border-color: var(--fng-orange); }
+
+    .btn-export-pdf { background: #ef4444; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; box-shadow: 0 4px 10px rgba(239,68,68,0.25); white-space: nowrap; transition: transform 0.2s, background 0.2s; height: 42px; box-sizing: border-box; }
+    .btn-export-pdf:hover { background: #dc2626; transform: translateY(-1px); }
+
+    /* BUSCADOR EXPANSIBLE */
+    .search-bar { position: relative; width: 42px; height: 42px; background: white; border-radius: 50px; display: flex; align-items: center; padding: 0 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 1px solid rgba(0,45,90,0.15); transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; cursor: pointer; box-sizing: border-box; }
+    .search-bar.active { width: 260px; cursor: text; border-color: var(--fng-orange); box-shadow: 0 4px 20px rgba(255,140,0,0.15); }
+    .search-bar .search-icon { font-size: 15px; color: var(--fng-blue); min-width: 22px; text-align: center; }
+    .search-bar input { border: none !important; outline: none !important; background: transparent !important; box-shadow: none !important; width: 100%; min-width: 0; flex: 1; padding-left: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; color: var(--fng-blue); font-weight: 600; opacity: 0; transition: opacity 0.2s ease; }
+    .search-bar.active input { opacity: 1; }
+    .search-bar .clear-icon { position: absolute; right: 12px; cursor: pointer; color: #94a3b8; display: none; font-size: 14px; }
+    .search-bar.active .clear-icon { display: block; }
+    .search-bar .clear-icon:hover { color: #ef4444; }
+
+    /* ESCÁNER COMPACTO */
+    .dropzone-compact { border: 2px dashed rgba(0,45,90,0.25); border-radius: 12px; padding: 12px 20px; background: #f8fafc; cursor: pointer; transition: 0.3s; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 15px; }
+    .dropzone-compact:hover { background: #e0f2fe; border-color: var(--fng-orange); }
+
+    /* ========================================================
+       TABLAS Y ANCLAJE BIDIRECCIONAL (STICKY TIPO KARDEX)
+       ======================================================== */
+    .table-responsive { 
+        width: 100%; 
+        max-height: 70vh; /* Activa el scroll vertical manteniendo el techo fijo */
+        overflow-y: auto;
+        overflow-x: auto; 
+        margin-top: 10px; 
+        border-radius: 12px; 
+        border: 1px solid rgba(0,45,90,0.1); 
+    }
+    
+    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; background: white; }
+    
+    th, td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 6px; text-align: center; font-size: 12px; }
+    
+    /* ANCLAJE TECHO (HEADER) */
+    th { 
+        position: sticky; 
+        top: 0; 
+        background: var(--fng-blue); 
+        color: white; 
+        white-space: nowrap; 
+        font-weight: 600; 
+        z-index: 10; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+    }
+    
+    .atencion { color: #dc3545 !important; font-weight: 700; }
+    .cumplimiento { color: #10b981 !important; font-weight: 700; }
+
+    /* AZUL DE "ES HOY" SUTIL Y PROFESIONAL */
+    td.es-hoy { 
+        background: rgba(2, 132, 199, 0.08) !important; 
+        border-bottom: 2px solid rgba(2, 132, 199, 0.4) !important;
+    }
+    th.es-hoy { 
+        background: #003666 !important; 
+        border-bottom: 3px solid var(--fng-orange) !important; 
+        color: #ffffff !important;
+    }
+    body.dark-mode td.es-hoy { 
+        background: rgba(56, 189, 248, 0.08) !important; 
+    }
+    body.dark-mode th.es-hoy { 
+        background: var(--bg-surface-2) !important; 
+        border-bottom: 3px solid var(--fng-orange) !important;
+        color: var(--fng-orange) !important;
+    }
+    
+    .btn-action { background: transparent; border: none; color: var(--fng-blue); cursor: pointer; font-size: 16px; transition: 0.2s; margin: 0 5px;}
+    .btn-action:hover { color: var(--fng-orange); transform: scale(1.1); }
+    body.dark-mode .btn-action { color: var(--fng-blue-light); }
+
+    /* 1. COLUMNAS CONGELADAS A LA IZQUIERDA */
+    .sticky-col-1 {
+        position: sticky;
+        left: 0;
+        background: white;
+        color: var(--fng-blue);
+        z-index: 5;
+        width: 250px;
+        min-width: 250px;
+        max-width: 250px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-sizing: border-box;
+        text-align: left !important;
+        padding-left: 12px !important;
+    }
+    th.sticky-col-1 {
+        position: sticky;
+        left: 0;
+        top: 0;
+        background: var(--fng-blue) !important;
+        color: white !important;
+        z-index: 20 !important;
+    }
+
+    .sticky-col-2 {
+        position: sticky;
+        left: 250px;
+        background: white;
+        z-index: 5;
+        width: 90px;
+        min-width: 90px;
+        max-width: 90px;
+        text-align: center;
+        box-sizing: border-box;
+        box-shadow: 4px 0 8px -3px rgba(0,0,0,0.08);
+    }
+    th.sticky-col-2 {
+        position: sticky;
+        left: 250px;
+        top: 0;
+        background: var(--fng-blue) !important;
+        color: white !important;
+        z-index: 20 !important;
+        box-shadow: 4px 2px 8px -3px rgba(0,0,0,0.15);
+    }
+
+    .col-dia { min-width: 45px; width: 45px; max-width: 45px; text-align: center; padding: 6px 2px; font-size: 11px; }
+
+    /* 2. COLUMNAS CONGELADAS A LA DERECHA (ESCRITORIO) */
+    .col-total { 
+        position: sticky;
+        right: 55px;
+        background: #ffffff;
+        z-index: 6;
+        min-width: 95px; 
+        width: 95px; 
+        text-align: center; 
+        box-sizing: border-box;
+    }
+    th.col-total {
+        position: sticky;
+        right: 55px;
+        top: 0;
+        background: var(--fng-blue) !important;
+        color: #ffffff !important;
+        z-index: 22 !important;
+    }
+
+    .col-accion { 
+        position: sticky;
+        right: 0;
+        background: #ffffff;
+        z-index: 6;
+        min-width: 55px; 
+        width: 55px; 
+        text-align: center; 
+        box-sizing: border-box;
+        box-shadow: -4px 0 8px -3px rgba(0,0,0,0.08);
+    }
+    th.col-accion {
+        position: sticky;
+        right: 0;
+        top: 0;
+        background: var(--fng-blue) !important;
+        color: #ffffff !important;
+        z-index: 22 !important;
+        box-shadow: -4px 2px 8px -3px rgba(0,0,0,0.15);
+    }
+
+    /* MODO OSCURO PARA COLUMNAS FIJAS */
+    body.dark-mode .sticky-col-1,
+    body.dark-mode .sticky-col-2,
+    body.dark-mode .col-total,
+    body.dark-mode .col-accion {
+        background: var(--bg-surface) !important;
+        color: var(--text-main) !important;
+    }
+    body.dark-mode th.sticky-col-1,
+    body.dark-mode th.sticky-col-2,
+    body.dark-mode th.col-total,
+    body.dark-mode th.col-accion {
+        background: var(--bg-surface-2) !important;
+        color: var(--fng-orange) !important;
+    }
+
+    /* SUB-FILAS NATIVAS DEL ACORDEÓN */
+    .accordion-subrow { background-color: #f8fafc; }
+    .accordion-subrow:hover { background-color: #f1f5f9; }
+    .accordion-subrow td { padding: 7px 10px; font-size: 11px; }
+    .accordion-subrow td.sticky-col-1 {
+        background-color: #f8fafc;
+        color: var(--fng-blue);
+        font-weight: 700;
+        padding-left: 28px !important;
+    }
+    .accordion-subrow:hover td.sticky-col-1 { background-color: #f1f5f9; }
+    .accordion-subrow td.sticky-col-2 { background-color: #f8fafc; color: #94a3b8; }
+    .accordion-subrow:hover td.sticky-col-2 { background-color: #f1f5f9; }
+    .accordion-subrow td.col-total,
+    .accordion-subrow td.col-accion { background-color: #f8fafc; }
+    .accordion-subrow:hover td.col-total,
+    .accordion-subrow:hover td.col-accion { background-color: #f1f5f9; }
+    body.dark-mode .accordion-subrow,
+    body.dark-mode .accordion-subrow td { background-color: var(--bg-surface-2) !important; }
+
+    .toggle-icon { margin-right: 8px; color: var(--fng-orange); transition: transform 0.2s; display: inline-block;}
+    .row-expanded .toggle-icon { transform: rotate(90deg); }
+    /* ========================================================
+       TEXTO PLANO DEL CATÁLOGO OPERATIVO (CERO PÍLDORAS)
+       ======================================================== */
+    .txt-rol {
+        font-weight: 800;
+        font-size: 11.5px;
+        letter-spacing: 0.3px;
+        display: inline-block;
+        line-height: 1;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+    }
+    .txt-rol:hover { transform: scale(1.2); }
+
+    .txt-rol-de  { color: #7c3aed !important; } /* Morado Descanso */
+    .txt-rol-va  { color: #2563eb !important; } /* Azul Vacaciones */
+    .txt-rol-fa  { color: #dc2626 !important; } /* Rojo Falta */
+    .txt-rol-in  { color: #991b1b !important; } /* Carmesí Incapacidad */
+    .txt-rol-per { color: #9333ea !important; } /* Púrpura Permiso */
+    .txt-rol-med { color: var(--fng-blue) !important; } /* Azul Marino Cita Médica */
+    .txt-rol-lic { color: #d97706 !important; } /* Ámbar Licencia */
+    .txt-rol-cap { color: #059669 !important; } /* Verde Esmeralda Capacitación */
+    .txt-rol-gen { color: #475569 !important; } /* Neutro */
+
+    /* MODO OSCURO */
+    body.dark-mode .txt-rol-de  { color: #a78bfa !important; }
+    body.dark-mode .txt-rol-va  { color: #60a5fa !important; }
+    body.dark-mode .txt-rol-fa  { color: #f87171 !important; }
+    body.dark-mode .txt-rol-in  { color: #fca5a5 !important; }
+    body.dark-mode .txt-rol-per { color: #c084fc !important; }
+    body.dark-mode .txt-rol-med { color: var(--fng-blue-light) !important; }
+    body.dark-mode .txt-rol-lic { color: #fbbf24 !important; }
+    body.dark-mode .txt-rol-cap { color: #34d399 !important; }
+    body.dark-mode .txt-rol-gen { color: #94a3b8 !important; }
+
+    /* ========================================================
+       POPOVER DE RESUMEN RÁPIDO (OCULTO POR DEFECTO)
+       ======================================================== */
+    .popover-dot { 
+        position: absolute; 
+        background: white; 
+        border: 1px solid #cbd5e1; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+        border-radius: 12px; 
+        padding: 15px; 
+        z-index: 3000; 
+        display: none; 
+        width: 220px; 
+        text-align: left; 
+    }
+    .popover-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold; color: var(--fng-blue); font-size: 13px;}
+    .popover-close { cursor: pointer; color: #ef4444; background: none; border: none; font-size: 16px;}
+    .popover-body p { margin: 5px 0; font-size: 12px; color: #475569;}
+    .popover-body i { width: 15px; text-align: center; margin-right: 5px;}
+
+    /* ========================================================
+       MODAL DE EDICIÓN FNG OFICIAL (OCULTO POR DEFECTO)
+       ======================================================== */
+    .modal-overlay { 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: rgba(0,0,0,0.6); 
+        display: none; 
+        justify-content: center; 
+        align-items: center; 
+        z-index: 2000; 
+        backdrop-filter: blur(3px);
+    }
+    .modal-box { background: white; padding: 20px; border-radius: 15px; width: 95%; max-width: 900px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 90dvh; display: flex; flex-direction: column; }
+    .modal-header-fixed { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;} 
+    .modal-body-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 5px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; } 
+    .modal-footer-fixed { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; align-items: center; padding-top: 15px; border-top: 1px solid #e2e8f0; } 
+    .visor-foto-container { flex: 1; min-width: 300px; background: #0f172a; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 350px; }
+    .form-control { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; font-size: 12px; color: var(--fng-blue); font-weight: 600;}
+    .form-control:focus { outline: none; border-color: var(--fng-orange); box-shadow: 0 0 0 2px rgba(255,140,0,0.2);}
+    .btn-primary { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(16,185,129,0.3);}
+    .btn-light { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+    .btn-light:hover { background: #dc2626; }
+    .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+
+    /* ========================================================
+       ESTILOS LIMPIOS DEL SEMÁFORO (SIN TEXTO S/B NI SATURACIÓN)
+       ======================================================== */
+    /* 1. Verde: Auditado real */
+    .horas-auditadas { 
+        color: #16a34a !important; 
+        font-weight: 800; 
+        cursor: pointer; 
+        text-decoration: underline; 
+        text-underline-offset: 3px;
+        font-size: 12px;
+    }
+    .horas-auditadas:hover { color: #14532d !important; }
+
+    /* 2. Naranja: Estimado sin auditar */
+    .horas-crudas { 
+        color: #ea580c !important; 
+        font-weight: 800; 
+        cursor: pointer; 
+        text-decoration: underline; 
+        text-underline-offset: 3px;
+        font-size: 12px;
+    }
+    .horas-crudas:hover { color: #9a3412 !important; }
+
+    /* 3. Rojo: Guion grueso y remarcado cuando laboró y falta captura */
+    .falta-bitacora {
+        color: #dc2626 !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        cursor: pointer;
+        display: inline-block;
+        line-height: 1;
+        padding: 0 4px;
+        transition: transform 0.15s ease;
+    }
+    .falta-bitacora:hover {
+        transform: scale(1.35);
+    }
+
+    /* Fechas futuras y neutras */
+    .celda-futura {
+        color: #cbd5e1;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .futuro-rol {
+        color: #94a3b8;
+        font-size: 10.5px;
+        font-weight: 600;
+    }
+
+    /* ========================================================
+       ADAPTACIÓN RESPONSIVA MÓVIL Y MULTIPANTALLA (DOT)
+       ======================================================== */
+    @media (max-width: 991px) {
+        .header-toolbar { 
+            flex-direction: column; 
+            align-items: stretch; 
+            gap: 12px; 
+        }
+        .header-title-box {
+            justify-content: center;
+            text-align: center;
+        }
+        .date-navigator-box { 
+            position: static !important;
+            transform: none !important;
+            justify-content: center; 
+            width: 100%; 
+        }
+        .header-actions-right { 
+            width: 100%; 
+            display: flex;
+            align-items: center;
+            justify-content: space-between; 
+            gap: 8px;
+            margin-left: 0; 
+        }
+        .search-bar.active { 
+            flex: 1;
+            width: auto !important; 
+        }
+    }
+
+    @media (max-width: 768px) {
+        /* 1. KPIS DOT EN CUADRÍCULA 2 COLUMNAS (CERO DESBORDES) */
+        .kpi-panel-dot {
+            overflow-x: visible !important;
+            padding: 8px;
+        }
+        .kpi-row {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            gap: 6px !important;
+            border: none !important;
+        }
+        .kpi-row-1 {
+            border-top: none !important;
+            border-bottom: none !important;
+            margin-bottom: 6px;
+        }
+        .kpi-row-2 {
+            border-bottom: none !important;
+        }
+        .kpi-cell {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            padding: 8px 6px !important;
+        }
+        .kpi-title {
+            font-size: 9.5px !important;
+            white-space: normal !important;
+            line-height: 1.2 !important;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .kpi-value {
+            font-size: 15px !important;
+        }
+
+        /* 2. CONTENEDOR COMPACTO (SCROLL INTERNO, CERO SCROLL LARGO) */
+        .table-responsive {
+            max-height: 60vh !important;
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 3. TODA LA PRIMERA FILA ANCLADA ARRIBA (TECHO FIJO SIN DESFASES) */
+        #tablaAuditoria th {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 15 !important;
+            background: var(--fng-blue) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+        }
+
+        /* LIBERACIÓN HORIZONTAL PARA QUE NO TAPE DATOS HACIA LA DERECHA */
+        .sticky-col-1,
+        .sticky-col-2,
+        .col-total,
+        .col-accion {
+            position: static !important;
+            left: auto !important;
+            right: auto !important;
+            box-shadow: none !important;
+        }
+
+        th.sticky-col-1,
+        th.sticky-col-2,
+        th.col-total,
+        th.col-accion {
+            position: sticky !important;
+            top: 0 !important;
+            left: auto !important;
+            right: auto !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+        }
+
+        .sticky-col-1 {
+            min-width: 185px !important;
+            width: auto !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+            padding: 8px 10px !important;
+        }
+
+        .sticky-col-2 {
+            min-width: 80px !important;
+            width: auto !important;
+            padding: 8px 6px !important;
+        }
+        .modal-box { 
+            padding: 15px; 
+            width: 95%; 
+            max-height: 90dvh; 
+            height: 90dvh; 
+        }
+        .visor-foto-container { 
+            min-height: 80px !important; 
+            height: auto !important; 
+            margin-bottom: 10px; 
+            padding: 15px 0; 
+            min-width: 100%;
+        }
+        .visor-foto-container i { 
+            font-size: 24px !important; 
+            margin-bottom: 5px !important; 
+        }
+        .visor-foto-container span { 
+            font-size: 13px !important; 
+        }
+        #divFormularioDOT { 
+            min-width: 100% !important; 
+            flex: none !important; 
+        }
+        .dropzone-compact { 
+            flex-direction: column; 
+            text-align: center; 
+            padding: 12px; 
+            gap: 6px; 
+        }
+        .dropzone-compact div { 
+            text-align: center !important; 
+        }
+    }
+
+    /* ========================================================
+       ADAPTACIÓN MODO OSCURO: KPIS, BARRA SUPERIOR Y ESCÁNER OCR
+       ======================================================== */
+    /* 1. Tarjeta flotante de KPIs */
+    body.dark-mode .kpi-panel-dot {
+        background: var(--bg-surface) !important;
+        border-color: var(--border-subtle) !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+    }
+    body.dark-mode .kpi-row-1 {
+        border-top: 3px solid var(--fng-orange) !important;
+        border-bottom: 1px solid var(--border-subtle) !important;
+    }
+    body.dark-mode .kpi-row-2 {
+        border-bottom: 1px solid var(--border-subtle) !important;
+    }
+    body.dark-mode .kpi-cell {
+        border-right: 1px solid var(--border-subtle) !important;
+    }
+    body.dark-mode .kpi-title {
+        color: var(--fng-blue-light) !important; /* Celeste legible */
+    }
+    body.dark-mode .kpi-value {
+        color: #ffffff !important; /* Números en blanco brillante */
+    }
+
+    /* 2. Selector de Mes, Botones de Navegación y Buscador */
+    body.dark-mode .week-display-badge,
+    body.dark-mode .btn-nav-week,
+    body.dark-mode .search-bar {
+        background: var(--bg-surface-2) !important;
+        border-color: var(--border-subtle) !important;
+        color: #ffffff !important;
+    }
+    body.dark-mode .week-display-badge span,
+    body.dark-mode .search-bar input,
+    body.dark-mode .search-bar .search-icon {
+        color: #ffffff !important;
+    }
+
+    /* 3. Escáner OCR de Bitácoras F-OPE */
+    body.dark-mode .dropzone-compact {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border-color: var(--border-subtle) !important;
+    }
+    body.dark-mode .dropzone-compact i,
+    body.dark-mode .dropzone-compact div > div:first-child {
+        color: #ffffff !important;
+    }
+    body.dark-mode .dropzone-compact div > div:last-child {
+        color: var(--text-muted) !important;
+    }
+    
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- TARJETA FLOTANTE INDEPENDIENTE: KPIS DOT (NOM-087) -->
+<div class="kpi-panel-dot" id="kpiPanelDOT">
+    <div class="kpi-row kpi-row-1">
+        <div class="kpi-cell" onclick="abrirModalKPI('sobregiros')" title="Ver choferes en sobregiro">
+            <div class="kpi-title">SOBREGIROS</div>
+            <div class="kpi-value" id="kpiSobregiros">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('dias_laborados')" title="Ver días laborados por chofer">
+            <div class="kpi-title">DÍAS LABORADOS</div>
+            <div class="kpi-value" id="kpiDiasLaborados">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('horas_acumuladas')" title="Ver horas totales de servicio">
+            <div class="kpi-title">SUMA HORAS ACUMULADAS</div>
+            <div class="kpi-value" id="kpiHorasAcumuladas">00:00</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('sobretrabajo14')" title="Ver jornadas mayores a 14 hrs">
+            <div class="kpi-title">SOBRETRABAJO + 14:00 HRS</div>
+            <div class="kpi-value" id="kpiSobretrabajo14">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('sobretrabajo8')" title="Ver rachas de más de 8 días trabajados">
+            <div class="kpi-title">SOBRETRABAJO + 8 DÍAS</div>
+            <div class="kpi-value" id="kpiSobretrabajo8">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('descansos')" title="Ver descansos tomados">
+            <div class="kpi-title">DESCANSOS</div>
+            <div class="kpi-value" id="kpiDescansos">0</div>
+        </div>
+    </div>
+    <div class="kpi-row kpi-row-2">
+        <div class="kpi-cell" onclick="abrirModalKPI('descansos_incompletos')" title="Ver operadores con más de 6 días sin descanso">
+            <div class="kpi-title">DESCANSOS INCOMPLETOS (6 DÍAS)</div>
+            <div class="kpi-value" id="kpiDescansosIncompletos">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('dias_estimados')" title="Ver registros pendientes de auditar">
+            <div class="kpi-title">DÍAS ESTIMADOS</div>
+            <div class="kpi-value" id="kpiDiasEstimados">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('plantilla')" title="Ver plantilla completa de operadores">
+            <div class="kpi-title">PLANTILLA DE OPERADORES</div>
+            <div class="kpi-value" id="kpiPlantilla">0</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('calificacion')" title="Ver desglose de calificación DOT">
+            <div class="kpi-title">% CALIFICACIÓN HORAS D.O.T.</div>
+            <div class="kpi-value" id="kpiCalificacion">100 %</div>
+        </div>
+        <div class="kpi-cell" onclick="abrirModalKPI('utilizacion')" title="Ver porcentaje de utilización de flota">
+            <div class="kpi-title">% DE UTILIZACIÓN</div>
+            <div class="kpi-value" id="kpiUtilizacion">0.00 %</div>
+        </div>
+    </div>
+</div>
+
+<div class="glass-panel">
+    
+    <!-- BARRA SUPERIOR -->
+    <div class="header-toolbar">
+        <div class="header-title-box">
+            <h3 style="margin: 0; font-size: 20px; color: var(--fng-blue); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-list-alt" style="color: var(--fng-orange);"></i> Radar de Fatiga DOT
+            </h3>
+        </div>
+        
+        <div class="date-navigator-box">
+            <button onclick="window.location.href='?mes={{ f_atras }}'" class="btn-nav-week" title="Mes Anterior"><i class="fas fa-arrow-left"></i></button>
+            <div class="week-display-badge" onclick="document.getElementById('dateJump').showPicker()">
+                <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+                    <i class="far fa-calendar-alt" style="color: var(--fng-orange);"></i>
+                    <span>{{ texto_mes }}</span>
+                </div>
+                <!-- Control selector por mes YYYY-MM -->
+                <input type="month" id="dateJump" style="position: absolute; opacity: 0; width: 0; height: 0;" value="{{ mes_actual_str }}" onchange="window.location.href='?mes=' + this.value">
+            </div>
+            <button onclick="window.location.href='?mes={{ f_adelante }}'" class="btn-nav-week" title="Mes Siguiente"><i class="fas fa-arrow-right"></i></button>
+        </div>
+
+        <div class="header-actions-right">
+            <div class="search-bar" id="searchBarContainerRH" onclick="expandirBuscadorRH()">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="buscadorRH" placeholder="Buscar operador..." autocomplete="off" oninput="filtrarTablaAuditoria()">
+                <i class="fas fa-times clear-icon" onclick="limpiarYColapsarBuscadorRH(event)"></i>
+            </div>
+
+            {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
+            <button class="btn-export-pdf" onclick="descargarReporteDOT()" title="Exportar Reporte Mensual">
+                <i class="fas fa-file-pdf"></i> <span>Exportar PDF</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ESCÁNER AUTOMÁTICO BHS COMPACTO -->
+    {% if rol in ['jefe_op', 'aux_op'] %}
+    <div style="margin-top: 10px;">
+        <div class="dropzone-compact" id="ocr-dropzone" onclick="document.getElementById('ocr-input').click()">
+            <i class="fas fa-file-signature" style="font-size: 26px; color: var(--fng-blue);"></i>
+            <div style="text-align: left;">
+                <div style="font-weight: 700; color: var(--fng-blue); font-size: 13px;">Escanear Bitácora de Horas de Servicio (Formato F-OPE)</div>
+                <div style="font-size: 11px; color: #64748b;">Sube la foto del documento físico. El sistema auto-completará el modal para tu validación.</div>
+            </div>
+            <input type="file" id="ocr-input" accept="image/png, image/jpeg" style="display: none;" onchange="procesarImagenOCR(this)">
+        </div>
+        <div id="ocr-loading" style="display:none; text-align:center; font-weight:bold; color:var(--fng-orange); margin-bottom: 15px;">
+            <i class="fas fa-circle-notch fa-spin"></i> Leyendo documento manuscrito...
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TABLA DE AUDITORÍA CON DOBLE ANCLAJE Y COMPRESIÓN -->
+    <div class="table-responsive">
+        <table id="tablaAuditoria">
+            <thead>
+                <tr>
+                    <th class="sticky-col-1">Operador</th>
+                    <th class="sticky-col-2">Restantes</th>
+                    <!-- Días del Mes Uniformes y Estrechos -->
+                    {% for d in dias_mes %}
+                        <th class="col-dia {% if d.es_hoy %}es-hoy{% endif %}" title="{{ d.fecha }}">{{ d.label }}</th>
+                    {% endfor %}
+                    <th class="col-total">Total Mensual</th>
+                    {% if rol in ['jefe_op', 'aux_op'] %}<th class="col-accion">Acción</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operadores %}
+                <!-- FILA PRINCIPAL -->
+                <tr class="fila-auditoria" id="row-{{ op.id }}">
+                    <td class="col-nombre sticky-col-1" style="color: var(--fng-blue); font-weight: bold; cursor: pointer;" onclick="toggleAccordion('{{ op.id }}')">
+                        <i class="fas fa-chevron-right toggle-icon"></i> {{ op.nombre }}
+                    </td>
+
+                    <td class="sticky-col-2 {% if op.restantes < 10 %}atencion{% else %}cumplimiento{% endif %}" style="font-weight: 800;">
+                        {{ op.restantes }} hrs
+                    </td>
+                    
+                    {% set f_hoy = hoy_str|default((dias_mes | selectattr('es_hoy') | map(attribute='fecha') | first) | default('9999-99-99')) %}
+                    {% for i in range(dias_mes|length) %}
+                        {% set h_obj = op.horas_diarias[i] %}
+                        {% set f_str = dias_mes[i].fecha %}
+                        {% set est_sab = (h_obj.estatus_sabana if (h_obj and h_obj.estatus_sabana) else '')|upper %}
+                        {% set es_futuro = (f_str > f_hoy) %}
+                        {% set tiene_horas = (h_obj and h_obj.horas is not none and h_obj.horas != '' and h_obj.horas != 'None') %}
+                        {% set h_val = (h_obj.horas|float) if tiene_horas else 0.0 %}
+
+                        {# RECONOCER TR, CB Y NÚMEROS DE ROL (1 AL 15) COMO DÍAS DE TRABAJO #}
+                        {% set numeros_rol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'] %}
+                        {% set es_trabajo = (est_sab.startswith('TR') or est_sab.startswith('CB') or est_sab in numeros_rol) %}
+
+                        {# ASIGNACIÓN DE COLOR SEGÚN CATÁLOGO OPERATIVO #}
+                        {% set rol_class = 'txt-rol-gen' %}
+                        {% if est_sab in ['DE', 'D', 'DESCANSO'] %}
+                            {% set rol_class = 'txt-rol-de' %}
+                        {% elif est_sab in ['VA', 'V', 'VACACIONES'] %}
+                            {% set rol_class = 'txt-rol-va' %}
+                        {% elif est_sab in ['FA', 'FALTA'] %}
+                            {% set rol_class = 'txt-rol-fa' %}
+                        {% elif est_sab in ['IN', 'I', 'INCAPACIDAD'] %}
+                            {% set rol_class = 'txt-rol-in' %}
+                        {% elif est_sab in ['PER', 'P', 'PERMISO'] %}
+                            {% set rol_class = 'txt-rol-per' %}
+                        {% elif est_sab in ['MED', 'CITA MEDICA'] %}
+                            {% set rol_class = 'txt-rol-med' %}
+                        {% elif est_sab in ['LIC', 'LICENCIA'] %}
+                            {% set rol_class = 'txt-rol-lic' %}
+                        {% elif est_sab in ['CAP', 'C', 'CAPACITACION'] %}
+                            {% set rol_class = 'txt-rol-cap' %}
+                        {% endif %}
+
+                        <td class="col-dia {% if dias_mes[i].es_hoy %}es-hoy{% endif %}">
+                            {% if es_futuro %}
+                                {# FECHAS FUTURAS: CONSULTA RÁPIDA #}
+                                {% if es_trabajo %}
+                                    <span class="futuro-rol" style="cursor: pointer;" onclick="mostrarPopover(event, '{{ est_sab }} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
+                                {% elif est_sab != '' %}
+                                    <span class="txt-rol {{ rol_class }}" style="opacity: 0.55;" onclick="mostrarPopover(event, '{{ est_sab }} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
+                                {% else %}
+                                    <span class="celda-futura" style="cursor: pointer;" onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">-</span>
+                                {% endif %}
+                            {% else %}
+                                {# FECHAS PASADAS Y HOY #}
+                                {% if tiene_horas and h_val > 0 %}
+                                    {# SE CAPTURÓ: NÚMERO DIRECTO (VERDE REAL O NARANJA ESTIMADO) #}
+                                    {% set es_real = (h_obj.auditado == 1 or h_obj.auditado == true or h_obj.tipo_registro == 'Real') %}
+                                    <span class="{% if es_real %}horas-auditadas{% else %}horas-crudas{% endif %}"
+                                          onclick="mostrarPopover(event, '{{ h_obj.estatus_dia|default(h_obj.estatus)|default(est_sab) }}', '{{ h_obj.unidad }}', '{{ h_obj.pipas }}', '{{ h_obj.manejo }}', '{{ h_obj.maniobra }}', '{{ f_str }}')"
+                                          title="{% if es_real %}🟢 Real Auditado: {{ h_obj.horas }}h{% else %}🟠 Estimado: {{ h_obj.horas }}h{% endif %}">
+                                        {% if h_obj.evidencia_foto and h_obj.evidencia_foto != 'N/A' %}
+                                            <i class="fas fa-camera" style="font-size: 9px; margin-right: 2px;"></i>
+                                        {% endif %}
+                                        {{ h_obj.horas }}
+                                    </span>
+                                {% else %}
+                                    {# SIN CAPTURA #}
+                                    {% if es_trabajo %}
+                                        {# 🔴 ROJO: SOLO EL GUION RECARGADO EN NEGRITA #}
+                                        <span class="falta-bitacora celda-falta-bitacora"
+                                              onclick="mostrarPopover(event, '{{ est_sab }} (Sin Bitácora)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')"
+                                              title="🚨 Turno laborado sin captura.">-</span>
+                                    {% elif est_sab != '' %}
+                                        {# EVENTO DE CATÁLOGO: TEXTO PLANO CON SU COLOR OFICIAL #}
+                                        <span class="txt-rol {{ rol_class }}"
+                                              onclick="mostrarPopover(event, '{{ est_sab }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
+                                    {% else %}
+                                        <span style="color: #cbd5e1; font-weight: 600; cursor: pointer;"
+                                              onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                    
+                    <td class="col-total" style="font-weight: 800; font-size: 13px;">{{ op.total }} hrs</td>
+                    
+                    {% if rol in ['jefe_op', 'aux_op'] %}
+                    <td class="col-accion">
+                        <button class="btn-action" title="Captura Detallada" data-horas='{{ op.horas_diarias | tojson | safe }}' onclick="abrirModalEditorDatoUnico('{{ op.id }}', '{{ op.nombre_credencial|default(op.nombre) }}', this)"><i class="fas fa-edit"></i></button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- POPOVER DE RESUMEN RÁPIDO -->
+<div id="dotPopover" class="popover-dot">
+    <div class="popover-header">
+        <span id="popTitle"><i class="far fa-calendar-alt"></i> Detalle</span>
+        <button class="popover-close" onclick="document.getElementById('dotPopover').style.display='none'"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="popover-body">
+        <p>📌 <b>Estatus:</b> <span id="popEstatus" style="color:var(--fng-blue); font-weight:bold;"></span></p>
+        <div id="popVehiculos">
+            <p><i class="fas fa-truck-moving" style="color:#64748b;"></i> <b>Tractor:</b> <span id="popUni"></span></p>
+            <p><i class="fas fa-trailer" style="color:#64748b;"></i> <b>Pipa(s):</b> <span id="popPipas"></span></p>
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin:10px 0;">
+            <p><i class="fas fa-route" style="color:#FF8C00;"></i> <b>Manejo:</b> <span id="popManejo"></span> h</p>
+            <p><i class="fas fa-hard-hat" style="color:#10b981;"></i> <b>Maniobra:</b> <span id="popManiobra"></span> h</p>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EDICIÓN FNG OFICIAL -->
+{% if rol in ['jefe_op', 'aux_op'] %}
+<div id="modalEditarDOT" class="modal-overlay">
+    <div class="modal-box">
+        
+        <div class="modal-header-fixed">
+            <h3 style="margin: 0; color: var(--fng-blue); font-size: 18px;"><i class="fas fa-edit"></i> Registro de Horas de Servicio</h3>
+            <button onclick="cerrarModalDOT()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <input type="hidden" id="dotIdOp">
+        <input type="hidden" id="jsonHorasOcultas">
+        
+        <div class="modal-body-scroll">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                
+                <!-- VISOR DE EVIDENCIA -->
+                <div class="visor-foto-container">
+                    <img id="visorEvidencia" src="" style="width: 100%; max-height: 50vh; object-fit: contain; display: none;">
+                    <span id="noEvidenciaTexto" style="color: #64748b; font-weight: bold; text-align: center;"><i class="fas fa-image" style="font-size: 40px; display:block; margin-bottom:10px;"></i> Sin Fotografía</span>
+                    <a id="linkAmpliarImg" href="#" target="_blank" style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 6px; text-decoration: none; font-size: 12px; display: none; font-weight: bold;"><i class="fas fa-expand"></i> Ampliar</a>
+                </div>
+                
+                <!-- FORMULARIO OFICIAL FNG -->
+                <div id="divFormularioDOT" style="flex: 1; min-width: 300px;">
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        
+                        <!-- Cabecera tipo credencial -->
+                        <div style="background: #e2e8f0; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-user-circle" style="font-size: 24px; color: var(--fng-blue);"></i>
+                            <div>
+                                <div style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase;">Operador</div>
+                                <div id="modalNombreCredencial" style="font-size: 13px; font-weight: 800; color: var(--fng-blue);"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size: 11px; font-weight: bold; color: var(--fng-blue);">Selecciona Día:</label>
+                            <select id="editDotFecha" class="form-control" onchange="cargarDatosDiaSeleccionado()">
+                                {% set f_limite = hoy_str|default((dias_mes | selectattr('es_hoy') | map(attribute='fecha') | first) | default('9999-99-99')) %}
+                                {% for d in dias_mes %}
+                                    {% if d.fecha > f_limite %}
+                                        <option value="{{ d.fecha }}" disabled style="color: #94a3b8; background: #f1f5f9;">🔒 {{ d.label }} (Bloqueado - Fecha futura)</option>
+                                    {% else %}
+                                        <option value="{{ d.fecha }}">{{ d.label }} ({{ d.fecha }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+                            <div>
+                                <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Tipo de registro</label>
+                                <select id="editTipoRegistro" class="form-control">
+                                    <option value="Estimado">Estimado</option>
+                                    <option value="Real">Real</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Estatus</label>
+                                <select id="editDotEstatus" class="form-control" onchange="toggleCamposVehiculos()">
+                                    <option value="EN VIAJE">EN VIAJE</option>
+                                    <option value="D">D: Descanso</option>
+                                    <option value="G">G: Guardia</option>
+                                    <option value="P">P: Permiso</option>
+                                    <option value="I">I: Incapacidad</option>
+                                    <option value="V">V: Vacaciones</option>
+                                    <option value="B">B: Baja</option>
+                                    <option value="C">C: Capacitación</option>
+                                    <option value="N">N: Nuevo</option>
+                                    <option value="OTRO">OTRO</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="camposVehiculosDOT">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Tractor</label>
+                                    <input type="text" id="editDotUnidad" class="form-control" placeholder="4 Dígitos" maxlength="4">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Pipa</label>
+                                    <input type="text" id="editDotPipas" class="form-control">
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> No. Bitácora</label>
+                                    <input type="text" id="editNoBitacora" class="form-control">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Folio BHS</label>
+                                    <input type="text" id="editFolioBHS" class="form-control" placeholder="Folio rojo">
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Clave Nocturna</label>
+                                    <input type="text" id="editClaveNocturna" class="form-control">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> En viaje a mina</label>
+                                    <select id="editViajeMina" class="form-control">
+                                        <option value="NO">Selecciona...</option>
+                                        <option value="SI">Sí</option>
+                                        <option value="NO">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Horas Manejo</label>
+                                    <input type="number" step="0.1" id="editDotManejo" class="form-control" value="0.0" oninput="calcularTotalModal()">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; font-weight: bold; color: #475569;"><i class="fas fa-chevron-right" style="font-size:9px;"></i> Horas Maniobra</label>
+                                    <input type="number" step="0.1" id="editDotManiobra" class="form-control" value="0.0" oninput="calcularTotalModal()">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size: 11px; font-weight: bold; color: #475569;">Observaciones / Comentario</label>
+                            <textarea id="editObservaciones" class="form-control" rows="2" placeholder="Justificación en caso de estatus OTRO o incidencias..."></textarea>
+                        </div>
+                        
+                        <div style="text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+                            <span style="font-size: 12px; font-weight: bold; color: var(--fng-blue);"><i class="far fa-clock"></i> Horas de Servicio Totales</span><br>
+                            <span id="suma_modal_dot" style="font-size: 26px; font-weight: 800; color: #10b981;">00:00</span> <span style="font-size:12px; color: #64748b;">hrs</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer-fixed">
+            <button onclick="guardarUnSoloDia()" class="btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            <button onclick="cerrarModalDOT()" class="btn-light"><i class="fas fa-times"></i> Cerrar</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL DE AUDITORÍA DETALLADA POR KPI (VENTANA EMERGENTE) -->
+<div id="modalDetalleKPI" class="modal-overlay" style="display: none;">
+    <div class="modal-box" style="max-width: 780px;">
+        <div class="modal-header-fixed">
+            <h3 id="modalKPITitulo" style="margin: 0; color: var(--fng-blue); font-size: 17px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-list-check" style="color: var(--fng-orange);"></i> Detalle de Indicador
+            </h3>
+            <button onclick="cerrarModalKPI()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="modal-body-scroll" style="padding: 4px 10px;">
+            <p id="modalKPIDescripcion" style="font-size: 12.5px; color: #64748b; margin-bottom: 14px; font-weight: 500;"></p>
+            
+            <div style="border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; max-height: 52vh; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 100%;">
+                    <thead>
+                        <tr style="background: #002d5a; color: white; position: sticky; top: 0; z-index: 2;">
+                            <th style="padding: 10px; font-size: 11.5px; text-align: left;">Operador</th>
+                            <th id="thColVariable" style="padding: 10px; font-size: 11.5px; text-align: center;">Detalle</th>
+                            <th style="padding: 10px; font-size: 11.5px; text-align: center; width: 90px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyDetalleKPI"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-footer-fixed" style="margin-top: 10px; padding-top: 10px;">
+            <span id="modalKPIConteo" style="font-size: 12px; font-weight: 700; color: #0284c7; margin-right: auto;"></span>
+            <button onclick="cerrarModalKPI()" class="btn-light" style="padding: 8px 18px; font-size: 12px;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const todosOperadoresData = {{ operadores | tojson | safe }};
+
+    function decimalToTime(decimal) {
+        if(!decimal || isNaN(decimal)) return "00:00";
+        let h = Math.floor(decimal);
+        let m = Math.round((decimal - h) * 60);
+        return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+    }
+
+    // ==========================================
+    // CÁLCULO DINÁMICO DE KPIS DOT (NOM-087) MENSUAL
+    // ==========================================
+    function calcularKPIDOT(filtro = '') {
+        filtro = filtro.trim().toUpperCase();
+        
+        const opsFiltrados = todosOperadoresData.filter(op => {
+            if (!filtro) return true;
+            return op.nombre.toUpperCase().includes(filtro);
+        });
+
+        let sobregiros = 0;
+        let diasLaborados = 0;
+        let sumaHorasDecimal = 0;
+        let sobretrabajo14 = 0;
+        let sobretrabajo8 = 0;
+        let descansos = 0;
+        let descansosIncompletos = 0;
+        let diasEstimados = 0;
+        let plantilla = opsFiltrados.length;
+
+        // EVALUACIÓN ESTRICTA DEL MES CORRIENTE (DÍA 1 HASTA HOY)
+        const hoyLimite = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
+        const numerosRol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
+
+        opsFiltrados.forEach(op => {
+            let rachaTrabajo = 0;
+            
+            // Sobregiros reales sobre la ventana rodante
+            if (op.restantes <= 0 && op.total > 0) {
+                sobregiros++;
+            }
+
+            op.horas_diarias.forEach(dia => {
+                if (!dia || !dia.fecha) return;
+
+                // IGNORAR FECHAS FUTURAS: Solo se audita lo transcurrido del mes
+                if (dia.fecha > hoyLimite) return;
+
+                const estSab = (dia.estatus_sabana || '').toUpperCase();
+                const estDia = (dia.estatus || dia.estatus_dia || '').toUpperCase();
+                const tieneHoras = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None');
+                const h = tieneHoras ? (parseFloat(dia.horas) || 0) : 0;
+
+                const esDescanso = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'LIC', 'CAP', 'FA'].includes(estSab) ||
+                                   ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+
+                const esTrabajo = estSab.startsWith('TR') || estSab.startsWith('CB') || numerosRol.includes(estSab) || (tieneHoras && h > 0);
+
+                if (esDescanso) {
+                    descansos++;
+                    rachaTrabajo = 0;
+                } else if (esTrabajo) {
+                    diasLaborados++;
+                    sumaHorasDecimal += h;
+                    rachaTrabajo++;
+
+                    if (h > 14.0) sobretrabajo14++;
+                    if (rachaTrabajo > 8) sobretrabajo8++;
+                    if (rachaTrabajo > 6 && rachaTrabajo <= 8) descansosIncompletos++;
+
+                    // Solo cuenta como estimado si tiene horas cargadas no auditadas
+                    if (tieneHoras && h > 0 && (dia.auditado === 0 || dia.auditado === false || dia.tipo_registro === 'Estimado')) {
+                        diasEstimados++;
+                    }
+                } else {
+                    rachaTrabajo = 0;
+                }
+            });
+        });
+
+        let penalizacion = (sobregiros * 15) + (sobretrabajo14 * 10) + (sobretrabajo8 * 10);
+        let calificacion = Math.max(0, 100 - penalizacion);
+
+        // Capacidad y utilización proporcional exacta a los días transcurridos
+        let diasTranscurridos = 1;
+        if (opsFiltrados.length > 0 && opsFiltrados[0].horas_diarias) {
+            diasTranscurridos = opsFiltrados[0].horas_diarias.filter(d => d && d.fecha <= hoyLimite).length || 1;
+        }
+        let maxCapacidadHoras = plantilla * (diasTranscurridos / 8) * 70;
+        let utilizacion = maxCapacidadHoras > 0 ? ((sumaHorasDecimal / maxCapacidadHoras) * 100).toFixed(2) : "0.00";
+
+        document.getElementById('kpiSobregiros').innerText = sobregiros;
+        document.getElementById('kpiDiasLaborados').innerText = diasLaborados;
+        document.getElementById('kpiHorasAcumuladas').innerText = decimalToTime(sumaHorasDecimal);
+        document.getElementById('kpiSobretrabajo14').innerText = sobretrabajo14;
+        document.getElementById('kpiSobretrabajo8').innerText = sobretrabajo8;
+        document.getElementById('kpiDescansos').innerText = descansos;
+        
+        document.getElementById('kpiDescansosIncompletos').innerText = descansosIncompletos;
+        document.getElementById('kpiDiasEstimados').innerText = diasEstimados;
+        document.getElementById('kpiPlantilla').innerText = plantilla;
+        document.getElementById('kpiCalificacion').innerText = calificacion + " %";
+        document.getElementById('kpiUtilizacion').innerText = utilizacion + " %";
+    }
+
+    // ==========================================
+    // LÓGICA DEL ACORDEÓN (SUB-FILAS NATIVAS)
+    // ==========================================
+    function toggleAccordion(opId) {
+        const row = document.getElementById('row-' + opId);
+        let subrows = document.querySelectorAll('.subrow-' + opId);
+        
+        if (subrows.length > 0) {
+            const isCurrentlyOpen = subrows[0].style.display !== 'none';
+            subrows.forEach(r => r.style.display = isCurrentlyOpen ? 'none' : 'table-row');
+            row.classList.toggle('row-expanded', !isCurrentlyOpen);
+            return;
+        }
+        
+        const btn = row.querySelector('.btn-action');
+        if (!btn) return;
+        const dataHoras = JSON.parse(btn.getAttribute('data-horas'));
+        
+        renderNativeSubrows(opId, row, dataHoras);
+        row.classList.add('row-expanded');
+    }
+
+    function renderNativeSubrows(opId, parentRow, data) {
+        const labels = [
+            { key: 'tipo', label: 'Tipo' },
+            { key: 'estatus', label: 'Estatus' },
+            { key: 'equipo', label: 'Tractor / Pipa' },
+            { key: 'servicio', label: 'Horas de Servicio' },
+            { key: 'dot', label: 'Horas D.O.T.' },
+            { key: 'acumulado', label: 'Acumulado' },
+            { key: 'dias', label: 'Días Trabajados' }
+        ];
+
+        let cells = { tipo: [], estatus: [], equipo: [], servicio: [], dot: [], acumulado: [], dias: [] };
+        let acumHoras = 0;
+        let diasTrab = 0;
+        let dotSum = 0;
+
+        // Procesamiento sincronizado con la sábana
+        data.forEach(dia => {
+            if (!dia) {
+                cells.tipo.push('-'); cells.estatus.push('-'); cells.equipo.push('/');
+                cells.servicio.push('00:00'); cells.dot.push('-'); cells.acumulado.push('-'); cells.dias.push('-');
+                return;
+            }
+
+            const estSab = (dia.estatus_sabana || '').trim().toUpperCase();
+            const estDia = (dia.estatus || dia.estatus_dia || '').trim().toUpperCase();
+            const hDec = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None') ? (parseFloat(dia.horas) || 0.0) : 0.0;
+
+            // 1. Detectar descanso o ausencia usando tanto Sábana como DOT
+            const isRest = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'CITA MEDICA', 'LIC', 'CAP', 'FA'].includes(estSab) ||
+                           ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+
+            // 2. Fila Tipo: Solo marca 'R' o 'E' si realmente hay horas capturadas
+            let tipo = '-';
+            if (hDec > 0) {
+                tipo = (dia.auditado === 1 || dia.auditado === true || dia.tipo_registro === 'Real') ? 'R' : 'E';
+            }
+            cells.tipo.push(tipo);
+
+            // 3. Fila Estatus: Refleja el catálogo oficial sin forzar 'EN VIAJE'
+            let estVisual = 'EN VIAJE';
+            if (['DE', 'D', 'DESCANSO'].includes(estSab) || ['DE', 'D', 'DESCANSO'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-de">DE</span>';
+            } else if (['VA', 'V', 'VACACIONES'].includes(estSab) || ['VA', 'V', 'VACACIONES'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-va">VA</span>';
+            } else if (['MED', 'CITA MEDICA'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-med">MED</span>';
+            } else if (['IN', 'I', 'INCAPACIDAD'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-in">IN</span>';
+            } else if (['PER', 'P', 'PERMISO'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-per">PER</span>';
+            } else if (['FA', 'FALTA'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-fa">FA</span>';
+            } else if (['LIC', 'LICENCIA'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-lic">LIC</span>';
+            } else if (['CAP', 'C', 'CAPACITACION'].includes(estSab)) {
+                estVisual = '<span class="txt-rol txt-rol-cap">CAP</span>';
+            } else if (estDia && estDia !== 'EN VIAJE') {
+                estVisual = estDia;
+            } else if (estSab && !estSab.startsWith('TR') && !['1','2','3','4','5','6','7','8'].includes(estSab)) {
+                estVisual = estSab;
+            }
+            cells.estatus.push(estVisual);
+
+            // 4. Equipo (Tractor / Pipa)
+            const tractor = dia.unidad && dia.unidad !== 'N/A' ? dia.unidad : '';
+            const pipa = dia.pipas && dia.pipas !== 'N/A' ? dia.pipas : '';
+            const eq = (tractor || pipa) && !isRest ? `${tractor} / ${pipa}` : '/';
+            cells.equipo.push(eq);
+
+            // 5. Horas de Servicio
+            cells.servicio.push(decimalToTime(hDec));
+
+            // 6. Contador de Días Trabajados y Acumulados (Reinicio exacto al descansar)
+            if (isRest) {
+                acumHoras = 0;
+                diasTrab = 0;
+                dotSum = 0;
+            } else {
+                acumHoras += hDec;
+                diasTrab += 1;
+                dotSum += hDec;
+            }
+
+            cells.dot.push(dotSum > 0 ? decimalToTime(dotSum) : '-');
+            cells.acumulado.push(acumHoras > 0 ? decimalToTime(acumHoras) : '-');
+            cells.dias.push(diasTrab > 0 ? diasTrab : '-');
+        });
+
+        let createdRows = [];
+        labels.forEach(l => {
+            const tr = document.createElement('tr');
+            tr.className = `subrow-${opId} accordion-subrow`;
+            
+            let html = `<td class="sticky-col-1 nested-header">${l.label}</td>`;
+            html += `<td class="sticky-col-2 nested-sub">-</td>`;
+            
+            // Loop para los 28-31 días
+            cells[l.key].forEach(val => {
+                html += `<td class="col-dia">${val}</td>`;
+            });
+
+            html += `<td class="col-total">-</td>`;
+            {% if rol in ['jefe_op', 'aux_dot', 'super_usuario'] %}
+            html += `<td class="col-accion">-</td>`;
+            {% endif %}
+
+            tr.innerHTML = html;
+            createdRows.push(tr);
+        });
+
+        let lastNode = parentRow;
+        createdRows.forEach(tr => {
+            lastNode.after(tr);
+            lastNode = tr;
+        });
+    }
+
+    // ==========================================
+    // APERTURA DEL RESUMEN RÁPIDO (POPOVER)
+    // ==========================================
+    function mostrarPopover(e, est, uni, pipas, mane, mani, fecha) {
+        e.stopPropagation();
+        const pop = document.getElementById('dotPopover');
+        document.getElementById('popTitle').innerHTML = `<i class="far fa-calendar-alt"></i> ${fecha}`;
+        
+        let catMap = {
+            'En Viaje':'EN VIAJE', 'EN VIAJE':'EN VIAJE', 
+            'Descanso':'D', 'D':'D', 'DE':'D', 
+            'Guardia':'G', 'Permiso':'P', 'Incapacidad':'I', 
+            'Vacaciones':'V', 'VA':'V', 'Baja':'B', 
+            'Capacitación':'C', 'Nuevo':'N', 'Otro':'OTRO'
+        };
+        let estMostrar = catMap[est] || est;
+        document.getElementById('popEstatus').innerText = estMostrar;
+        
+        // Ocultar sección de vehículos si es descanso, ausencia o no tiene datos de viaje
+        let esSinVehiculos = ['D', 'DE', 'V', 'VA', 'I', 'IN', 'C', 'P', 'B', '-', 'Sin Asignar'].includes(est) || 
+                             ['D', 'V', 'I', 'C', 'P', 'B'].includes(estMostrar);
+        let tieneDatosRuta = (uni && uni !== 'N/A') || (pipas && pipas !== 'N/A') || (parseFloat(mane) > 0) || (parseFloat(mani) > 0);
+
+        if (esSinVehiculos || !tieneDatosRuta) {
+            document.getElementById('popVehiculos').style.display = 'none';
+        } else {
+            document.getElementById('popVehiculos').style.display = 'block';
+            document.getElementById('popUni').innerText = uni && uni !== 'N/A' ? uni : 'N/A';
+            document.getElementById('popPipas').innerText = pipas && pipas !== 'N/A' ? pipas : 'N/A';
+            document.getElementById('popManejo').innerText = mane || '0.0';
+            document.getElementById('popManiobra').innerText = mani || '0.0';
+        }
+
+        pop.style.left = (e.pageX + 15) + 'px';
+        pop.style.top = (e.pageY + 15) + 'px';
+        pop.style.display = 'block';
+    }
+
+    // ==========================================
+    // MOTOR OCR PARA BITÁCORAS F-OPE
+    // ==========================================
+    {% if rol in ['jefe_op', 'aux_op'] %}
+    const todosNombresBD = {{ lista_ocr | safe }}; 
+    
+    function encontrarOperadorSimilar(textoLeido) {
+        textoLeido = textoLeido.toUpperCase();
+        for(let nombreBD of todosNombresBD) {
+            if(textoLeido.includes(nombreBD)) return nombreBD;
+            let partes = nombreBD.split(" ");
+            if(partes.length > 2 && textoLeido.includes(partes[0]) && textoLeido.includes(partes[1])) return nombreBD;
+        }
+        return null;
+    }
+
+    async function procesarImagenOCR(input) {
+        if (!input.files || !input.files[0]) return;
+        const imagen = input.files[0];
+        
+        document.getElementById('ocr-dropzone').style.display = 'none';
+        document.getElementById('ocr-loading').style.display = 'block';
+        
+        try {
+            const resultado = await Tesseract.recognize(imagen, 'spa', { logger: m => console.log(m.status + ": " + Math.round(m.progress * 100) + "%") });
+            const textoLimpio = resultado.data.text.toUpperCase();
+            
+            let nombreAsignado = encontrarOperadorSimilar(textoLimpio);
+            if(!nombreAsignado) { alert("❌ OCR: No detecté a qué operador pertenece. Confirma legibilidad de la imagen."); cancelarOCR(); return; }
+
+            let folio_bhs = '';
+            let folioMatch = textoLimpio.match(/FOLIO:?\s*(\d+)/);
+            if(folioMatch) folio_bhs = folioMatch[1];
+
+            let estatus = 'EN VIAJE';
+            let manejo = 0.0;
+            let maniobra = 0.0;
+            let esDescanso = textoLimpio.includes("24:00") && (!textoLimpio.includes("CONDUCIENDO") || !textoLimpio.includes("08:00"));
+
+            if (esDescanso) {
+                estatus = 'D';
+            } else {
+                estatus = 'EN VIAJE';
+                manejo = 8.0;
+                maniobra = 3.0;
+            }
+
+            let fechaFormateada = new Date().toISOString().split('T')[0];
+
+            let mockDia = {
+                fecha: fechaFormateada,
+                horas: manejo + maniobra,
+                estatus_dia: estatus,
+                eco_unidad: '',
+                eco_pipas: '',
+                horas_manejo: manejo,
+                horas_maniobra: maniobra,
+                auditado: 0,
+                folio_bhs: folio_bhs,
+                tipo_registro: 'Estimado'
+            };
+
+            const ops = {{ operadores | tojson | safe }};
+            const op = ops.find(o => o.nombre.toUpperCase() === nombreAsignado);
+            
+            if (op) {
+                let tempBtn = document.createElement('button');
+                tempBtn.setAttribute('data-horas', JSON.stringify([mockDia]));
+                
+                showToast(`🤖 OCR: Lectura completada para ${nombreAsignado}`, "success");
+                abrirModalEditorDatoUnico(op.id, op.nombre_credencial || nombreAsignado, tempBtn);
+            }
+
+            cancelarOCR();
+        } catch(error) { console.error(error); alert("❌ Fallo en el motor OCR. Revisa consola."); cancelarOCR(); }
+    }
+
+    function cancelarOCR() { document.getElementById('ocr-input').value = ""; document.getElementById('ocr-dropzone').style.display = 'flex'; document.getElementById('ocr-loading').style.display = 'none'; }
+
+    // ==========================================
+    // MODAL OFICIAL DE EDICIÓN
+    // ==========================================
+    function abrirModalEditorDatoUnico(id, nombre, btnEl) {
+        document.body.style.overflow = 'hidden'; 
+        
+        document.getElementById('dotIdOp').value = id;
+        document.getElementById('modalNombreCredencial').innerText = nombre;
+        
+        const jsonStr = btnEl.getAttribute('data-horas');
+        document.getElementById('jsonHorasOcultas').value = jsonStr; 
+        
+        let select = document.getElementById('editDotFecha');
+        select.selectedIndex = 0; 
+        cargarDatosDiaSeleccionado();
+        
+        document.getElementById('modalEditarDOT').style.display = 'flex';
+    }
+
+    function cerrarModalDOT() {
+        document.body.style.overflow = ''; 
+        document.getElementById('modalEditarDOT').style.display = 'none';
+    }
+
+    function cargarDatosDiaSeleccionado() {
+        let arrayStr = document.getElementById('jsonHorasOcultas').value;
+        let objSemana = JSON.parse(arrayStr);
+        let idx = document.getElementById('editDotFecha').selectedIndex;
+        let objDia = objSemana[idx];
+
+        if(objDia) {
+            document.getElementById('editTipoRegistro').value = (objDia.auditado === 1 || objDia.auditado === true) ? 'Real' : 'Estimado';
+            
+            let catMap = {'En Viaje':'EN VIAJE', 'EN VIAJE':'EN VIAJE', 'Descanso':'D', 'D':'D', 'Guardia':'G', 'Permiso':'P', 'Incapacidad':'I', 'Vacaciones':'V', 'Baja':'B', 'Capacitación':'C', 'Nuevo':'N', 'Otro':'OTRO'};
+            document.getElementById('editDotEstatus').value = catMap[objDia.estatus || objDia.estatus_dia] || 'EN VIAJE';
+            
+            document.getElementById('editDotUnidad').value = objDia.unidad && objDia.unidad !== 'N/A' ? objDia.unidad : '';
+            document.getElementById('editDotPipas').value = objDia.pipas && objDia.pipas !== 'N/A' ? objDia.pipas : '';
+            document.getElementById('editNoBitacora').value = objDia.no_bitacora || '';
+            document.getElementById('editFolioBHS').value = objDia.folio_bhs || '';
+            document.getElementById('editClaveNocturna').value = objDia.clave_nocturna || '';
+            document.getElementById('editViajeMina').value = objDia.viaje_mina || 'NO';
+            
+            document.getElementById('editDotManejo').value = objDia.manejo || objDia.horas_manejo || 0.0;
+            document.getElementById('editDotManiobra').value = objDia.maniobra || objDia.horas_maniobra || 0.0;
+            document.getElementById('editObservaciones').value = objDia.observaciones || '';
+            
+            if(objDia.evidencia_foto && objDia.evidencia_foto !== 'N/A') {
+                document.getElementById('visorEvidencia').src = '/evidencias/' + objDia.evidencia_foto;
+                document.getElementById('visorEvidencia').style.display = 'block';
+                document.getElementById('noEvidenciaTexto').style.display = 'none';
+                document.getElementById('linkAmpliarImg').href = '/evidencias/' + objDia.evidencia_foto;
+                document.getElementById('linkAmpliarImg').style.display = 'inline-block';
+            } else {
+                document.getElementById('visorEvidencia').style.display = 'none';
+                document.getElementById('noEvidenciaTexto').style.display = 'block';
+                document.getElementById('linkAmpliarImg').style.display = 'none';
+            }
+        } else {
+            document.getElementById('editTipoRegistro').value = 'Estimado';
+            document.getElementById('editDotEstatus').value = 'EN VIAJE';
+            document.getElementById('editDotUnidad').value = '';
+            document.getElementById('editDotPipas').value = '';
+            document.getElementById('editNoBitacora').value = '';
+            document.getElementById('editFolioBHS').value = '';
+            document.getElementById('editClaveNocturna').value = '';
+            document.getElementById('editViajeMina').value = 'NO';
+            document.getElementById('editDotManejo').value = 0.0;
+            document.getElementById('editDotManiobra').value = 0.0;
+            document.getElementById('editObservaciones').value = '';
+            
+            document.getElementById('visorEvidencia').style.display = 'none';
+            document.getElementById('noEvidenciaTexto').style.display = 'block';
+            document.getElementById('linkAmpliarImg').style.display = 'none';
+        }
+        toggleCamposVehiculos();
+    }
+
+    function toggleCamposVehiculos() {
+        const sel = document.getElementById('editDotEstatus').value;
+        const cont = document.getElementById('camposVehiculosDOT');
+        if(['D', 'V', 'I', 'B', 'P', 'C'].includes(sel)) {
+            cont.style.display = 'none';
+            document.getElementById('editDotManejo').value = 0.0;
+            document.getElementById('editDotManiobra').value = 0.0;
+        } else {
+            cont.style.display = 'block';
+        }
+        calcularTotalModal();
+    }
+
+    function calcularTotalModal() {
+        let man = parseFloat(document.getElementById('editDotManejo').value) || 0.0;
+        let manb = parseFloat(document.getElementById('editDotManiobra').value) || 0.0;
+        let tot = man + manb;
+        
+        let displayStr = decimalToTime(tot);
+        let el = document.getElementById('suma_modal_dot');
+        el.innerText = displayStr;
+        
+        if(tot > 14) { el.style.color = '#ef4444'; } else { el.style.color = '#10b981'; }
+    }
+
+    async function guardarUnSoloDia() {
+        const id = document.getElementById('dotIdOp').value;
+        const fecha = document.getElementById('editDotFecha').value;
+        const hoyLim = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
+
+        if (fecha > hoyLim) {
+            showToast("⛔ No se pueden registrar horas en fechas futuras.", "warning");
+            return;
+        }
+
+        const estatus = document.getElementById('editDotEstatus').value;
+        const tipoReg = document.getElementById('editTipoRegistro').value;
+        
+        let uniVal = document.getElementById('editDotUnidad').value;
+        let pipaVal = document.getElementById('editDotPipas').value;
+        let noBit = document.getElementById('editNoBitacora').value;
+        let folBHS = document.getElementById('editFolioBHS').value;
+        let claNoc = document.getElementById('editClaveNocturna').value;
+        let viaMin = document.getElementById('editViajeMina').value;
+        let obs = document.getElementById('editObservaciones').value;
+
+        if(document.getElementById('camposVehiculosDOT').style.display !== 'none') {
+            if(uniVal && !/^\d{4}$/.test(uniVal)) { document.getElementById('editDotUnidad').classList.add('input-error'); showToast("Unidad debe tener 4 dígitos exactos.", "warning"); return; } else { document.getElementById('editDotUnidad').classList.remove('input-error'); }
+        }
+
+        let manejo = parseFloat(document.getElementById('editDotManejo').value) || 0.0;
+        let maniobra = parseFloat(document.getElementById('editDotManiobra').value) || 0.0;
+        let totalHoras = manejo + maniobra;
+
+        if(totalHoras > 24) { showToast("⚠️ No puedes registrar más de 24h en un solo día.", "warning"); return; }
+
+        let objDia = {
+            fecha: fecha, 
+            horas: totalHoras, 
+            estatus_dia: estatus,
+            eco_unidad: uniVal || 'N/A', 
+            eco_pipas: pipaVal || 'N/A',
+            horas_manejo: manejo, 
+            horas_maniobra: maniobra,
+            no_bitacora: noBit,
+            folio_bhs: folBHS,
+            clave_nocturna: claNoc,
+            viaje_mina: viaMin,
+            observaciones: obs,
+            auditado: (tipoReg === 'Real' ? 1 : 0)
+        };
+
+        const res = await fetch('/api/actualizar_dot', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id, origen: 'manual', horas_diarias: [objDia]}) });
+
+        if(res.ok) { 
+            showToast("✅ Registro Actualizado Exitosamente", "success"); 
+            setTimeout(() => window.location.reload(), 1000); 
+        } 
+        else { showToast("⚠️ Error al actualizar", "warning"); }
+    }
+    {% endif %}
+
+    {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
+    function descargarReporteDOT() {
+        showToast("⏳ Imprimiendo Reporte de Alta Calidad...", "warning");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', format: 'letter' });
+        
+        const fngBlue = [0, 45, 90]; const fngOrange = [255, 140, 0];
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(fngBlue[0], fngBlue[1], fngBlue[2]);
+        doc.text("REPORTE DE AUDITORÍA DOT (FATIGA)", doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+        doc.setFontSize(12); doc.setTextColor(fngOrange[0], fngOrange[1], fngOrange[2]);
+        doc.text("KARDEX MENSUAL: {{ texto_mes|upper }}", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+        
+        // Compactación para PDF
+        const dias_label = [{% for d in dias_mes %}"{{ d.label.split(' ')[0] }}\n{{ d.label.split(' ')[1] }}",{% endfor %}];
+        const head = [['Operador', 'Rest.', ...dias_label, 'TOTAL']];
+        const body = [];
+        
+        const ops = {{ operadores | tojson | safe }};
+        ops.forEach(op => {
+            const fila = [op.nombre, op.restantes + 'h'];
+            op.horas_diarias.forEach(h => fila.push(h ? h.horas : '-'));
+            fila.push(op.total + 'h');
+            body.push(fila);
+        });
+        
+        doc.autoTable({
+            head: head, body: body, startY: 38, theme: 'grid',
+            styles: { fontSize: 6, halign: 'center', valign: 'middle', cellPadding: 1, overflow: 'linebreak' },
+            headStyles: { fillColor: fngBlue, textColor: 255 },
+            bodyStyles: { textColor: [50, 50, 50] },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold', textColor: fngBlue, cellWidth: 40 }, 1: { fontStyle: 'bold', cellWidth: 15 } },
+            horizontalPageBreak: true, // Tolerancia a muchas columnas
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 1) {
+                    const rest = parseFloat(data.cell.raw);
+                    if (rest < 10) { data.cell.styles.textColor = [220, 53, 69]; } else { data.cell.styles.textColor = [25, 135, 84]; }
+                }
+            }
+        });
+        doc.save(`Auditoria_DOT_{{ mes_actual_str }}.pdf`);
+        showToast("✅ Reporte Generado Exitosamente.", "success");
+    }
+    {% endif %}
+
+    // --- FUNCIONES DEL BUSCADOR Y CIERRE GLOBAL ---
+    function expandirBuscadorRH() {
+        const bar = document.getElementById('searchBarContainerRH');
+        if (!bar.classList.contains('active')) {
+            bar.classList.add('active');
+            document.getElementById('buscadorRH').focus();
+        }
+    }
+
+    function limpiarYColapsarBuscadorRH(e) {
+        if (e) {
+            e.stopPropagation();
+        }
+        const input = document.getElementById('buscadorRH');
+        const bar = document.getElementById('searchBarContainerRH');
+        
+        input.value = '';
+        input.blur();
+        bar.classList.remove('active');
+        filtrarTablaAuditoria();
+    }
+
+    // Escucha clics fuera para cerrar tanto el buscador como el popover
+    window.addEventListener('click', function(e) {
+        const bar = document.getElementById('searchBarContainerRH');
+        const input = document.getElementById('buscadorRH');
+        if (bar && !bar.contains(e.target) && input.value.trim() === '') {
+            bar.classList.remove('active');
+        }
+
+        const pop = document.getElementById('dotPopover');
+        if (pop && pop.style.display === 'block' && !pop.contains(e.target)) {
+            pop.style.display = 'none';
+        }
+    });
+
+    function filtrarTablaAuditoria() {
+        const input = document.getElementById('buscadorRH').value.toUpperCase().trim();
+        const filas = document.querySelectorAll('.fila-auditoria');
+
+        filas.forEach(fila => {
+            const nombreCelda = fila.querySelector('.col-nombre');
+            if (nombreCelda) {
+                const nombre = nombreCelda.innerText.toUpperCase();
+                const opId = fila.id.replace('row-', '');
+                const subrows = document.querySelectorAll('.subrow-' + opId);
+
+                if (nombre.indexOf(input) > -1) {
+                    fila.style.display = "";
+                    if (fila.classList.contains('row-expanded')) {
+                        subrows.forEach(sr => sr.style.display = 'table-row');
+                    }
+                } else {
+                    fila.style.display = "none";
+                    subrows.forEach(sr => sr.style.display = 'none');
+                }
+            }
+        });
+
+        // Recalcular métricas en el panel flotante
+        calcularKPIDOT(input);
+    }
+
+    // Inicializar cálculos de KPIs al cargar la página
+    // Inicializar cálculos de KPIs al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+        calcularKPIDOT('');
+    });
+
+    // ==========================================
+    // VENTANA EMERGENTE: DETALLE DE KPIS DOT
+    // ==========================================
+    function abrirModalKPI(tipo) {
+        const modal = document.getElementById('modalDetalleKPI');
+        const titulo = document.getElementById('modalKPITitulo');
+        const desc = document.getElementById('modalKPIDescripcion');
+        const thVar = document.getElementById('thColVariable');
+        const tbody = document.getElementById('tbodyDetalleKPI');
+        const conteo = document.getElementById('modalKPIConteo');
+        
+        tbody.innerHTML = '';
+        let filasHTML = '';
+        let totalCasos = 0;
+
+        switch(tipo) {
+            case 'sobregiros':
+                titulo.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Operadores en Sobregiro (0 hrs restantes)';
+                desc.innerText = 'Operadores que agotaron el límite de 70 horas en su ventana rodante de 8 días (NOM-087).';
+                thVar.innerText = 'Restantes / Consumo';
+
+                todosOperadoresData.forEach(op => {
+                    if (op.restantes <= 0 && op.total > 0) {
+                        totalCasos++;
+                        filasHTML += `
+                            <tr>
+                                <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                                <td style="text-align: center; padding: 9px; color: #ef4444; font-weight: 800;">0.0 hrs libres (Total mes: ${op.total}h)</td>
+                                <td style="text-align: center; padding: 9px;">
+                                    <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                break;
+
+            case 'sobretrabajo14':
+                titulo.innerHTML = '<i class="fas fa-clock" style="color: #ef4444;"></i> Sobretrabajo (+14:00 Horas)';
+                desc.innerText = 'Días donde se registraron más de 14 horas de servicio continúo o acumuladas.';
+                thVar.innerText = 'Fecha y Horas del Día';
+
+                todosOperadoresData.forEach(op => {
+                    let incidencias = [];
+                    op.horas_diarias.forEach(d => {
+                        if (d && parseFloat(d.horas) > 14.0) {
+                            incidencias.push(`${d.fecha}: <b>${d.horas}h</b>`);
+                        }
+                    });
+                    if (incidencias.length > 0) {
+                        totalCasos += incidencias.length;
+                        filasHTML += `
+                            <tr>
+                                <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                                <td style="text-align: center; padding: 9px; color: #b91c1c; font-size: 11.5px;">${incidencias.join(' | ')}</td>
+                                <td style="text-align: center; padding: 9px;">
+                                    <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                break;
+
+            case 'sobretrabajo8':
+                titulo.innerHTML = '<i class="fas fa-calendar-xmark" style="color: #d97706;"></i> Sobretrabajo (+8 Días sin Descanso)';
+                desc.innerText = 'Operadores que excedieron el ciclo legal de 8 días de trabajo sin descanso intermedio en el mes transcurrido.';
+                thVar.innerText = 'Racha Consecutiva Máxima';
+
+                const hoyLim8 = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
+                const numsRol8 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
+
+                todosOperadoresData.forEach(op => {
+                    let racha = 0;
+                    let maxRacha = 0;
+                    op.horas_diarias.forEach(d => {
+                        if (!d || !d.fecha || d.fecha > hoyLim8) return;
+
+                        let estSab = (d.estatus_sabana || '').toUpperCase();
+                        let estDia = (d.estatus || d.estatus_dia || '').toUpperCase();
+                        let tieneH = (d.horas !== null && d.horas !== undefined && d.horas !== '' && d.horas !== 'None');
+                        let h = tieneH ? (parseFloat(d.horas) || 0) : 0;
+
+                        let esDesc = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'LIC', 'CAP', 'FA'].includes(estSab) ||
+                                     ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+
+                        let esTrab = estSab.startsWith('TR') || estSab.startsWith('CB') || numsRol8.includes(estSab) || (tieneH && h > 0);
+
+                        if (esDesc) {
+                            racha = 0;
+                        } else if (esTrab) {
+                            racha++;
+                            if (racha > maxRacha) maxRacha = racha;
+                        } else {
+                            racha = 0;
+                        }
+                    });
+                    if (maxRacha > 8) {
+                        totalCasos++;
+                        filasHTML += `
+                            <tr>
+                                <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                                <td style="text-align: center; padding: 9px; color: #d97706; font-weight: 800;">${maxRacha} días continuos</td>
+                                <td style="text-align: center; padding: 9px;">
+                                    <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                break;
+
+            case 'descansos_incompletos':
+                titulo.innerHTML = '<i class="fas fa-bed" style="color: #0284c7;"></i> Descansos Incompletos (Rachas > 6 Días)';
+                desc.innerText = 'Operadores que alcanzaron 7 u 8 días laborados sin haber tomado su corte de descanso en lo que va del mes.';
+                thVar.innerText = 'Racha Activa';
+
+                const hoyLim6 = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
+                const numsRol6 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
+
+                todosOperadoresData.forEach(op => {
+                    let racha = 0;
+                    let maxRacha = 0;
+                    op.horas_diarias.forEach(d => {
+                        if (!d || !d.fecha || d.fecha > hoyLim6) return;
+
+                        let estSab = (d.estatus_sabana || '').toUpperCase();
+                        let estDia = (d.estatus || d.estatus_dia || '').toUpperCase();
+                        let tieneH = (d.horas !== null && d.horas !== undefined && d.horas !== '' && d.horas !== 'None');
+                        let h = tieneH ? (parseFloat(d.horas) || 0) : 0;
+
+                        let esDesc = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'LIC', 'CAP', 'FA'].includes(estSab) ||
+                                     ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+
+                        let esTrab = estSab.startsWith('TR') || estSab.startsWith('CB') || numsRol6.includes(estSab) || (tieneH && h > 0);
+
+                        if (esDesc) {
+                            racha = 0;
+                        } else if (esTrab) {
+                            racha++;
+                            if (racha > maxRacha) maxRacha = racha;
+                        } else {
+                            racha = 0;
+                        }
+                    });
+                    if (maxRacha > 6 && maxRacha <= 8) {
+                        totalCasos++;
+                        filasHTML += `
+                            <tr>
+                                <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                                <td style="text-align: center; padding: 9px; color: #0284c7; font-weight: 700;">${maxRacha} días trabajados</td>
+                                <td style="text-align: center; padding: 9px;">
+                                    <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                break;
+
+            case 'dias_estimados':
+                titulo.innerHTML = '<i class="fas fa-edit" style="color: #f59e0b;"></i> Días con Registro Estimado (Pendientes)';
+                desc.innerText = 'Turnos calculados de manera estimada que aún no han sido auditados contra bitácora física.';
+                thVar.innerText = 'Total de Días Estimados';
+
+                todosOperadoresData.forEach(op => {
+                    let estimados = 0;
+                    op.horas_diarias.forEach(d => {
+                        if (d && (d.auditado === 0 || d.auditado === false || d.tipo_registro === 'Estimado')) {
+                            estimados++;
+                        }
+                    });
+                    if (estimados > 0) {
+                        totalCasos += estimados;
+                        filasHTML += `
+                            <tr>
+                                <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                                <td style="text-align: center; padding: 9px; font-weight: 700; color: #d97706;">${estimados} días sin auditar</td>
+                                <td style="text-align: center; padding: 9px;">
+                                    <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                break;
+
+            case 'dias_laborados':
+            case 'horas_acumuladas':
+            case 'descansos':
+            case 'plantilla':
+            case 'calificacion':
+            case 'utilizacion':
+                titulo.innerHTML = '<i class="fas fa-users" style="color: var(--fng-blue);"></i> Padrón Activo de Operadores';
+                desc.innerText = 'Desglose del comportamiento acumulado en el mes operativo.';
+                thVar.innerText = 'Horas Mes / Descansos';
+
+                todosOperadoresData.forEach(op => {
+                    let totalDesc = 0;
+                    op.horas_diarias.forEach(d => {
+                        if (!d) return;
+                        let est = (d.estatus || d.estatus_dia || '').toUpperCase();
+                        if (['D', 'DESCANSO', 'V', 'VACACIONES', 'I', 'P'].includes(est)) totalDesc++;
+                    });
+                    totalCasos++;
+                    filasHTML += `
+                        <tr>
+                            <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
+                            <td style="text-align: center; padding: 9px; font-weight: 600;">${op.total}h totales | ${totalDesc} descansos</td>
+                            <td style="text-align: center; padding: 9px;">
+                                <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                break;
+        }
+
+        if (totalCasos === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="padding: 24px; text-align: center; color: #10b981; font-weight: 700;"><i class="fas fa-check-circle" style="font-size: 22px; display: block; margin-bottom: 6px;"></i> Sin incidencias detectadas en este rubro.</td></tr>`;
+            conteo.innerText = '0 registros encontrados';
+        } else {
+            tbody.innerHTML = filasHTML;
+            conteo.innerText = `Total de registros: ${totalCasos}`;
+        }
+
+        document.body.style.overflow = 'hidden';
+        modal.style.display = 'flex';
+    }
+
+    function cerrarModalKPI() {
+        document.body.style.overflow = '';
+        document.getElementById('modalDetalleKPI').style.display = 'none';
+    }
+
+// ABRIR MODAL DIRECTAMENTE AL TOCAR LA CELDA ROJA "S/B"
+    function abrirModalCapturaDirectaFecha(id, nombre, fecha) {
+        const row = document.getElementById(`row-${id}`);
+        if (!row) return;
+        const btn = row.querySelector('.btn-action');
+        if (!btn) return;
+
+        abrirModalEditorDatoUnico(id, nombre, btn);
+
+        const select = document.getElementById('editDotFecha');
+        if (select) {
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === fecha) {
+                    select.selectedIndex = i;
+                    cargarDatosDiaSeleccionado();
+                    break;
+                }
+            }
+        }
+    }
+
+    // =====================================================================
+    // RECEPTOR EN TIEMPO REAL: ACTUALIZACIÓN REACTIVA DE HORAS DOT
+    // =====================================================================
+    const diasMesFechas = [{% for d in dias_mes %}"{{ d.fecha }}",{% endfor %}];
+
+    // =====================================================================
+    // ALMAS GEMELAS: SINCRONIZACIÓN EN VIVO DESDE LA SÁBANA
+    // =====================================================================
+    function procesarSincronizacionSabanaEnDOT(e) {
+        const payload = e.detail;
+        if (!payload) return;
+
+        const rawId = payload.operador_id || payload.id || payload.op_id;
+        const fecha = payload.fecha;
+        const nuevoEstatus = (payload.estatus || payload.valor || payload.nuevo_estatus || '').toString().trim().toUpperCase();
+
+        if (!rawId || !fecha) return;
+        const opId = parseInt(rawId, 10);
+
+        const op = todosOperadoresData.find(o => parseInt(o.id, 10) === opId);
+        const colIdx = diasMesFechas.indexOf(fecha);
+        const row = document.getElementById(`row-${opId}`);
+        if (!op || colIdx === -1 || !row) return;
+
+        // 1. Actualizar memoria local
+        let diaObj = op.horas_diarias[colIdx];
+        if (!diaObj) {
+            diaObj = { fecha: fecha };
+            op.horas_diarias[colIdx] = diaObj;
+        }
+        diaObj.estatus_sabana = nuevoEstatus;
+
+        // 2. Determinar si es fecha futura y si es día de trabajo
+        const fHoy = "{{ hoy_str }}" || "{% for d in dias_mes %}{% if d.es_hoy %}{{ d.fecha }}{% endif %}{% endfor %}" || new Date().toISOString().split('T')[0];
+        const esFuturo = (fecha > fHoy);
+        const numerosRol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
+        const esTrabajo = nuevoEstatus.startsWith('TR') || nuevoEstatus.startsWith('CB') || numerosRol.includes(nuevoEstatus);
+
+        const tieneHoras = (diaObj.horas !== null && diaObj.horas !== undefined && diaObj.horas !== '' && diaObj.horas !== 'None');
+        const hVal = tieneHoras ? (parseFloat(diaObj.horas) || 0.0) : 0.0;
+
+        // 3. Estilos del catálogo operativo
+        let rolClass = 'txt-rol-gen';
+        if (['DE', 'D', 'DESCANSO'].includes(nuevoEstatus)) rolClass = 'txt-rol-de';
+        else if (['VA', 'V', 'VACACIONES'].includes(nuevoEstatus)) rolClass = 'txt-rol-va';
+        else if (['FA', 'FALTA'].includes(nuevoEstatus)) rolClass = 'txt-rol-fa';
+        else if (['IN', 'I', 'INCAPACIDAD'].includes(nuevoEstatus)) rolClass = 'txt-rol-in';
+        else if (['PER', 'P', 'PERMISO'].includes(nuevoEstatus)) rolClass = 'txt-rol-per';
+        else if (['MED', 'CITA MEDICA'].includes(nuevoEstatus)) rolClass = 'txt-rol-med';
+        else if (['LIC', 'LICENCIA'].includes(nuevoEstatus)) rolClass = 'txt-rol-lic';
+        else if (['CAP', 'C', 'CAPACITACION'].includes(nuevoEstatus)) rolClass = 'txt-rol-cap';
+
+        // 4. Redibujar celda al vuelo
+        const celda = row.children[colIdx + 2];
+        if (celda) {
+            if (esFuturo) {
+                if (esTrabajo) {
+                    celda.innerHTML = `<span class="futuro-rol" style="cursor: pointer;" onclick="mostrarPopover(event, '${nuevoEstatus} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')">${nuevoEstatus}</span>`;
+                } else if (nuevoEstatus !== '') {
+                    celda.innerHTML = `<span class="txt-rol ${rolClass}" style="opacity: 0.55; cursor: pointer;" onclick="mostrarPopover(event, '${nuevoEstatus} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')">${nuevoEstatus}</span>`;
+                } else {
+                    celda.innerHTML = `<span class="celda-futura" style="cursor: pointer;" onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')">-</span>`;
+                }
+            } else {
+                if (tieneHoras && hVal > 0) {
+                    const esReal = (diaObj.auditado === 1 || diaObj.auditado === true || diaObj.tipo_registro === 'Real');
+                    const claseAud = esReal ? 'horas-auditadas' : 'horas-crudas';
+                    const camIco = (diaObj.evidencia_foto && diaObj.evidencia_foto !== 'N/A') ? '<i class="fas fa-camera" style="font-size: 9px; margin-right: 2px;"></i>' : '';
+                    celda.innerHTML = `<span class="${claseAud}" onclick="mostrarPopover(event, '${diaObj.estatus_dia || diaObj.estatus || nuevoEstatus}', '${diaObj.unidad || 'N/A'}', '${diaObj.pipas || 'N/A'}', '${diaObj.manejo || '0.0'}', '${diaObj.maniobra || '0.0'}', '${fecha}')" title="${esReal ? '🟢 Real' : '🟠 Estimado'}: ${diaObj.horas}h">${camIco}${diaObj.horas}</span>`;
+                } else {
+                    if (esTrabajo) {
+                        celda.innerHTML = `<span class="falta-bitacora celda-falta-bitacora" onclick="mostrarPopover(event, '${nuevoEstatus} (Sin Bitácora)', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')" title="🚨 Turno laborado sin captura.">-</span>`;
+                    } else if (nuevoEstatus !== '') {
+                        celda.innerHTML = `<span class="txt-rol ${rolClass}" onclick="mostrarPopover(event, '${nuevoEstatus}', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')">${nuevoEstatus}</span>`;
+                    } else {
+                        celda.innerHTML = `<span style="color: #cbd5e1; font-weight: 600; cursor: pointer;" onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '${fecha}')">-</span>`;
+                    }
+                }
+            }
+
+            // Destello suave de sincronización inmediata
+            celda.style.transition = 'background-color 0.35s ease, transform 0.15s ease';
+            celda.style.backgroundColor = 'rgba(2, 132, 199, 0.2)';
+            celda.style.transform = 'scale(1.15)';
+            setTimeout(() => {
+                celda.style.backgroundColor = '';
+                celda.style.transform = '';
+            }, 600);
+        }
+
+        // 5. Actualizar KPIs superiores
+        calcularKPIDOT(document.getElementById('buscadorRH')?.value || '');
+    }
+
+    document.addEventListener('live:celda_sabana', procesarSincronizacionSabanaEnDOT);
+    document.addEventListener('live:celda_actualizada', procesarSincronizacionSabanaEnDOT);
+
+    document.addEventListener('live:dot_actualizado', (e) => {
+        const payload = e.detail;
+        if (!payload || !payload.operador_id || !payload.fecha) return;
+
+        const op = todosOperadoresData.find(o => o.id === payload.operador_id);
+        const colIdx = diasMesFechas.indexOf(payload.fecha);
+        const row = document.getElementById(`row-${payload.operador_id}`);
+        if (!op || colIdx === -1 || !row) return;
+
+        // 1. Actualizar memoria local
+        let diaObj = op.horas_diarias[colIdx];
+        if (!diaObj) {
+            diaObj = { fecha: payload.fecha };
+            op.horas_diarias[colIdx] = diaObj;
+        }
+        diaObj.horas = payload.horas;
+        diaObj.estatus_dia = payload.estatus_dia;
+        diaObj.estatus = payload.estatus_dia;
+        diaObj.unidad = payload.eco_unidad;
+        diaObj.pipas = payload.eco_pipas;
+        diaObj.manejo = payload.horas_manejo;
+        diaObj.maniobra = payload.horas_maniobra;
+        diaObj.auditado = payload.auditado;
+        diaObj.tipo_registro = payload.tipo_registro;
+        diaObj.no_bitacora = payload.no_bitacora;
+        diaObj.folio_bhs = payload.folio_bhs;
+        diaObj.clave_nocturna = payload.clave_nocturna;
+        diaObj.viaje_mina = payload.viaje_mina;
+        diaObj.observaciones = payload.observaciones;
+
+        // 2. Recalcular total mensual del operador
+        let totalHoras = 0;
+        op.horas_diarias.forEach(d => {
+            if (d && d.horas) totalHoras += parseFloat(d.horas) || 0;
+        });
+        op.total = Math.round(totalHoras * 10) / 10;
+
+        // 3. Pintar celda con animación
+        const celda = row.children[colIdx + 2];
+        if (celda) {
+            const hNum = parseFloat(payload.horas) || 0;
+            const claseAud = (payload.auditado === 1 || payload.auditado === true) ? 'horas-auditadas' : 'horas-crudas';
+            const camIco = (diaObj.evidencia_foto && diaObj.evidencia_foto !== 'N/A') ? '<i class="fas fa-camera" style="color:var(--fng-blue); font-size:10px; margin-right:3px;" title="Contiene Fotografía"></i>' : '';
+
+            celda.className = 'col-dia';
+            celda.style.cursor = 'pointer';
+            celda.onclick = (event) => mostrarPopover(event, diaObj.estatus_dia || diaObj.estatus, diaObj.unidad, diaObj.pipas, diaObj.manejo, diaObj.maniobra, diaObj.fecha);
+            celda.innerHTML = `<span class="${claseAud}">${camIco}${hNum > 0 ? payload.horas : (payload.estatus_dia && payload.estatus_dia !== 'EN VIAJE' ? payload.estatus_dia : payload.horas)}</span>`;
+
+            celda.style.transition = 'background-color 0.4s ease, transform 0.2s ease';
+            celda.style.backgroundColor = '#dcfce7';
+            celda.style.transform = 'scale(1.15)';
+            celda.style.zIndex = '12';
+            setTimeout(() => {
+                celda.style.backgroundColor = '';
+                celda.style.transform = '';
+                celda.style.zIndex = '';
+            }, 1200);
+        }
+
+        // 4. Actualizar total en fila y modal
+        const celdaTotal = row.children[diasMesFechas.length + 2];
+        if (celdaTotal) celdaTotal.innerText = `${op.total} hrs`;
+        const btnAccion = row.querySelector('.btn-action');
+        if (btnAccion) btnAccion.setAttribute('data-horas', JSON.stringify(op.horas_diarias));
+
+        // 5. Refrescar acordeón si estaba desplegado y recalcular KPIs superiores
+        const subrows = document.querySelectorAll(`.subrow-${payload.operador_id}`);
+        if (subrows.length > 0 && subrows[0].style.display !== 'none') {
+            subrows.forEach(r => r.remove());
+            renderNativeSubrows(payload.operador_id, row, op.horas_diarias);
+        }
+        const inputFiltro = document.getElementById('buscadorRH') ? document.getElementById('buscadorRH').value : '';
+        calcularKPIDOT(inputFiltro);
+    });
+</script>
+{% endblock %}

@@ -9,33 +9,287 @@
 
 {% block extra_css %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    /* TOOLBAR MAESTRA UNIFICADA EN UNA SOLA FILA */
+    .toolbar-pizarra-maestra {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        background: #ffffff;
+        padding: 8px 16px;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 2px 10px rgba(0, 45, 90, 0.05);
+        box-sizing: border-box;
+        min-height: 52px;
+    }
+    .toolbar-pizarra-titulo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .toolbar-pizarra-titulo h3 {
+        margin: 0;
+        color: var(--fng-blue);
+        font-size: 15px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    /* DOCK COMPACTO ALINEADO AL CENTRO */
+    .mac-dock-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 0;
+    }
+    .mac-dock {
+        display: inline-flex;
+        background: #e2e8f0;
+        padding: 3px;
+        border-radius: 10px;
+        border: 1px solid rgba(0,45,90,0.08);
+        height: 38px;
+        box-sizing: border-box;
+        align-items: center;
+    }
+    .mac-dock-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        font-weight: 800;
+        color: #64748b;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        box-sizing: border-box;
+        white-space: nowrap;
+    }
+    .mac-dock-btn.active {
+        background: var(--fng-blue);
+        color: white;
+        box-shadow: 0 2px 6px rgba(0,45,90,0.25);
+    }
+    
+    body.dark-mode .toolbar-pizarra-maestra { background: #0f172a; border-color: #334155; }
+    body.dark-mode .mac-dock { background: #1e293b; border-color: #334155; }
+    body.dark-mode .mac-dock-btn { color: #94a3b8; }
+    body.dark-mode .mac-dock-btn.active { background: var(--fng-orange); color: #0f172a; }
+
+    /* ESTILOS DE LA TABLA PIZARRA */
+    .table-container { overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+    .prog-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1600px; } 
+    .prog-table th { background: var(--fng-blue); color: white; padding: 10px 5px; font-weight: 700; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap; font-size: 11px;}
+    
+    .prog-table td { padding: 0; border: 1px solid #cbd5e1; background: white; vertical-align: middle; text-align: center; transition: background-color 0.3s;}
+    .prog-table tr:hover td { background: #f8fafc; }
+    
+    /* INPUTS INVISIBLES Y BLOQUEADOS */
+    .cell-input { width: 100%; height: 100%; border: none; background: transparent; padding: 8px; font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; color: #334155; text-align: center; box-sizing: border-box; outline: none; transition: 0.2s;}
+    .cell-input:focus { background: #e0f2fe; box-shadow: inset 0 0 0 2px var(--fng-orange); }
+    .cell-input.text-left { text-align: left; }
+    .cell-input[readonly] { background-color: transparent; color: #64748b; cursor: default; pointer-events: none;}
+    
+    /* BOTONES DE ACCIÓN EN FILA */
+    .btn-row { background: transparent; border: none; cursor: pointer; transition: 0.2s; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;}
+    .btn-row.add { color: #10b981; font-size: 14px;}
+    .btn-row.add:hover { background: #d1fae5; transform: scale(1.1); }
+    .btn-row.minus { color: #f59e0b; font-size: 14px;}
+    .btn-row.minus:hover { background: #fef3c7; transform: scale(1.1); }
+    .btn-row.pending { color: #3b82f6; font-size: 14px;}
+    .btn-row.pending:hover { background: #eff6ff; transform: scale(1.1); }
+    .btn-row.action-menu { color: #475569; font-size: 14px;}
+    .btn-row.action-menu:hover { background: #e2e8f0; color: var(--fng-blue); transform: scale(1.1); }
+
+    /* FILA PENDIENTE (ALERTA NOCTURNA) */
+    .row-pending td { background-color: #e0f2fe !important; }
+    body.dark-mode .row-pending td { background-color: rgba(2, 132, 199, 0.3) !important; border-color: rgba(2,132,199,0.5) !important; }
+
+    /* INDICADORES C/V (SEMAFOROS) */
+    .cv-indicator { width: 100%; height: 38px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;}
+    .cv-red { background: #ef4444; color: white; }
+    .cv-green { background: #10b981; color: white; }
+    .cv-gray { background: #e2e8f0; color: transparent; }
+
+    /* ESTILOS PARA APILAR ESCALAS INTERNAMENTE */
+    .col-apilada { padding: 0 !important; vertical-align: top !important; }
+    .escala-item { display: flex; align-items: center; height: 38px; border-bottom: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; background: transparent;}
+    .escala-item:last-child { border-bottom: none; }
+    .escala-item .cell-input { height: 100%; border-radius: 0; }
+    
+    body.dark-mode .table-container { background: #0f172a; border-color: #334155; }
+    body.dark-mode .prog-table td { background: #0f172a; border-color: #334155; }
+    body.dark-mode .cell-input { color: #cbd5e1; }
+    body.dark-mode .cell-input:focus { background: rgba(2, 132, 199, 0.2); }
+    body.dark-mode .prog-table tr:hover td { background: rgba(255,255,255,0.02); }
+    body.dark-mode .escala-item { border-bottom-color: #334155; }
+
+    /* MODALES DE ACCIÓN RÁPIDA */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: none; justify-content: center; align-items: center; z-index: 3000; }
+    .modal-box { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); border: 1px solid #cbd5e1; }
+    .modal-box h3 { margin-top: 0; color: var(--fng-blue); }
+    .modal-btn-row { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+    .btn-action-modal { padding: 10px 15px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; flex: 1; transition: 0.2s;}
+    .btn-action-modal.green { background: #10b981; color: white; }
+    .btn-action-modal.red { background: #ef4444; color: white; }
+    .btn-action-modal.gray { background: #e2e8f0; color: #475569; }
+    .btn-action-modal:hover { transform: scale(1.02); }
+
+    /* AJUSTE RESPONSIVO FLUIDO (DOCK 4 PRODUCTOS Y ACCIONES) */
+    @media (max-width: 768px) {
+        .toolbar-pizarra-maestra {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            padding: 12px !important;
+        }
+        .toolbar-pizarra-titulo {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
+        }
+        .toolbar-pizarra-titulo h3 {
+            font-size: 15px;
+            justify-content: center;
+        }
+        .mac-dock-container { 
+            width: 100%; 
+            margin-bottom: 0 !important; 
+        }
+        .mac-dock { 
+            width: 100%; 
+            height: auto !important; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+            box-sizing: border-box; 
+            padding: 6px; 
+            border-radius: 12px; 
+        }
+        .mac-dock-btn { 
+            flex: 1 1 calc(50% - 6px); 
+            height: 36px !important; 
+            justify-content: center; 
+            padding: 6px 8px; 
+            font-size: 12px; 
+            gap: 6px; 
+            border-radius: 8px; 
+            box-sizing: border-box;
+        }
+        .mac-dock-btn i { 
+            font-size: 12px; 
+        }
+        .header-actions-dispatch { 
+            width: 100%; 
+            display: flex !important; 
+            flex-wrap: wrap !important; 
+            gap: 8px !important; 
+        }
+        .header-actions-dispatch #selectorFechaOperativa { 
+            flex: 1 1 100% !important; 
+            min-width: 100% !important; 
+            height: 40px !important;
+            text-align: center; 
+            box-sizing: border-box; 
+            padding: 8px 10px !important;
+            font-size: 13px !important;
+        }
+        .header-actions-dispatch .btn { 
+            flex: 1 1 calc(33.333% - 6px) !important; 
+            min-width: 90px !important; 
+            height: 38px !important;
+            justify-content: center; 
+            padding: 8px 6px !important; 
+            font-size: 12px !important; 
+            box-sizing: border-box; 
+            white-space: nowrap; 
+        }
+    }
+
+    @media (max-width: 480px) {
+        .header-actions-dispatch .btn {
+            flex: 1 1 calc(50% - 6px) !important;
+            font-size: 12px !important;
+        }
+        .header-actions-dispatch .btn-guardar-live {
+            flex: 1 1 100% !important;
+        }
+    }
+
+    /* FILA BLOQUEADA POR DEFECTO */
+    .prog-table tr.fila-bloqueada td input {
+        pointer-events: none;
+        cursor: default;
+        user-select: all;
+    }
+    .prog-table tr.fila-bloqueada .btn-row.add,
+    .prog-table tr.fila-bloqueada .btn-row.minus {
+        display: none !important;
+    }
+    .prog-table tr.fila-editando {
+        background-color: rgba(255, 140, 0, 0.05) !important;
+        box-shadow: inset 0 0 0 2px var(--fng-orange);
+    }
+    .prog-table tr.fila-editando td input {
+        pointer-events: auto !important;
+        cursor: text !important;
+        background: #fff;
+    }
+    body.dark-mode .prog-table tr.fila-editando td input {
+        background: #1e293b !important;
+        color: #fff !important;
+    }
+    .btn-row.btn-edit-row {
+        color: #0284c7;
+        font-size: 14px;
+    }
+    .btn-row.btn-edit-row.editing {
+        color: #10b981;
+        font-size: 16px;
+    }
+
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="glass-panel">
     
-    <!-- CINTILLA DE MODO HISTORIAL (Oculta por defecto) -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
-        <h3 style="margin: 0; color: var(--fng-blue);"><i class="fas fa-edit"></i> Pizarra de Programación (Dispatch)</h3>
-        <div class="header-actions-dispatch" style="display: flex; gap: 10px;">
-            <!-- Selector de fecha operativa -->
-            <input type="date" id="selectorFechaOperativa" onchange="cambiarFechaOperativa(this.value)" class="form-control" style="padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; color: var(--fng-blue);">
+    <!-- TOOLBAR MAESTRA UNIFICADA EN UNA SOLA FILA -->
+    <div class="toolbar-pizarra-maestra">
+        <!-- 1. TÍTULO (IZQUIERDA) -->
+        <div class="toolbar-pizarra-titulo">
+            <h3><i class="fas fa-edit" style="color: var(--fng-orange);"></i> Pizarra de Programación (Dispatch)</h3>
+        </div>
+
+        <!-- 2. DOCK DE PRODUCTOS (CENTRO) -->
+        <div class="mac-dock-container">
+            <div class="mac-dock">
+                <button class="mac-dock-btn active" onclick="switchProductTab('tab-lox', this)"><i class="fas fa-snowflake"></i> LOX</button>
+                <button class="mac-dock-btn" onclick="switchProductTab('tab-lin', this)"><i class="fas fa-snowflake"></i> LIN</button>
+                <button class="mac-dock-btn" onclick="switchProductTab('tab-lar', this)"><i class="fas fa-snowflake"></i> LAR</button>
+                <button class="mac-dock-btn" onclick="switchProductTab('tab-co2', this)"><i class="fas fa-wind"></i> CO2</button>
+            </div>
+        </div>
+
+        <!-- 3. ACCIONES Y FECHA (DERECHA) -->
+        <div class="header-actions-dispatch" style="display: flex; align-items: center; gap: 8px;">
+            <input type="date" id="selectorFechaOperativa" onchange="cambiarFechaOperativa(this.value)" class="form-control" style="height: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; color: var(--fng-blue); margin: 0; box-sizing: border-box;">
             <input type="file" id="inputPdfCryo" accept=".pdf" style="display: none;" onchange="procesarPdfCryoinfra(this)">
-            <button class="btn btn-primary" onclick="document.getElementById('inputPdfCryo').click()" style="background: #0284c7; border: none; padding: 8px 18px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(2,132,199,0.3);">
+            <button class="btn btn-primary" onclick="document.getElementById('inputPdfCryo').click()" style="height: 38px; background: #0284c7; border: none; padding: 6px 14px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(2,132,199,0.3); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; white-space: nowrap;">
                 <i class="fas fa-file-upload"></i> Importar PDF
             </button>
-            <button class="btn btn-primary" onclick="descargarPDFPizarraLimpio()" style="background: #ef4444; border: none; padding: 8px 20px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(239,68,68,0.3);"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-            <button class="btn btn-primary btn-guardar-live" onclick="guardarPizarra()" style="background: #10b981; border: none; padding: 8px 20px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-save"></i> Guardar</button>
-        </div>
-    </div>
-
-    <!-- DOCK DE 4 PRODUCTOS -->
-    <div class="mac-dock-container">
-        <div class="mac-dock">
-            <button class="mac-dock-btn active" onclick="switchProductTab('tab-lox', this)"><i class="fas fa-snowflake"></i> LOX</button>
-            <button class="mac-dock-btn" onclick="switchProductTab('tab-lin', this)"><i class="fas fa-snowflake"></i> LIN</button>
-            <button class="mac-dock-btn" onclick="switchProductTab('tab-lar', this)"><i class="fas fa-snowflake"></i> LAR</button>
-            <button class="mac-dock-btn" onclick="switchProductTab('tab-co2', this)"><i class="fas fa-wind"></i> CO2</button>
+            <button class="btn btn-primary" onclick="descargarPDFPizarraLimpio()" style="height: 38px; background: #ef4444; border: none; padding: 6px 14px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(239,68,68,0.3); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; white-space: nowrap;"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+            <button class="btn btn-primary btn-guardar-live" onclick="guardarPizarra()" style="height: 38px; background: #10b981; border: none; padding: 6px 14px; border-radius: 8px; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; white-space: nowrap;"><i class="fas fa-save"></i> Guardar</button>
         </div>
     </div>
 
@@ -241,6 +495,513 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- ENLACE AL NÚCLEO MODULAR DE LA PIZARRA DE DESPACHO -->
-<script src="{{ url_for('static', filename='js/programacion_pizarra.js') }}?v=1.0"></script>
+<script>
+    let modoHistorialActivo = false;
+    let currentRowAccion = null;
+
+    // Obtener la fecha local exacta respetando el corte de las 08:15 AM
+    function getFechaOperativaHoy() {
+        const d = new Date();
+        if (d.getHours() < 8 || (d.getHours() === 8 && d.getMinutes() < 15)) {
+            d.setDate(d.getDate() - 1);
+        }
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dia = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dia}`;
+    }
+
+    // 1. INICIALIZACIÓN
+    window.onload = function() {
+        salirHistorial();
+    };
+
+    // 2. CONTROL DEL SELECTOR DE FECHA
+    async function cambiarFechaOperativa(fechaSeleccionada) {
+        if (!fechaSeleccionada) return;
+        const hoyOperativo = getFechaOperativaHoy();
+
+        // Si es la fecha de hoy (o superior), reactivar pizarra en vivo
+        if (fechaSeleccionada >= hoyOperativo) {
+            salirHistorial();
+        } else {
+            // Es fecha pasada: activar auditoría
+            modoHistorialActivo = true;
+            showToast("⏳ Consultando auditoría: " + fechaSeleccionada.split('-').reverse().join('/'), "warning");
+            await cargarProgramacionBD(fechaSeleccionada);
+            bloquearPizarraEnVivo(true);
+        }
+    }
+
+    function salirHistorial() {
+        modoHistorialActivo = false;
+        const hoyOperativo = getFechaOperativaHoy();
+        const inputFecha = document.getElementById('selectorFechaOperativa');
+        
+        if (inputFecha) {
+            inputFecha.value = hoyOperativo;
+            inputFecha.max = hoyOperativo; // Bloquea fechas futuras
+        }
+
+        bloquearPizarraEnVivo(false);
+        cargarProgramacionBD(null); // Carga la pizarra viva
+    }
+
+    async function cargarProgramacionBD(fechaConsulta = null) {
+        const endpoint = fechaConsulta ? `/api/cargar_programacion?fecha=${fechaConsulta}` : '/api/cargar_programacion';
+        try {
+            const res = await fetch(endpoint);
+            if (res.ok) {
+                const json = await res.json();
+                const data = json.data;
+                
+                ['LOX', 'LIN', 'LAR', 'CO2'].forEach(prod => {
+                    const tableId = `table-${prod.toLowerCase()}`;
+                    const tbody = document.querySelector(`#${tableId} tbody`);
+                    if (tbody) tbody.innerHTML = '';
+                    
+                    if (data[prod] && data[prod].length > 0) {
+                        data[prod].forEach(viaje => agregarViajeGuardado(tableId, viaje));
+                    } else if (!modoHistorialActivo) {
+                        agregarViajeNuevo(tableId); // Agrega fila limpia solo si es en vivo
+                    }
+                });
+            }
+        } catch(e) {
+            console.error("Error al cargar programación:", e);
+        }
+    }
+    function toggleEditarFila(btn) {
+        if (modoHistorialActivo) return;
+        const tr = btn.closest('tr');
+        const icon = btn.querySelector('i');
+        const estaBloqueada = tr.classList.contains('fila-bloqueada');
+        
+        if (estaBloqueada) {
+            tr.classList.remove('fila-bloqueada');
+            tr.classList.add('fila-editando');
+            icon.className = 'fas fa-check';
+            btn.classList.add('editing');
+            btn.title = 'Guardar y Bloquear Fila';
+            showToast("✏️ Fila en modo edición", "warning");
+        } else {
+            tr.classList.remove('fila-editando');
+            tr.classList.add('fila-bloqueada');
+            icon.className = 'fas fa-pencil-alt';
+            btn.classList.remove('editing');
+            btn.title = 'Editar Fila';
+            guardarPizarra();
+        }
+    }
+
+    function agregarViajeNuevo(tableId) {
+        if (modoHistorialActivo) return;
+        const tbody = document.querySelector(`#${tableId} tbody`); if (!tbody) return;
+        const numViajes = tbody.querySelectorAll('tr').length + 1;
+        const hoy = getFechaOperativaHoy();
+
+        // Las filas nuevas nacen en modo edición para capturarlas
+        const trHtml = `
+            <tr class="fila-editando">
+                <td><input type="text" class="cell-input" value="${numViajes}" style="font-weight:900; font-size:14px;"></td>
+                <td><input type="text" class="cell-input"></td><td><input type="text" class="cell-input"></td><td><input type="text" class="cell-input"></td>
+                <td><input type="text" class="cell-input text-left" list="listaOperadores" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></td>
+                <td><input type="time" class="cell-input"></td><td><input type="text" class="cell-input" value="PROX"></td><td><input type="text" class="cell-input" list="listaBases"></td>
+                <td><input type="text" class="cell-input col-dia-laboral" readonly tabindex="-1" title="Campo automático protegido"></td>
+                <td style="padding:0;"><button class="cv-indicator cv-gray" onclick="toggleCV(this)"></button></td>
+                <td class="col-apilada col-cliente"><div class="escala-item"><input type="text" class="cell-input text-left" placeholder="Destino Principal" style="font-weight:800;"><button class="btn-row add" onclick="agregarEscala(this)" title="Añadir Escala"><i class="fas fa-plus-circle"></i></button></div></td>
+                <td class="col-apilada col-dl"><div class="escala-item"><input type="text" class="cell-input"></div></td>
+                <td class="col-apilada col-ubicacion"><div class="escala-item"><input type="text" class="cell-input text-left samsara-location"></div></td>
+                <td class="col-apilada col-obs"><div class="escala-item"><input type="text" class="cell-input text-left" style="color: var(--fng-blue);"></div></td>
+                <td class="col-apilada col-fecha"><div class="escala-item"><input type="date" class="cell-input" value="${hoy}" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></div></td>
+                <td class="col-apilada col-factura"><div class="escala-item"><input type="text" class="cell-input" value="PENDIENTE" style="color:#f59e0b; font-weight:800;"></div></td>
+                
+                <td class="col-acciones" style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                    <button class="btn-row btn-edit-row editing" onclick="toggleEditarFila(this)" title="Guardar y Bloquear Fila"><i class="fas fa-check"></i></button>
+                    <button class="btn-row pending" onclick="confirmarPendiente(this)" title="Alerta Nocturna / Pendiente"><i class="fas fa-clock"></i></button>
+                    <button class="btn-row action-menu" onclick="abrirModalAccionViaje(this)" title="Opciones del Viaje"><i class="fas fa-cog"></i></button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', trHtml);
+    }
+
+    // 3. BLOQUEO / DESBLOQUEO SEGURO DE CONTROLES
+    function bloquearPizarraEnVivo(bloquear) {
+        const inputs = document.querySelectorAll('.prog-table input');
+        const boxAsignar = document.querySelectorAll('.box-asignar-viaje');
+        const colAcciones = document.querySelectorAll('.col-acciones');
+        const botonesSumaResta = document.querySelectorAll('.btn-row.add, .btn-row.minus');
+        const btnGuardarMaster = document.querySelector('.btn-guardar-live');
+        const cvButtons = document.querySelectorAll('.cv-indicator');
+
+        inputs.forEach(i => {
+            if (bloquear) { i.setAttribute('readonly', 'true'); } 
+            else { i.removeAttribute('readonly'); }
+        });
+
+        boxAsignar.forEach(b => b.style.display = bloquear ? 'none' : 'block');
+        colAcciones.forEach(c => c.style.display = bloquear ? 'none' : '');
+        botonesSumaResta.forEach(b => b.style.display = bloquear ? 'none' : 'inline-flex');
+        cvButtons.forEach(b => b.style.pointerEvents = bloquear ? 'none' : 'auto');
+        
+        if (btnGuardarMaster) {
+            btnGuardarMaster.style.display = bloquear ? 'none' : 'inline-flex';
+        }
+    }
+
+    // 4. GUARDAR CAMBIOS (EN VIVO)
+    async function guardarPizarra() {
+        if (modoHistorialActivo) return;
+
+        const activeTab = document.querySelector('.product-tab[style*="display: block"]') || document.querySelector('#tab-lox');
+        const productName = activeTab.id.replace('tab-', '').toUpperCase();
+        const table = activeTab.querySelector('table');
+        const rows = table.querySelectorAll('tbody tr');
+        let dataToSave = [];
+        
+        rows.forEach(tr => {
+            let rowData = extraerFilaViaje(tr);
+            dataToSave.push(rowData);
+        });
+        
+        const res = await fetch('/api/guardar_programacion', {
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({producto: productName, datos: dataToSave})
+        });
+        
+        if (res.ok) { 
+            showToast("✅ " + productName + " Guardado correctamente.", "success"); 
+        } else { 
+            showToast("⚠️ Error al guardar.", "warning"); 
+        }
+    }
+
+    // 5. NAVEGACIÓN ENTRE PRODUCTOS
+    function switchProductTab(tabId, btn) {
+        document.querySelectorAll('.product-tab').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.mac-dock-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        btn.classList.add('active');
+        
+        const tbody = document.querySelector(`#${tabId} tbody`);
+        if (!modoHistorialActivo && tbody && tbody.children.length === 0) {
+            agregarViajeNuevo(tabId.replace('tab-', 'table-'));
+        }
+    }
+
+    // 6. GESTIÓN DE ACCIONES Y MODALES
+    function abrirModalAccionViaje(btn) {
+        if (modoHistorialActivo) return;
+        currentRowAccion = btn.closest('tr');
+        let num = currentRowAccion.cells[0].querySelector('input').value || '-';
+        let op = currentRowAccion.cells[4].querySelector('input').value || 'Sin asignar';
+        document.getElementById('accionViajeDetalle').innerText = `Viaje #${num} • Operador: ${op}`;
+        document.getElementById('modalAccionViaje').style.display = 'flex';
+    }
+
+    function cerrarModalAccion() {
+        document.getElementById('modalAccionViaje').style.display = 'none';
+        currentRowAccion = null;
+    }
+
+    function extraerFilaViaje(tr) {
+        let rowData = {
+            num: tr.cells[0].querySelector('input') ? tr.cells[0].querySelector('input').value : '',
+            tr: tr.cells[1].querySelector('input') ? tr.cells[1].querySelector('input').value : '',
+            pipa: tr.cells[2].querySelector('input') ? tr.cells[2].querySelector('input').value : '',
+            dly: tr.cells[3].querySelector('input') ? tr.cells[3].querySelector('input').value : '',
+            operador: tr.querySelector('input[list="listaOperadores"]') ? tr.querySelector('input[list="listaOperadores"]').value : '',
+            sprog: tr.cells[5].querySelector('input') ? tr.cells[5].querySelector('input').value : '',
+            tmpocond: tr.cells[6].querySelector('input') ? tr.cells[6].querySelector('input').value : '',
+            cc: tr.querySelector('input[list="listaBases"]') ? tr.querySelector('input[list="listaBases"]').value : '',
+            dia: tr.querySelector('.col-dia-laboral') ? tr.querySelector('.col-dia-laboral').value : '',
+            cv: tr.querySelector('.cv-indicator') ? tr.querySelector('.cv-indicator').className : 'cv-indicator cv-gray',
+            isPending: tr.classList.contains('row-pending'),
+            escalas: []
+        };
+        const clientes = tr.querySelectorAll('.col-cliente input');
+        const dls = tr.querySelectorAll('.col-dl input');
+        const ubicaciones = tr.querySelectorAll('.col-ubicacion input');
+        const obss = tr.querySelectorAll('.col-obs input');
+        const fechas = tr.querySelectorAll('.col-fecha input');
+        const facturas = tr.querySelectorAll('.col-factura input');
+        for (let i = 0; i < clientes.length; i++) {
+            rowData.escalas.push({
+                cliente: clientes[i] ? clientes[i].value : '', dl: dls[i] ? dls[i].value : '',
+                ubicacion: ubicaciones[i] ? ubicaciones[i].value : '', obs: obss[i] ? obss[i].value : '',
+                fecha: fechas[i] ? fechas[i].value : '', factura: facturas[i] ? facturas[i].value : ''
+            });
+        }
+        return rowData;
+    }
+
+    async function finalizarViaje() {
+        if (!currentRowAccion) return;
+        const activeTab = document.querySelector('.product-tab[style*="display: block"]') || document.querySelector('#tab-lox');
+        const payload = {
+            producto: activeTab.id.replace('tab-', '').toUpperCase(),
+            estatus: 'FINALIZADO',
+            viaje: extraerFilaViaje(currentRowAccion)
+        };
+        const res = await fetch('/api/gestionar_viaje_pizarra', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (res.ok) {
+            currentRowAccion.remove(); 
+            cerrarModalAccion();
+            showToast("✅ Viaje finalizado y archivado", "success");
+        }
+    }
+
+    async function cancelarViaje() {
+        if (!currentRowAccion) return;
+        let motivo = prompt("Motivo breve de la cancelación:");
+        if (motivo !== null && motivo.trim() !== "") {
+            const activeTab = document.querySelector('.product-tab[style*="display: block"]') || document.querySelector('#tab-lox');
+            const payload = {
+                producto: activeTab.id.replace('tab-', '').toUpperCase(),
+                estatus: 'CANCELADO', motivo: motivo,
+                viaje: extraerFilaViaje(currentRowAccion)
+            };
+            const res = await fetch('/api/gestionar_viaje_pizarra', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            if (res.ok) {
+                currentRowAccion.remove();
+                cerrarModalAccion();
+                showToast("🔴 Viaje cancelado por incidencia", "warning");
+            }
+        }
+    }
+
+    function confirmarPendiente(btn) {
+        if (modoHistorialActivo) return;
+        currentRowAccion = btn.closest('tr');
+        let isPending = currentRowAccion.classList.contains('row-pending');
+        document.getElementById('textoPendiente').innerText = isPending 
+            ? "¿Reactivar viaje a estatus normal? La alerta visual se retirará de la pizarra." 
+            : "¿Marcar este viaje como Pendiente / Guardia Nocturna? Se resaltará en azul.";
+        document.getElementById('btnConfirmarPendiente').innerText = isPending ? "Quitar Alerta" : "Activar Alerta";
+        document.getElementById('modalPendiente').style.display = 'flex';
+    }
+
+    function ejecutarPendiente() {
+        if (currentRowAccion) {
+            currentRowAccion.classList.toggle('row-pending');
+        }
+        document.getElementById('modalPendiente').style.display = 'none';
+        guardarPizarra();
+    }
+
+    // 7. EXPORTAR PDF LIMPIO
+    function descargarPDFPizarraLimpio() {
+        const activeTab = document.querySelector('.product-tab[style*="display: block"]') || document.querySelector('#tab-lox');
+        const productName = activeTab.id.replace('tab-', '').toUpperCase();
+        const rows = activeTab.querySelectorAll('tbody tr');
+        
+        const inputVal = document.getElementById('selectorFechaOperativa').value;
+        const fchOperativa = inputVal ? inputVal.split('-').reverse().join('/') : new Date().toLocaleDateString('es-MX');
+        
+        document.getElementById('pdfProgFecha').innerText = fchOperativa;
+        document.getElementById('pdfProgLinea').innerText = productName;
+        
+        const tbodyPDF = document.getElementById('plantillaPDFProgTablaBody');
+        tbodyPDF.innerHTML = '';
+        
+        rows.forEach(tr => {
+            let isPending = tr.classList.contains('row-pending');
+            let bgRow = isPending ? '#e0f2fe' : '#ffffff';
+            
+            let v_num = tr.cells[0].querySelector('input') ? tr.cells[0].querySelector('input').value : '';
+            let v_tr = tr.cells[1].querySelector('input') ? tr.cells[1].querySelector('input').value : '';
+            let v_pipa = tr.cells[2].querySelector('input') ? tr.cells[2].querySelector('input').value : '';
+            let v_dly = tr.cells[3].querySelector('input') ? tr.cells[3].querySelector('input').value : '';
+            let v_op = tr.cells[4].querySelector('input') ? tr.cells[4].querySelector('input').value : '';
+            let v_sprog = tr.cells[5].querySelector('input') ? tr.cells[5].querySelector('input').value : '';
+            let v_cc = tr.cells[7].querySelector('input') ? tr.cells[7].querySelector('input').value : '';
+            
+            let cvClass = tr.querySelector('.cv-indicator') ? tr.querySelector('.cv-indicator').className : '';
+            let cvText = cvClass.includes('green') ? 'V' : (cvClass.includes('red') ? 'C' : '');
+            let cvBg = cvClass.includes('green') ? '#10b981' : (cvClass.includes('red') ? '#ef4444' : 'transparent');
+            
+            let escs_cli = Array.from(tr.querySelectorAll('.col-cliente input')).map(i=>i.value).join('<br>');
+            let escs_dl = Array.from(tr.querySelectorAll('.col-dl input')).map(i=>i.value).join('<br>');
+            let escs_ubi = Array.from(tr.querySelectorAll('.col-ubicacion input')).map(i=>i.value).join('<br>');
+            let escs_obs = Array.from(tr.querySelectorAll('.col-obs input')).map(i=>i.value).join('<br>');
+            let escs_fac = Array.from(tr.querySelectorAll('.col-factura input')).map(i=>i.value).join('<br>');
+            
+            let html = `
+                <tr style="background-color: ${bgRow};">
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;"><b>${v_num}</b></td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_tr}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_pipa}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_dly}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left;"><b>${v_op}</b></td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_sprog}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_cc}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; background-color:${cvBg}; color:white; font-weight:bold;">${cvText}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left; font-weight:bold;">${escs_cli}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${escs_dl}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left;">${escs_ubi}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left; color:#002d5a;">${escs_obs}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e1; font-weight:bold; color:#d97706;">${escs_fac}</td>
+                </tr>
+            `;
+            tbodyPDF.insertAdjacentHTML('beforeend', html);
+        });
+
+        showToast("⏳ Generando PDF Limpio...", "warning");
+        
+        const element = document.getElementById('plantillaPDFProg');
+        html2pdf().set({
+            margin: 0.3,
+            filename: `Pizarra_${productName}_${fchOperativa.replace(/\//g, '-')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+            jsPDF: { unit: 'in', format: 'legal', orientation: 'landscape' }
+        }).from(element).save().then(() => {
+            showToast("✅ Reporte Exportado Correctamente.", "success");
+        });
+    }
+
+    // 8. FUNCIONES DE EDICIÓN EN FILA
+    async function verificarDiaOperativo(el) {
+        if (modoHistorialActivo) return;
+        const tr = el.closest('tr');
+        const operadorInput = tr.querySelector('input[list="listaOperadores"]');
+        const fechasInputs = tr.querySelectorAll('.col-fecha .cell-input');
+        
+        if (!operadorInput || fechasInputs.length === 0) return;
+        
+        const operador = operadorInput.value.trim();
+        const fecha = fechasInputs[0].value; 
+        const diaInput = tr.querySelector('.col-dia-laboral');
+
+        if (!operador || !fecha) { if (diaInput) diaInput.value = ''; return; }
+        
+        try {
+            const res = await fetch('/api/obtener_dia_operador', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nombre: operador, fecha: fecha}) });
+            if (res.ok) {
+                const data = await res.json();
+                if (diaInput) {
+                    const nuevoDia = data.dia || "-";
+                    if (diaInput.value !== nuevoDia) {
+                        diaInput.value = nuevoDia;
+                        diaInput.style.backgroundColor = '#10b981'; diaInput.style.color = 'white';
+                        setTimeout(() => { diaInput.style.backgroundColor = 'transparent'; diaInput.style.color = '#64748b'; }, 1000);
+                    }
+                }
+            }
+        } catch (err) {}
+    }
+
+    function toggleCV(btn) {
+        if (modoHistorialActivo) return;
+        if (btn.classList.contains('cv-gray')) { btn.className = 'cv-indicator cv-green'; } 
+        else if (btn.classList.contains('cv-green')) { btn.className = 'cv-indicator cv-red'; } 
+        else { btn.className = 'cv-indicator cv-gray'; }
+    }
+
+    function agregarEscala(btn) {
+        if (modoHistorialActivo) return;
+        const tr = btn.closest('tr');
+        const hoy = getFechaOperativaHoy();
+        const inputsFechas = tr.querySelectorAll('.col-fecha .cell-input');
+        const fechaPrevia = inputsFechas.length > 0 ? inputsFechas[inputsFechas.length - 1].value : hoy;
+
+        tr.querySelector('.col-cliente').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="text" class="cell-input text-left" placeholder="Nuevo destino..." style="font-weight: 800; color: var(--fng-blue);"><button class="btn-row minus" onclick="eliminarEscala(this)" title="Quitar Escala"><i class="fas fa-minus-circle"></i></button></div>`);
+        tr.querySelector('.col-dl').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="text" class="cell-input" placeholder="DL"></div>`);
+        tr.querySelector('.col-ubicacion').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="text" class="cell-input text-left samsara-location"></div>`);
+        tr.querySelector('.col-obs').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="text" class="cell-input text-left" style="color: var(--fng-blue);"></div>`);
+        tr.querySelector('.col-fecha').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="date" class="cell-input" value="${fechaPrevia}" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></div>`);
+        tr.querySelector('.col-factura').insertAdjacentHTML('beforeend', `<div class="escala-item"><input type="text" class="cell-input" value="PENDIENTE" style="color:#f59e0b; font-weight:800;"></div>`);
+    }
+
+    function eliminarEscala(btn) {
+        if (modoHistorialActivo) return;
+        const item = btn.closest('.escala-item'); const td = item.parentNode; const tr = td.parentNode;
+        const index = Array.from(td.children).indexOf(item);
+        ['.col-cliente', '.col-dl', '.col-ubicacion', '.col-obs', '.col-fecha', '.col-factura'].forEach(selector => {
+            const columna = tr.querySelector(selector);
+            if (columna && columna.children[index]) { columna.removeChild(columna.children[index]); }
+        });
+    }
+
+            
+        const trHtml = `
+            <tr class="${v.isPending ? 'row-pending' : ''}">
+                <td><input type="text" class="cell-input" value="${v.num}" style="font-weight:900; font-size:14px;"></td>
+                <td><input type="text" class="cell-input" value="${v.tr}"></td><td><input type="text" class="cell-input" value="${v.pipa}"></td><td><input type="text" class="cell-input" value="${v.dly}"></td>
+                <td><input type="text" class="cell-input text-left" list="listaOperadores" value="${v.operador}" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></td>
+                <td><input type="time" class="cell-input" value="${v.sprog}"></td><td><input type="text" class="cell-input" value="${v.tmpocond}"></td><td><input type="text" class="cell-input" list="listaBases" value="${v.cc}"></td>
+                <td><input type="text" class="cell-input col-dia-laboral" value="${v.dia}" readonly tabindex="-1" title="Campo automático protegido"></td>
+                <td style="padding:0;"><button class="${v.cv}" onclick="toggleCV(this)"></button></td>
+                <td class="col-apilada col-cliente">${escalasHtml_cliente}</td><td class="col-apilada col-dl">${escalasHtml_dl}</td><td class="col-apilada col-ubicacion">${escalasHtml_ubi}</td><td class="col-apilada col-obs">${escalasHtml_obs}</td><td class="col-apilada col-fecha">${escalasHtml_fch}</td><td class="col-apilada col-factura">${escalasHtml_fac}</td>
+                <td class="col-acciones" style="text-align: center; vertical-align: middle;">
+                    <button class="btn-row pending" onclick="confirmarPendiente(this)" title="Alerta Nocturna / Pendiente"><i class="fas fa-clock"></i></button>
+                    <button class="btn-row action-menu" onclick="abrirModalAccionViaje(this)" title="Opciones del Viaje"><i class="fas fa-cog"></i></button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', trHtml);
+
+    function agregarViajeGuardado(tableId, v) {
+        const tbody = document.querySelector(`#${tableId} tbody`); if (!tbody) return;
+        let escalasHtml_cliente = '', escalasHtml_dl = '', escalasHtml_ubi = '', escalasHtml_obs = '', escalasHtml_fch = '', escalasHtml_fac = '';
+        
+        v.escalas.forEach((esc, idx) => {
+            const btnAddMinus = idx === 0 
+                ? `<button class="btn-row add" onclick="agregarEscala(this)" title="Añadir Escala"><i class="fas fa-plus-circle"></i></button>`
+                : `<button class="btn-row minus" onclick="eliminarEscala(this)" title="Quitar Escala"><i class="fas fa-minus-circle"></i></button>`;
+            
+            escalasHtml_cliente += `<div class="escala-item"><input type="text" class="cell-input text-left" value="${esc.cliente}" style="font-weight:800;">${btnAddMinus}</div>`;
+            escalasHtml_dl += `<div class="escala-item"><input type="text" class="cell-input" value="${esc.dl}"></div>`;
+            escalasHtml_ubi += `<div class="escala-item"><input type="text" class="cell-input text-left samsara-location" value="${esc.ubicacion}"></div>`;
+            escalasHtml_obs += `<div class="escala-item"><input type="text" class="cell-input text-left" value="${esc.obs}" style="color: var(--fng-blue);"></div>`;
+            escalasHtml_fch += `<div class="escala-item"><input type="date" class="cell-input" value="${esc.fecha}" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></div>`;
+            escalasHtml_fac += `<div class="escala-item"><input type="text" class="cell-input" value="${esc.factura}" ${esc.factura==='PENDIENTE'?'style="color:#f59e0b; font-weight:800;"':''}></div>`;
+        });
+        
+        const trHtml = `
+            <tr class="${v.isPending ? 'row-pending ' : ''}fila-bloqueada">
+                <td><input type="text" class="cell-input" value="${v.num}" style="font-weight:900; font-size:14px;"></td>
+                <td><input type="text" class="cell-input" value="${v.tr}"></td><td><input type="text" class="cell-input" value="${v.pipa}"></td><td><input type="text" class="cell-input" value="${v.dly}"></td>
+                <td><input type="text" class="cell-input text-left" list="listaOperadores" value="${v.operador}" oninput="verificarDiaOperativo(this)" onblur="verificarDiaOperativo(this)"></td>
+                <td><input type="time" class="cell-input" value="${v.sprog}"></td><td><input type="text" class="cell-input" value="${v.tmpocond}"></td><td><input type="text" class="cell-input" list="listaBases" value="${v.cc}"></td>
+                <td><input type="text" class="cell-input col-dia-laboral" value="${v.dia}" readonly tabindex="-1" title="Campo automático protegido"></td>
+                <td style="padding:0;"><button class="${v.cv}" onclick="toggleCV(this)"></button></td>
+                <td class="col-apilada col-cliente">${escalasHtml_cliente}</td><td class="col-apilada col-dl">${escalasHtml_dl}</td><td class="col-apilada col-ubicacion">${escalasHtml_ubi}</td><td class="col-apilada col-obs">${escalasHtml_obs}</td><td class="col-apilada col-fecha">${escalasHtml_fch}</td><td class="col-apilada col-factura">${escalasHtml_fac}</td>
+                <td class="col-acciones" style="text-align: center; vertical-align: middle; white-space: nowrap;">
+                    <button class="btn-row btn-edit-row" onclick="toggleEditarFila(this)" title="Editar / Bloquear Fila"><i class="fas fa-pencil-alt"></i></button>
+                    <button class="btn-row pending" onclick="confirmarPendiente(this)" title="Alerta Nocturna / Pendiente"><i class="fas fa-clock"></i></button>
+                    <button class="btn-row action-menu" onclick="abrirModalAccionViaje(this)" title="Opciones del Viaje"><i class="fas fa-cog"></i></button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', trHtml);
+    }
+
+    function procesarPdfCryoinfra(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        showToast(`📄 Subiendo y analizando orden: ${file.name}...`, "warning");
+        
+        const formData = new FormData();
+        formData.append('pdf_despacho', file);
+
+        fetch('/api/importar_pdf_despacho', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showToast("✅ " + data.msg, "success");
+            } else {
+                showToast("⚠️ " + (data.msg || "Error al procesar"), "warning");
+            }
+        })
+        .catch(() => showToast("Error de conexión al subir PDF", "warning"));
+
+        input.value = '';
+    }
+</script>
 {% endblock %}

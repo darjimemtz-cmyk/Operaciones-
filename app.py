@@ -9,7 +9,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, abort, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, abort, jsonify, send_from_directory, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -29,8 +29,16 @@ def es_extension_valida(filename, extensiones_permitidas):
 def obtener_hora_local_str():
     return datetime.now(TZ_LOCAL).strftime('%Y-%m-%d %H:%M:%S')
 
+def registrar_evento_sync(cursor, tipo, payload_dict):
+    try:
+        cursor.execute("INSERT INTO sync_eventos (tipo, payload) VALUES (?, ?)", (tipo, json.dumps(payload_dict)))
+    except Exception:
+        pass
+
 def registrar_notificacion(cursor, mensaje):
     cursor.execute("INSERT INTO notificaciones (fecha, mensaje) VALUES (?, ?)", (obtener_hora_local_str(), mensaje))
+    # Emite automáticamente el evento en vivo a todos los navegadores
+    registrar_evento_sync(cursor, 'notificacion', {'mensaje': mensaje, 'fecha': obtener_hora_local_str()})
 
 warnings.simplefilter("ignore")
 
@@ -40,10 +48,13 @@ EVIDENCIAS_FOLDER = os.path.join(DIRECTORIO_BASE, 'evidencias_dot')
 os.makedirs(EVIDENCIAS_FOLDER, exist_ok=True)
 FOTOS_FOLDER = os.path.join(DIRECTORIO_BASE, 'static', 'fotos_perfil')
 os.makedirs(FOTOS_FOLDER, exist_ok=True)
+EVIDENCIAS_AMONESTACIONES = os.path.join(DIRECTORIO_BASE, 'static', 'evidencias_amonestaciones')
+os.makedirs(EVIDENCIAS_AMONESTACIONES, exist_ok=True)
 
 app = Flask(__name__, template_folder=DIRECTORIO_TEMPLATES)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_control_maestro_fng_slp_v7')
 app.config['UPLOAD_FOLDER'] = EVIDENCIAS_FOLDER
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 DB_NAME = 'control_maestro_v6.db'
 
 # ==========================================
@@ -270,6 +281,31 @@ def init_db():
         FOREIGN KEY(operador_id) REFERENCES operadores(id)
     )''')
 
+    # Migraciones para Bajas y Evidencias PDF
+    try: cursor.execute("ALTER TABLE operadores ADD COLUMN causa_baja TEXT DEFAULT 'N/A'")
+    except sqlite3.OperationalError: pass
+    try: cursor.execute("ALTER TABLE operadores ADD COLUMN detalle_baja TEXT DEFAULT ''")
+    except sqlite3.OperationalError: pass
+    try: cursor.execute("ALTER TABLE amonestaciones ADD COLUMN archivo_pdf TEXT DEFAULT NULL")
+    except sqlite3.OperationalError: pass
+
+    # Persistencia de historial de conversación de Centinela IA (30 días)
+    cursor.execute('''CREATE TABLE IF NOT EXISTS centinela_historial (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario TEXT NOT NULL,
+        rol TEXT NOT NULL,
+        mensaje TEXT NOT NULL,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Bus de eventos en tiempo real para sincronización tipo Facebook
+    cursor.execute('''CREATE TABLE IF NOT EXISTS sync_eventos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     usuarios_base = [
         ('admin_fng', 'master123', 'super_usuario'),
         ('gerencia_slp', 'ger123', 'gerencia'),
@@ -309,20 +345,26 @@ def recalcular_tr_operador(op_id, cursor=None):
         cursor = conn.cursor()
         close_conn = True
     
-    cursor.execute("SELECT id, estatus FROM logistica_diaria WHERE operador_id=? ORDER BY fecha", (op_id,))
+    cursor.execute("SELECT id, estatus FROM logistica_diaria WHERE operador_id=? ORDER BY fecha ASC", (op_id,))
     filas = cursor.fetchall()
     contador_tr = 0
     for fid, estatus in filas:
-        if estatus.startswith('TR'):
+        est_limpio = str(estatus or '').strip().upper()
+        if est_limpio.startswith('TR'):
             contador_tr += 1
             nuevo_estatus = f"TR{contador_tr}"
-            if estatus != nuevo_estatus:
+            if est_limpio != nuevo_estatus:
                 cursor.execute("UPDATE logistica_diaria SET estatus=? WHERE id=?", (nuevo_estatus, fid))
         else:
             contador_tr = 0
             
     if close_conn:
         conn.commit(); conn.close()
+    else:
+        try:
+            cursor.connection.commit()
+        except Exception:
+            pass
 
 def recalcular_tr_todos():
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
@@ -692,7 +734,7 @@ def operador_app():
     if session.get('rol') != 'operador': return abort(403)
     hoy = datetime.now()
     dias = [(hoy - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(3)]
-    return render_template('operador_app.html', dias=dias, nombre_real=session.get('nombre_real'))
+    return render_template('portal_chofer.html', dias=dias, nombre_real=session.get('nombre_real'))
 
 @app.route('/api/operador_guardar_dia', methods=['POST'])
 @login_required
@@ -782,7 +824,7 @@ def acumulado():
     c.execute("SELECT producto, COUNT(*) FROM operadores WHERE estatus_empleado='Activo' AND esquema != 'Varios' GROUP BY producto")
     plantilla = dict(c.fetchall()); conn.close()
     plantilla['CRYO'] = plantilla.get('ARGON', 0) + plantilla.get('NITROGENO', 0) + plantilla.get('OXIGENO', 0)
-    return render_template('acumulado.html', data=data, fechas=fechas_ventana, centro=centro, f_atras=f_atras, f_adelante=f_adelante, cfg=cfg, plantilla=plantilla)
+    return render_template('panel_operativo.html', data=data, fechas=fechas_ventana, centro=centro, f_atras=f_atras, f_adelante=f_adelante, cfg=cfg, plantilla=plantilla)
 
 # ==========================================
 # RUTAS DE LA PIZARRA DE PROGRAMACIÓN
@@ -972,8 +1014,8 @@ def logistica(ruta):
                 
     conn.close()
     
-    # Renderizar asegurando concordancia de nombre de archivo con la plantilla
-    nombre_template = 'logistica_rutas_3.html' if os.path.exists(os.path.join(DIRECTORIO_TEMPLATES, 'logistica_rutas_3.html')) else 'logistica_rutas.html'
+    # Renderizar plantilla renombrada sabana.html
+    nombre_template = 'sabana.html'
     return render_template(nombre_template, linea=linea_map, indicadores=ind_linea, fechas=fechas_ventana, bloques=bloques, todos_operadores=todos_operadores, centro=centro, f_atras=f_atras, f_adelante=f_adelante, hoy_str=datetime.now().strftime('%Y-%m-%d'))
 
 @app.route('/api/importar_pdf_despacho', methods=['POST'])
@@ -1026,7 +1068,8 @@ def recursos_humanos():
                imei1, impresora, vigencia_licencia, vigencia_medica, fecha_alta, fecha_nacimiento,
                edad, tipo_licencia, no_licencia, liberacion_cryo, liberado_operativamente,
                experiencia_desde, tipo_unidad, productos_descarga, tipo_jornada, fecha_ancla,
-               usuario_app, foto, COALESCE(base, 'San Luis Potosí'), estatus_empleado
+               usuario_app, foto, COALESCE(base, 'San Luis Potosí'), estatus_empleado,
+               COALESCE(causa_baja, 'N/A'), COALESCE(detalle_baja, '')
         FROM operadores 
         WHERE estatus_empleado LIKE 'Baja%' 
         ORDER BY nombre
@@ -1102,6 +1145,8 @@ def recursos_humanos():
             'productos_descarga': b[21] if b[21] != 'N/A' else 'LIN-LOX-LAR',
             'usuario_app': b[24], 'foto': b[25], 'estatus': 'BAJA',
             'fecha_baja': fecha_baja,
+            'causa_baja': b[28],
+            'detalle_baja': b[29],
             'texto_antiguedad': texto_antiguedad_b, 'vacaciones': vac_b
         })
         
@@ -1135,18 +1180,62 @@ def expediente_historial():
     res_horas = c.fetchone()
     horas_dot = round(res_horas[0], 1) if res_horas and res_horas[0] else 0.0
     
+    c.execute("SELECT nombre FROM operadores WHERE id=?", (op_id,))
+    res_nom_op = c.fetchone()
+    nombre_operador = res_nom_op[0].strip().upper() if res_nom_op else ''
+
     fecha_inicio = hoy - timedelta(days=29)
     fechas_30 = [(fecha_inicio + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
+    
+    # 1. Estatus diario de la sábana
     c.execute(f"SELECT fecha, estatus FROM logistica_diaria WHERE operador_id=? AND fecha IN ({','.join(['?']*30)}) ORDER BY fecha DESC", [op_id] + fechas_30)
     logistica_map = {row[0]: row[1] for row in c.fetchall()}
-    
+
+    # 2. Horas reales capturadas en DOT
+    c.execute(f"SELECT fecha, horas FROM dot_diario WHERE operador_id=? AND fecha IN ({','.join(['?']*30)})", [op_id] + fechas_30)
+    horas_map = {row[0]: float(row[1] or 0.0) for row in c.fetchall()}
+
+    # 3. Clientes reales desde viajes archivados
+    c.execute(f"SELECT fecha_operativa, viaje_json FROM viajes_archivados WHERE fecha_operativa IN ({','.join(['?']*30)})", fechas_30)
+    viajes_raw = c.fetchall()
+    clientes_por_fecha = {}
+    for f_op, v_json in viajes_raw:
+        try:
+            v_data = json.loads(v_json)
+            if str(v_data.get('operador', '')).strip().upper() == nombre_operador:
+                escalas = v_data.get('escalas', [])
+                destinos = [str(e.get('cliente', '')).strip() for e in escalas if e.get('cliente') and not str(e.get('cliente')).upper().startswith('DESTINO')]
+                if destinos:
+                    if f_op not in clientes_por_fecha: clientes_por_fecha[f_op] = []
+                    clientes_por_fecha[f_op].extend(destinos)
+        except: pass
+
+    # 4. Construcción del calendario de 30 días con métricas NOM-087
     calendario = []
-    destinos_mock = [["BMW", "GM"], ["L'Oréal"], ["Ternium", "Valeo"], ["Mabe"], ["Cervecería"], ["Infra"]]
     for f in reversed(fechas_30):
         est = logistica_map.get(f, 'TR')
-        clientes = random.choice(destinos_mock) if est.startswith('TR') else []
-        dia_str = datetime.strptime(f, '%Y-%m-%d').strftime('%d/%m')
-        calendario.append({"fecha": f, "dia_str": dia_str, "estatus": est, "clientes": clientes})
+        h_dia = round(horas_map.get(f, 0.0), 1)
+        
+        # Horas acumuladas de los últimos 8 días (NOM-087)
+        f_dt = datetime.strptime(f, '%Y-%m-%d').date()
+        fechas_8d = [(f_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        h_acum = round(sum(horas_map.get(fk, 0.0) for fk in fechas_8d), 1)
+        h_rest = max(0.0, round(70.0 - h_acum, 1))
+
+        # Clientes del día
+        cli_list = clientes_por_fecha.get(f, [])
+        clientes_str = ", ".join(list(dict.fromkeys(cli_list))) if cli_list else ('--' if not est.startswith('TR') else 'Ruta Local / Base')
+
+        dia_str = f_dt.strftime('%d/%m')
+        calendario.append({
+            "fecha": f, 
+            "dia_str": dia_str, 
+            "estatus": est, 
+            "clientes": clientes_str,
+            "horas_dia": h_dia,
+            "horas_acum": h_acum,
+            "horas_rest": h_rest
+        })
         
     conn.close()
     return jsonify({"status": "success", "ultimo_descanso": ultimo_descanso, "estatus_hoy": estatus_hoy, "horas_dot": horas_dot, "calendario": calendario})
@@ -1157,28 +1246,39 @@ def expediente_historial():
 @app.route('/api/guardar_amonestacion', methods=['POST'])
 @login_required
 def api_guardar_amonestacion():
-    # 1. Seguridad de roles: solo personal autorizado puede registrar amonestaciones
     if session.get('rol') not in ['jefe_op', 'aux_dot', 'gerencia', 'super_usuario']:
         return jsonify({"status": "error", "msg": "No tienes permisos para registrar amonestaciones."}), 403
     
-    # 2. Extraer datos enviados en formato JSON desde el navegador
-    d = request.json
-    op_id = d.get('operador_id')
-    fecha = d.get('fecha')
-    tipo = d.get('tipo')
-    descripcion = str(d.get('descripcion', '')).strip()
-    estatus = d.get('estatus', 'Pendiente')
+    # Soporta tanto FormData (con archivo) como JSON simple
+    if request.form:
+        op_id = request.form.get('operador_id')
+        fecha = request.form.get('fecha')
+        tipo = request.form.get('tipo')
+        descripcion = str(request.form.get('descripcion', '')).strip()
+        estatus = request.form.get('estatus', 'Pendiente')
+    else:
+        d = request.get_json(silent=True) or {}
+        op_id = d.get('operador_id')
+        fecha = d.get('fecha')
+        tipo = d.get('tipo')
+        descripcion = str(d.get('descripcion', '')).strip()
+        estatus = d.get('estatus', 'Pendiente')
     
-    # Validación básica de datos obligatorios
     if not op_id or not fecha or not tipo or not descripcion:
         return jsonify({"status": "error", "msg": "Todos los campos son obligatorios."}), 400
         
+    pdf_filename = None
+    if 'evidencia_pdf' in request.files:
+        pdf = request.files['evidencia_pdf']
+        if pdf and pdf.filename and es_extension_valida(pdf.filename, {'pdf'}):
+            pdf_filename = f"amon_{op_id}_{int(datetime.now().timestamp())}.pdf"
+            pdf.save(os.path.join(EVIDENCIAS_AMONESTACIONES, pdf_filename))
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        # 3. Insertar el registro en la tabla creada en el Paso 1
-        c.execute('''INSERT INTO amonestaciones (operador_id, fecha, tipo, descripcion, estatus)
-                     VALUES (?, ?, ?, ?, ?)''', (op_id, fecha, tipo, descripcion, estatus))
+        c.execute('''INSERT INTO amonestaciones (operador_id, fecha, tipo, descripcion, estatus, archivo_pdf)
+                     VALUES (?, ?, ?, ?, ?, ?)''', (op_id, fecha, tipo, descripcion, estatus, pdf_filename))
         conn.commit()
         return jsonify({"status": "success", "msg": "Amonestación registrada con éxito."})
     except Exception as e:
@@ -1191,7 +1291,6 @@ def api_guardar_amonestacion():
 @app.route('/api/obtener_amonestaciones', methods=['POST'])
 @login_required
 def api_obtener_amonestaciones():
-    # Los choferes no pueden auditar este módulo
     if session.get('rol') == 'operador':
         return jsonify({"status": "error"}), 403
         
@@ -1202,8 +1301,8 @@ def api_obtener_amonestaciones():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # 1. Consultar el historial del chofer ordenado del más reciente al más antiguo
-    c.execute('''SELECT id, fecha, tipo, descripcion, estatus 
+    # 1. Consultar historial incluyendo archivo_pdf
+    c.execute('''SELECT id, fecha, tipo, descripcion, estatus, COALESCE(archivo_pdf, '') 
                  FROM amonestaciones 
                  WHERE operador_id = ? 
                  ORDER BY fecha DESC, id DESC''', (op_id,))
@@ -1211,7 +1310,6 @@ def api_obtener_amonestaciones():
     conn.close()
     
     historial = []
-    # 2. Inicializar los contadores que alimentarán los chips superiores (KPIs)
     kpis = {
         "actas": 0,
         "combustible": 0,
@@ -1221,14 +1319,14 @@ def api_obtener_amonestaciones():
         "total": len(filas)
     }
     
-    # 3. Recorrer cada amonestación para formatearla y clasificar los contadores
-    for fid, fec, tip, desc, est in filas:
+    for fid, fec, tip, desc, est, pdf_file in filas:
         historial.append({
             "id": fid,
             "fecha": fec,
             "tipo": tip,
             "descripcion": desc,
-            "estatus": est
+            "estatus": est,
+            "archivo_pdf": pdf_file if pdf_file else None
         })
         
         # Conteo inteligente según la categoría
@@ -1280,27 +1378,62 @@ def auditoria_dot():
         
     fechas_8dias = [(fecha_fin_8d - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(8)]
 
+    hoy_str = hoy.strftime('%Y-%m-%d')
+    placeholders_mes = ','.join(['?'] * len(fechas_str))
+
+    # Consulta en bulto para el mes completo: DOT y Sábana cruzados en memoria
+    c.execute(f"SELECT operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, horas_manejo, horas_maniobra, auditado, evidencia_foto, tipo_registro, no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones FROM dot_diario WHERE fecha IN ({placeholders_mes})", fechas_str)
+    dot_global = {(r[0], r[1]): {'horas': r[2], 'estatus': r[3], 'estatus_dia': r[3], 'unidad': r[4], 'pipas': r[5], 'manejo': r[6], 'maniobra': r[7], 'auditado': r[8], 'evidencia_foto': r[9], 'tipo_registro': r[10], 'no_bitacora': r[11], 'folio_bhs': r[12], 'clave_nocturna': r[13], 'viaje_mina': r[14], 'observaciones': r[15]} for r in c.fetchall()}
+
+    c.execute(f"SELECT operador_id, fecha, estatus FROM logistica_diaria WHERE fecha IN ({placeholders_mes})", fechas_str)
+    sabana_global = {(r[0], r[1]): (r[2] or '').strip().upper() for r in c.fetchall()}
+
     for op_id, no_emp, nombre in ops_raw:
-        # Extraer todo el mes
-        c.execute("SELECT fecha, horas, estatus_dia, eco_unidad, eco_pipas, horas_manejo, horas_maniobra, auditado, evidencia_foto, tipo_registro, no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*len(fechas_str))), [op_id] + fechas_str)
-        
-        horas_db = {r[0]: {'horas': r[1], 'estatus': r[2], 'unidad': r[3], 'pipas': r[4], 'manejo': r[5], 'maniobra': r[6], 'auditado': r[7], 'evidencia_foto': r[8], 'tipo_registro': r[9], 'no_bitacora': r[10], 'folio_bhs': r[11], 'clave_nocturna': r[12], 'viaje_mina': r[13], 'observaciones': r[14]} for r in c.fetchall()}
-        
         horas_diarias = []
         total_mes = 0.0
         
         for d in dias_mes:
-            h_data = horas_db.get(d['fecha'])
+            llave = (op_id, d['fecha'])
+            est_sab = sabana_global.get(llave, '')
+            h_data = dot_global.get(llave)
             if h_data: 
-                horas_diarias.append(h_data)
-                total_mes += float(h_data['horas'])
+                item = h_data.copy()
+                item['fecha'] = d['fecha']
+                item['estatus_sabana'] = est_sab
+                horas_diarias.append(item)
+                total_mes += float(item['horas'] or 0.0)
             else: 
-                horas_diarias.append(None)
+                horas_diarias.append({
+                    'fecha': d['fecha'],
+                    'horas': None,
+                    'estatus_dia': None,
+                    'estatus': None,
+                    'estatus_sabana': est_sab,
+                    'auditado': 0,
+                    'tipo_registro': 'Sin Registro',
+                    'unidad': 'N/A',
+                    'pipas': 'N/A',
+                    'manejo': 0.0,
+                    'maniobra': 0.0,
+                    'evidencia_foto': 'N/A'
+                })
                 
-        # Extraer ventana de 8 días para columna "Restantes"
-        c.execute("SELECT SUM(horas) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*8)), [op_id] + fechas_8dias)
-        res_8d = c.fetchone()
-        usadas_8d = float(res_8d[0]) if res_8d and res_8d[0] else 0.0
+        # Extraer ventana de 8 días para columna "Restantes" (Reseteo Inteligente en último Descanso)
+        c.execute("SELECT fecha, estatus FROM logistica_diaria WHERE operador_id=? AND fecha IN ({seq}) ORDER BY fecha DESC".format(seq=','.join(['?']*8)), [op_id] + fechas_8dias)
+        historial_8d = c.fetchall()
+        
+        fechas_ciclo = []
+        for f, est in historial_8d:
+            est_limpio = (est or '').strip().upper()
+            if est_limpio in ['D', 'DE', 'DESCANSO', 'V', 'VA', 'I', 'IN', 'B']:
+                break
+            fechas_ciclo.append(f)
+            
+        usadas_8d = 0.0
+        if fechas_ciclo:
+            c.execute("SELECT SUM(horas) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*len(fechas_ciclo))), [op_id] + fechas_ciclo)
+            res_8d = c.fetchone()
+            usadas_8d = float(res_8d[0]) if res_8d and res_8d[0] else 0.0
             
         nombre_credencial = f"{no_emp} | {nombre}" if no_emp != 'N/A' else nombre
             
@@ -1314,7 +1447,7 @@ def auditoria_dot():
         })
     conn.close()
     
-    return render_template('auditoria.html', operadores=ops, dias_mes=dias_mes, texto_mes=texto_mes, lista_ocr=json.dumps(todos_nombres), f_atras=f_atras, f_adelante=f_adelante, mes_actual_str=mes_actual_str)
+    return render_template('horas_dot.html', operadores=ops, dias_mes=dias_mes, texto_mes=texto_mes, lista_ocr=json.dumps(todos_nombres), f_atras=f_atras, f_adelante=f_adelante, mes_actual_str=mes_actual_str, hoy_str=hoy_str)
 
 @app.route('/api/actualizar_dot', methods=['POST'])
 @login_required
@@ -1329,8 +1462,13 @@ def actualizar_dot():
             if not res: return jsonify({"status": "error", "msg": f"Operador {d['nombre']} no encontrado."})
             op_id = res[0]
 
+        hoy_operativo = datetime.now(TZ_LOCAL).strftime('%Y-%m-%d')
         for reg in d['horas_diarias']:
-            h = float(reg.get('horas', 0.0)); fecha = reg['fecha']; estatus = reg.get('estatus_dia', 'EN VIAJE')
+            fecha = reg['fecha']
+            if fecha > hoy_operativo:
+                return jsonify({"status": "error", "msg": "Operación denegada: No está permitido capturar horas en fechas futuras."}), 400
+
+            h = float(reg.get('horas', 0.0)); estatus = reg.get('estatus_dia', 'EN VIAJE')
             unidad = reg.get('eco_unidad', 'N/A'); pipas = reg.get('eco_pipas', 'N/A')
             manejo = float(reg.get('horas_manejo', 0.0)); maniobra = float(reg.get('horas_maniobra', 0.0))
             auditado = reg.get('auditado', 1) 
@@ -1353,6 +1491,24 @@ def actualizar_dot():
                          folio_bhs=excluded.folio_bhs, clave_nocturna=excluded.clave_nocturna, viaje_mina=excluded.viaje_mina, 
                          observaciones=excluded.observaciones''', 
                       (op_id, fecha, h, estatus, unidad, pipas, manejo, maniobra, auditado, tipo_reg, no_bit, folio_bhs, clave_noc, viaje_mina, obs))
+
+            registrar_evento_sync(c, 'dot_actualizado', {
+                'operador_id': op_id,
+                'fecha': fecha,
+                'horas': h,
+                'estatus_dia': estatus,
+                'eco_unidad': unidad,
+                'eco_pipas': pipas,
+                'horas_manejo': manejo,
+                'horas_maniobra': maniobra,
+                'auditado': auditado,
+                'tipo_registro': tipo_reg,
+                'no_bitacora': no_bit,
+                'folio_bhs': folio_bhs,
+                'clave_nocturna': clave_noc,
+                'viaje_mina': viaje_mina,
+                'observaciones': obs
+            })
                       
         conn.commit(); return jsonify({"status": "success", "msg": "Horas actualizadas."})
     except Exception as e: conn.rollback(); return jsonify({"status": "error", "msg": str(e)})
@@ -1373,6 +1529,11 @@ def guardar_simulador():
         c.execute("UPDATE configuracion SET valor=? WHERE clave='unidades_co2'", (d['co2'],))
         conn.commit(); conn.close(); return jsonify({"status": "success"})
     return jsonify({"status": "error"}), 403
+
+# ===================================================
+# SWITCH TEMPORAL: AUTORIZACIÓN DIRECTA SUPERVISORES
+# ===================================================
+AUTORIZACION_DIRECTA_SUPERVISORES = True  # Cambiar a False cuando el jefe vuelva
 
 @app.route('/api/solicitar_turno', methods=['POST'])
 @login_required
@@ -1406,6 +1567,26 @@ def solicitar_turno():
     res_ant = c.fetchone()
     estatus_ant = res_ant[0] if res_ant else "TR"
     
+    # MODO CONTINGENCIA: Si el switch está activo, aplica directo sin pedir autorización
+    if AUTORIZACION_DIRECTA_SUPERVISORES:
+        f_in = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        f_out = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        dias_rango = (f_out - f_in).days + 1
+        
+        for i in range(dias_rango):
+            f_actual = (f_in + timedelta(days=i)).strftime('%Y-%m-%d')
+            c.execute('''INSERT INTO logistica_diaria (operador_id, fecha, estatus) 
+                         VALUES (?, ?, ?) 
+                         ON CONFLICT(operador_id, fecha) DO UPDATE SET estatus = excluded.estatus''', 
+                      (op_id, f_actual, estatus_nuevo))
+        
+        usuario_responsable = session.get('nombre_real', session.get('usuario', 'Supervisor'))
+        msj = f"⚡ Cambio directo (Supervisor): {usuario_responsable} actualizó a {nombre} ({fecha_inicio}) de {estatus_ant} a {estatus_nuevo}."
+        registrar_notificacion(c, msj)
+        conn.commit(); conn.close()
+        recalcular_tr_operador(op_id)
+        return jsonify({"status": "success", "msg": "Turno actualizado directamente (Modo Contingencia)."})
+
     datos_solicitud = {
         'operador_id': op_id,
         'nombre': nombre,
@@ -1454,8 +1635,12 @@ def api_solicitar_pase_salida():
 @app.route('/api/actualizar_turno', methods=['POST'])
 @login_required
 def actualizar_turno():
-    # Solo Jefatura y Auxiliar DOT pueden guardar de forma directa e inmediata
-    if session.get('rol') not in ['jefe_op', 'aux_dot', 'super_usuario']: 
+    # Solo Jefatura y Auxiliar DOT pueden guardar directo (o supervisores si el switch temporal está activo)
+    roles_permitidos = ['jefe_op', 'aux_dot', 'super_usuario']
+    if AUTORIZACION_DIRECTA_SUPERVISORES:
+        roles_permitidos.append('supervisor')
+        
+    if session.get('rol') not in roles_permitidos: 
         return jsonify({"status": "error", "msg": "No autorizado para aplicar cambios directos"}), 403
         
     d = request.json
@@ -1484,13 +1669,23 @@ def actualizar_turno():
         f_out = datetime.strptime(fecha_fin, '%Y-%m-%d')
         dias_rango = (f_out - f_in).days + 1
         
-        # 2. Guardar los nuevos días en la sábana
+        # 2. Guardar los nuevos días en la sábana y emitir evento en vivo unificado
+        op_id_int = int(d['operador_id'])
         for i in range(dias_rango):
             f_actual = (f_in + timedelta(days=i)).strftime('%Y-%m-%d')
             c.execute('''INSERT INTO logistica_diaria (operador_id, fecha, estatus) 
                          VALUES (?, ?, ?) 
                          ON CONFLICT(operador_id, fecha) DO UPDATE SET estatus = excluded.estatus''', 
-                      (d['operador_id'], f_actual, estatus_nuevo))
+                      (op_id_int, f_actual, estatus_nuevo))
+            
+            # Emitir tanto celda_sabana como celda_actualizada para máxima compatibilidad
+            payload_sync = {
+                'operador_id': op_id_int,
+                'fecha': f_actual,
+                'estatus': estatus_nuevo
+            }
+            registrar_evento_sync(c, 'celda_sabana', payload_sync)
+            registrar_evento_sync(c, 'celda_actualizada', payload_sync)
         
         # 3. Registrar la notificación con usuario, transición y periodo
         usuario_responsable = session.get('nombre_real', session.get('usuario', 'Personal Operativo'))
@@ -1896,10 +2091,15 @@ def carga_masiva_rh():
 @login_required
 def baja_operador():
     if session.get('rol') not in ['jefe_op', 'aux_dot']: return jsonify({"status": "error"}), 403
-    d = request.json; conn = sqlite3.connect(DB_NAME); c = conn.cursor()
+    d = request.json or {}
+    conn = sqlite3.connect(DB_NAME); c = conn.cursor()
     hoy_str = datetime.now(TZ_LOCAL).strftime('%Y-%m-%d')
-    c.execute("UPDATE operadores SET estatus_empleado=? WHERE id=?", (f"Baja - {hoy_str}", d['id']))
-    registrar_notificacion(c, f"🗑️ Se dio de baja al operador ID: {d['id']} el {hoy_str}")
+    causa = (d.get('causa_baja') or d.get('causa') or 'VOLUNTARIA').strip()
+    detalle = (d.get('detalles_baja') or d.get('detalle_baja') or d.get('detalle') or '').strip()
+    c.execute("UPDATE operadores SET estatus_empleado=?, causa_baja=?, detalle_baja=? WHERE id=?", 
+              (f"Baja - {hoy_str}", causa, detalle, d['id']))
+    registrar_notificacion(c, f"🗑️ Se dio de baja al operador ID: {d['id']} ({causa}) el {hoy_str}")
+    registrar_evento_sync(c, 'rh_actualizado', {'operador_id': d['id'], 'accion': 'baja'})
     conn.commit(); conn.close(); return jsonify({"status": "success"})
 
 @app.route('/api/reactivar_operador', methods=['POST'])
@@ -1909,6 +2109,7 @@ def reactivar_operador():
     d = request.json; conn = sqlite3.connect(DB_NAME); c = conn.cursor()
     c.execute("UPDATE operadores SET estatus_empleado='Activo' WHERE id=?", (d['id'],))
     registrar_notificacion(c, f"♻️ Se reactivó al operador ID: {d['id']}")
+    registrar_evento_sync(c, 'rh_actualizado', {'operador_id': d['id'], 'accion': 'reactivar'})
     conn.commit(); conn.close()
     return jsonify({"status": "success"})  
 
@@ -1945,6 +2146,37 @@ def dot_status():
     usadas = res[0] if res and res[0] else 0.0
     libres = max(0.0, round(70.0 - usadas, 1))
     return jsonify({"status": "success", "usadas": round(usadas, 1), "libres": libres})
+
+@app.route('/api/auditoria_movimientos_30d', methods=['GET'])
+@login_required
+def api_auditoria_movimientos_30d():
+    if session.get('rol') not in ['jefe_op', 'aux_dot', 'supervisor', 'gerencia', 'super_usuario']:
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+        
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Extraer los últimos 30 días de eventos en sábana y solicitudes
+    c.execute("""
+        SELECT fecha, mensaje 
+        FROM notificaciones 
+        WHERE fecha >= datetime('now', '-30 days', 'localtime')
+          AND (
+               mensaje LIKE '%modificó a%' OR 
+               mensaje LIKE '%actualizó a%' OR 
+               mensaje LIKE '%aplicó ciclo%' OR 
+               mensaje LIKE '%Aprobado por%' OR 
+               mensaje LIKE '%cambió a%' OR
+               mensaje LIKE '%Rechazado por%'
+          )
+        ORDER BY id DESC
+        LIMIT 250
+    """)
+    filas = c.fetchall()
+    conn.close()
+    
+    registros = [{"fecha_hora": r[0], "evento": r[1]} for r in filas]
+    return jsonify({"status": "success", "data": registros})
 
 @app.route('/api/leer_notificacion', methods=['POST'])
 @login_required
@@ -2226,89 +2458,160 @@ def whatsapp_multimedia():
 
 @app.route('/api/drilldown_radar', methods=['POST'])
 @login_required
-def drilldown_radar():
-    d = request.json
-    fecha = d.get('fecha')
-    producto = d.get('producto') 
-    tipo = d.get('tipo')
+def api_drilldown_radar():
+    data = request.get_json(silent=True) or {}
+    fecha_str = data.get('fecha')
+    producto = str(data.get('producto', '')).strip().upper()
+    tipo = data.get('tipo', 'Deficit')
+
+    if not fecha_str:
+        return jsonify({"status": "error", "msg": "Fecha no especificada."}), 400
+
+    try:
+        fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"status": "error", "msg": "Formato de fecha no válido."}), 400
 
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
+    # 1. Filtro de producto / línea
     if producto == 'CRYO':
-        prods_sql = "('ARGON', 'NITROGENO', 'OXIGENO')"
+        filtro_prod = "AND (UPPER(producto) IN ('CRYO', 'ARGON', 'NITROGENO', 'OXIGENO') OR UPPER(linea_negocio) = 'CRYO')"
+    elif producto:
+        filtro_prod = f"AND (UPPER(producto) = '{producto}' OR UPPER(linea_negocio) = '{producto}')"
     else:
-        prods_sql = f"('{producto}')"
+        filtro_prod = ""
 
-    resultados = []
+    c.execute(f"""
+        SELECT id, nombre, producto 
+        FROM operadores 
+        WHERE estatus_empleado NOT LIKE 'Baja%' {filtro_prod}
+        ORDER BY nombre
+    """)
+    operadores = c.fetchall()
 
-    if tipo == 'Plantilla':
-        c.execute(f"SELECT nombre, esquema FROM operadores WHERE estatus_empleado='Activo' AND producto IN {prods_sql}")
-        for r in c.fetchall(): 
-            resultados.append({"nombre": r[0], "detalle": f"Bloque: {r[1]}"})
+    if tipo == 'Deficit':
+        candidatos = []
+        fechas_8d = [(fecha_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        placeholders_8d = ','.join(['?'] * 8)
 
-    elif tipo == 'Disp':
-        c.execute(f"SELECT o.id, o.nombre, l.estatus FROM operadores o JOIN logistica_diaria l ON o.id = l.operador_id WHERE o.estatus_empleado='Activo' AND o.producto IN {prods_sql} AND l.fecha=? AND l.estatus LIKE 'TR%'", (fecha,))
-        activos = c.fetchall()
-        for op_id, nombre, estatus in activos:
-            dia_turno = estatus.replace('TR', '') if estatus != 'TR' else '1'
-            c.execute("SELECT horas FROM dot_diario WHERE operador_id=? AND fecha=?", (op_id, fecha))
-            res_horas = c.fetchone()
-            horas_hoy = res_horas[0] if res_horas and res_horas[0] else 0.0
-            resultados.append({
-                "nombre": nombre,
-                "detalle": f"Activo • {dia_turno} | {horas_hoy}h DOT"
-            })
-        
-        c.execute(f"SELECT o.nombre, l.estatus FROM operadores o JOIN logistica_diaria l ON o.id = l.operador_id WHERE o.estatus_empleado='Activo' AND l.fecha=? AND l.estatus = ?", (fecha, f'CB-{producto[:3]}'))
-        for r in c.fetchall(): 
-            resultados.append({"nombre": r[0], "detalle": f"Cobertura Ingresada ({r[1]})"})
+        # Ventana de proyección hacia adelante (próximos 14 días)
+        fechas_futuras = [(fecha_dt + timedelta(days=k)).strftime('%Y-%m-%d') for k in range(1, 15)]
+        placeholders_fut = ','.join(['?'] * len(fechas_futuras))
 
-    elif tipo == 'NoDisp':
-        c.execute(f"SELECT o.id, o.nombre, l.estatus FROM operadores o JOIN logistica_diaria l ON o.id = l.operador_id WHERE o.estatus_empleado='Activo' AND o.producto IN {prods_sql} AND l.fecha=? AND l.estatus NOT LIKE 'TR%' AND l.estatus NOT LIKE 'CB-%'", (fecha,))
-        nodisps = c.fetchall()
-        for op_id, nombre, estatus in nodisps:
-            fecha_regreso = None
-            if estatus == 'DE':
-                c.execute("SELECT fecha FROM logistica_diaria WHERE operador_id=? AND fecha > ? AND estatus NOT LIKE 'DE' ORDER BY fecha ASC LIMIT 1", (op_id, fecha))
-                next_tr = c.fetchone()
-                if next_tr:
-                    fecha_regreso = next_tr[0]
-                    
-            resultados.append({
-                "nombre": nombre, 
-                "detalle": f"Ausencia: {estatus}", 
-                "estatus": estatus, 
-                "fecha_regreso": fecha_regreso
-            })
+        # Días previos para evaluar reseteo continuo
+        fechas_previas = [(fecha_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(1, 8)]
 
-    elif tipo == 'Deficit':
-        c.execute(f"SELECT o.id, o.nombre FROM operadores o JOIN logistica_diaria l ON o.id = l.operador_id WHERE o.estatus_empleado='Activo' AND o.producto IN {prods_sql} AND l.fecha=? AND l.estatus = 'DE'", (fecha,))
-        candidatos = c.fetchall()
+        for op_id, op_nombre, op_prod in operadores:
+            # 1. Validar que esté descansando en la fecha consultada
+            c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id = ? AND fecha = ?", (op_id, fecha_str))
+            row_est = c.fetchone()
+            est_hoy = (row_est[0] if row_est and row_est[0] else 'DE').strip().upper()
 
-        dias_semana, _, _, _, _, _ = get_semana(fecha)
-        fechas_sem = [dia['fecha'] for dia in dias_semana]
+            if not (est_hoy == 'DE' or est_hoy.startswith('D') or est_hoy.startswith('V')):
+                continue
 
-        for op_id, nombre in candidatos:
-            c.execute("SELECT SUM(horas) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*7)), [op_id] + fechas_sem)
-            res = c.fetchone()
-            usadas = res[0] if res and res[0] else 0.0
-            libres = max(0.0, round(70.0 - usadas, 1))
+            # 2. Margen de horas DOT libres (70h menos acumuladas en 8 días)
+            c.execute(f"SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id = ? AND fecha IN ({placeholders_8d})", [op_id] + fechas_8d)
+            h_acum = float(c.fetchone()[0] or 0.0)
+            h_libres = max(0.0, round(70.0 - h_acum, 1))
 
-            if libres > 12.0:
-                dot_status = "🟢"
-            elif libres > 0:
-                dot_status = "🟡"
+            # 3. Días que faltan para reanudar turno ('TR' o 'CB')
+            c.execute(f"""
+                SELECT fecha, estatus 
+                FROM logistica_diaria 
+                WHERE operador_id = ? AND fecha IN ({placeholders_fut})
+                ORDER BY fecha ASC
+            """, [op_id] + fechas_futuras)
+            filas_fut = c.fetchall()
+
+            dias_para_volver = 999
+            fecha_regreso_str = None
+            for f_fut, est_fut in filas_fut:
+                est_clean = (est_fut or '').strip().upper()
+                if est_clean.startswith('TR') or est_clean.startswith('CB'):
+                    dias_para_volver = (datetime.strptime(f_fut, '%Y-%m-%d').date() - fecha_dt).days
+                    fecha_regreso_str = f_fut
+                    break
+
+            # 4. Detección de reseteo largo de ciclo (>= 4 días continuos de descanso)
+            descanso_continuo = 1
+            for f_prev in fechas_previas:
+                c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id = ? AND fecha = ?", (op_id, f_prev))
+                r_prev = c.fetchone()
+                est_prev = (r_prev[0] if r_prev and r_prev[0] else '').strip().upper()
+                if est_prev == 'DE' or est_prev.startswith('D') or est_prev.startswith('V'):
+                    descanso_continuo += 1
+                else:
+                    break
+
+            es_reseteo_largo = descanso_continuo >= 4
+
+            # 5. Clasificación Semafórica
+            # 🟢 Verde: Regresa hoy o mañana y tiene margen DOT suficiente
+            # 🟡 Amarillo: Regresa en 2 a 3 días
+            # 🔴 Rojo: Reseteo largo (>= 4 días) o regresa en más de 3 días
+            f_fmt = datetime.strptime(fecha_regreso_str, '%Y-%m-%d').strftime('%d/%m') if fecha_regreso_str else ''
+
+            if es_reseteo_largo or dias_para_volver > 3:
+                color = "red"
+                icono = "🔴"
+                prioridad = 3
+                if es_reseteo_largo:
+                    detalle = f"Reseteo de ciclo ({descanso_continuo}d) • " + (f"Regresa en {dias_para_volver}d ({f_fmt})" if f_fmt else "Sin regreso prog.")
+                else:
+                    detalle = f"Regreso lejano (en {dias_para_volver}d - {f_fmt})" if f_fmt else "Sin turno programado"
+            elif dias_para_volver <= 1 and h_libres >= 15.0:
+                color = "green"
+                icono = "🟢"
+                prioridad = 1
+                txt_ret = "Regresa mañana" if dias_para_volver == 1 else "Regresa hoy"
+                detalle = f"{txt_ret} ({f_fmt}) • Margen DOT disponible" if f_fmt else f"{txt_ret} • Margen DOT disponible"
             else:
-                dot_status = "🔴"
+                color = "yellow"
+                icono = "🟡"
+                prioridad = 2
+                if fecha_regreso_str:
+                    detalle = f"Regresa en {dias_para_volver} días ({f_fmt}) • {h_libres}h DOT libres"
+                else:
+                    detalle = f"Margen DOT: {h_libres}h libres • Sin fecha de reanudación"
 
-            resultados.append({
-                "nombre": nombre,
-                "detalle": f"Descanso (DE) | Margen DOT: {libres}h {dot_status}"
+            candidatos.append({
+                "nombre": op_nombre,
+                "detalle": detalle,
+                "color": color,
+                "icono": icono,
+                "libres": h_libres,
+                "prioridad": prioridad
             })
 
-    conn.close()
-    return jsonify({"status": "success", "data": resultados})
+        # 6. Ordenamiento: Prioridad ascendente (verde primero) y mayor cantidad de horas libres desc
+        candidatos.sort(key=lambda x: (x['prioridad'], -x['libres']))
+        for item in candidatos:
+            item.pop('prioridad', None)
+
+        conn.close()
+        return jsonify({"status": "success", "data": candidatos})
+
+    else:
+        # Compatibilidad para vistas de Plantilla, Disp y NoDisp
+        resultado = []
+        for op_id, op_nombre, op_prod in operadores:
+            c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id = ? AND fecha = ?", (op_id, fecha_str))
+            r = c.fetchone()
+            est = (r[0] if r and r[0] else 'DE').strip()
+            es_activo = est.startswith('TR') or est.startswith('CB')
+
+            if tipo == 'Disp' and es_activo:
+                resultado.append({"nombre": op_nombre, "detalle": f"En turno: {est}", "color": "green", "icono": "🟢", "libres": 0.0})
+            elif tipo == 'NoDisp' and not es_activo:
+                resultado.append({"nombre": op_nombre, "detalle": f"Descanso / Falta: {est}", "color": "yellow", "icono": "🟡", "libres": 0.0})
+            elif tipo == 'Plantilla':
+                resultado.append({"nombre": op_nombre, "detalle": f"Estatus: {est}", "color": "blue" if es_activo else "yellow", "icono": "🔹" if es_activo else "🔸", "libres": 0.0})
+
+        conn.close()
+        return jsonify({"status": "success", "data": resultado})
 
 # =====================================================================
 # Monitoreo operativo y telemetría de viajes
@@ -2835,6 +3138,758 @@ def api_gerencia_panel():
         "radar_operativo": data,
         "fecha_actual": centro
     })
+
+# =====================================================================
+# RADAR DE MOVIMIENTOS EN VIVO EN SÁBANA (CENTINELA VIGILANTE)
+# =====================================================================
+@app.route('/api/centinela_radar_movimientos', methods=['GET'])
+@login_required
+def centinela_radar_movimientos():
+    ultimo_id = request.args.get('ultimo_id', 0, type=int)
+    mi_nombre = session.get('nombre_real', '')
+    
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    # Si es la primera carga de la página, solo sincroniza con el ID más reciente sin alertar
+    if ultimo_id == 0:
+        c.execute("SELECT MAX(id) FROM notificaciones")
+        max_row = c.fetchone()
+        conn.close()
+        max_id = max_row[0] if (max_row and max_row[0]) else 0
+        return jsonify({"status": "success", "hay_movimiento": False, "ultimo_id": max_id})
+
+    # Consulta si entró una notificación de cambio de turno posterior al último ID visto
+    c.execute("""
+        SELECT id, mensaje, fecha 
+        FROM notificaciones 
+        WHERE id > ? 
+          AND (
+               mensaje LIKE '%modificó a%' OR 
+               mensaje LIKE '%actualizó a%' OR 
+               mensaje LIKE '%Cambio directo%' OR 
+               mensaje LIKE '%Aprobado por%'
+          )
+        ORDER BY id DESC LIMIT 1
+    """, (ultimo_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        notif_id, mensaje, fecha = row
+        # Si el cambio lo hizo otro supervisor (no el usuario que está viendo la pantalla)
+        es_mio = bool(mi_nombre and mi_nombre.lower() in mensaje.lower())
+        return jsonify({
+            "status": "success",
+            "hay_movimiento": not es_mio,
+            "ultimo_id": notif_id,
+            "mensaje": mensaje,
+            "fecha": fecha
+        })
+
+    return jsonify({"status": "success", "hay_movimiento": False, "ultimo_id": ultimo_id})
+
+# =====================================================================
+# BUS EN TIEMPO REAL (SYNC DELTA TIPO FACEBOOK)
+# =====================================================================
+@app.route('/api/sync_en_vivo', methods=['GET'])
+@login_required
+def api_sync_en_vivo():
+    ultimo_id = request.args.get('ultimo_id', 0, type=int)
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # 1. Obtener eventos ocurridos después del último ID visto por este usuario
+    c.execute("SELECT id, tipo, payload, fecha FROM sync_eventos WHERE id > ? ORDER BY id ASC LIMIT 50", (ultimo_id,))
+    filas = c.fetchall()
+    
+    # 2. Estado actual de notificaciones no leídas y solicitudes pendientes
+    c.execute("SELECT COUNT(*) FROM notificaciones WHERE leida = 0")
+    notifs_unread = c.fetchone()[0] or 0
+    
+    sols_pendientes = 0
+    if session.get('rol') == 'jefe_op':
+        c.execute("SELECT COUNT(*) FROM solicitudes_cambio WHERE estatus = 'Pendiente'")
+        sols_pendientes = c.fetchone()[0] or 0
+        
+    conn.close()
+    
+    eventos = []
+    max_id = ultimo_id
+    for r in filas:
+        ev_id, tipo, payload_str, fecha = r
+        if ev_id > max_id:
+            max_id = ev_id
+        try:
+            p_json = json.loads(payload_str)
+        except Exception:
+            p_json = {}
+        eventos.append({'id': ev_id, 'tipo': tipo, 'payload': p_json, 'fecha': fecha})
+        
+    return jsonify({
+        "status": "success",
+        "eventos": eventos,
+        "ultimo_id": max_id,
+        "total_badge": notifs_unread + sols_pendientes
+    })
+
+# =====================================================================
+# GENERADOR OFICIAL PDF DEL ROL OPERATIVO
+# =====================================================================
+@app.route('/api/descargar_rol_pdf')
+@login_required
+def descargar_rol_pdf():
+    fecha_sol = request.args.get('fecha', obtener_fecha_operativa())
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("""
+        SELECT o.nombre, o.producto, o.esquema, COALESCE(o.eco, 'N/A'), COALESCE(l.estatus, 'TR')
+        FROM operadores o
+        LEFT JOIN logistica_diaria l ON o.id = l.operador_id AND l.fecha = ?
+        WHERE o.estatus_empleado = 'Activo'
+        ORDER BY o.producto, o.nombre
+    """, (fecha_sol,))
+    filas = c.fetchall()
+    conn.close()
+
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph("<b>FNG LOGÍSTICA - ROL OPERATIVO DIARIO</b>", styles['Title']))
+    elements.append(Paragraph(f"Fecha programada: <b>{fecha_sol}</b> | Total operadores: {len(filas)}", styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    tabla_data = [["Operador", "Producto", "Bloque", "Tractor", "Estatus"]]
+    for nom, prod, esq, eco, est in filas:
+        tabla_data.append([nom, prod, esq, eco, est])
+
+    t = Table(tabla_data, colWidths=[185, 85, 85, 70, 70])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#002d5a')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('ALIGN', (0,1), (0,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('TOPPADDING', (0,0), (-1,0), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1'))
+    ]))
+    elements.append(t)
+    doc.build(elements)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment;filename=Rol_Operativo_{fecha_sol}.pdf"}
+    )
+
+
+
+# =====================================================================
+# ASISTENTE OPERATIVO PROACTIVO: CENTINELA IA Y HISTORIAL SQLite
+# =====================================================================
+@app.route('/api/centinela_historial', methods=['GET', 'DELETE'])
+@login_required
+def api_centinela_historial():
+    u = session.get('usuario')
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    if request.method == 'DELETE':
+        c.execute("DELETE FROM centinela_historial WHERE usuario = ?", (u,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "msg": "Historial limpiado"})
+    
+    # Obtener los últimos 40 mensajes de los últimos 30 días
+    c.execute("""
+        SELECT rol, mensaje, strftime('%H:%M', fecha) 
+        FROM centinela_historial 
+        WHERE usuario = ? AND fecha >= datetime('now', '-30 days', 'localtime')
+        ORDER BY id ASC LIMIT 40
+    """, (u,))
+    filas = c.fetchall()
+    conn.close()
+    mensajes = [{"rol": r[0], "mensaje": r[1], "hora": r[2]} for r in filas]
+    return jsonify({"status": "success", "mensajes": mensajes})
+
+@app.route('/api/centinela_alerta_predictiva', methods=['GET'])
+@login_required
+def api_centinela_alerta_predictiva():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    hoy = datetime.now().date()
+    fechas_obj = [(hoy + timedelta(days=i)) for i in range(1, 8)]
+    fechas_str = [f.strftime('%Y-%m-%d') for f in fechas_obj]
+
+    unidades_cfg = get_config_unidades()
+    prods = ['ARGON', 'NITROGENO', 'OXIGENO', 'CO2']
+    prefijos = {'ARGON': 'CB-ARG', 'NITROGENO': 'CB-NIT', 'OXIGENO': 'CB-OXI', 'CO2': 'CB-CO2'}
+    
+    # 1. Evaluar déficits en los próximos 7 días
+    for f in fechas_str:
+        for p in prods:
+            c.execute("SELECT l.estatus FROM logistica_diaria l JOIN operadores o ON l.operador_id = o.id WHERE o.producto=? AND l.fecha=? AND o.estatus_empleado='Activo'", (p, f))
+            estatus_list = [row[0] for row in c.fetchall()]
+            disp = sum(1 for e in estatus_list if str(e or '').startswith('TR'))
+            c.execute("SELECT COUNT(*) FROM logistica_diaria l JOIN operadores o ON l.operador_id=o.id WHERE l.estatus=? AND l.fecha=? AND o.estatus_empleado='Activo'", (prefijos[p], f))
+            disp += c.fetchone()[0]
+            deficit = disp - unidades_cfg.get(p, 0)
+            if deficit < 0:
+                dias_f = (datetime.strptime(f, '%Y-%m-%d').date() - hoy).days
+                cuando_txt = "Hoy" if dias_f == 0 else ("Mañana" if dias_f == 1 else f"En {dias_f} días")
+                def_abs = abs(deficit)
+                plural = "es" if def_abs > 1 else ""
+                conn.close()
+                return jsonify({
+                    "hay_alerta": True,
+                    "mensaje": f"⚠️ Alerta Operativa: {cuando_txt} faltan {def_abs} operador{plural} de {p}."
+                })
+
+    # 2. Evaluar ausencias justificadas en los próximos 2 días
+    c.execute("SELECT o.nombre, l.fecha, l.estatus FROM operadores o JOIN logistica_diaria l ON o.id = l.operador_id WHERE o.estatus_empleado='Activo' AND l.fecha IN (?, ?) AND l.estatus IN ('VA', 'IN', 'MED')", (fechas_str[0], fechas_str[1]))
+    ausencia = c.fetchone()
+    conn.close()
+    if ausencia:
+        est_map = {'VA': 'Vacaciones', 'IN': 'Incapacidad', 'MED': 'Cita Médica'}
+        dias_a = (datetime.strptime(ausencia[1], '%Y-%m-%d').date() - hoy).days
+        txt_a = "Mañana" if dias_a == 1 else "En 2 días"
+        return jsonify({
+            "hay_alerta": True,
+            "mensaje": f"📌 {txt_a} inicia {est_map.get(ausencia[2], 'ausencia')} de {ausencia[0]}."
+        })
+
+    return jsonify({"hay_alerta": False, "mensaje": ""})
+
+@app.route('/api/centinela_radar_5d', methods=['GET'])
+@login_required
+def api_centinela_radar_5d():
+    # Detectar el nombre del usuario activo en la sesión
+    nombre_sesion = session.get('nombre_real', 'Compañero')
+    primer_nombre = nombre_sesion.split()[0] if nombre_sesion else 'Compañero'
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    hoy = datetime.now().date()
+    fechas_5d = [(hoy + timedelta(days=i)) for i in range(1, 6)]
+    fechas_str = [f.strftime('%Y-%m-%d') for f in fechas_5d]
+
+    dias_nombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    bloques_dias = []
+
+    unidades_cfg = get_config_unidades()
+    prods = ['ARGON', 'NITROGENO', 'OXIGENO', 'CO2']
+    prefijos = {'ARGON': 'CB-ARG', 'NITROGENO': 'CB-NIT', 'OXIGENO': 'CB-OXI', 'CO2': 'CB-CO2'}
+
+    # 1. Catálogo activo con su patrón oficial
+    c.execute("SELECT id, nombre, tipo_jornada, producto FROM operadores WHERE estatus_empleado='Activo'")
+    ops_catalogo = c.fetchall()
+
+    # 2. Ventana de 15 días atrás hasta horizonte 5D en una sola consulta
+    f_min = (hoy - timedelta(days=15)).strftime('%Y-%m-%d')
+    f_max = fechas_str[-1]
+    c.execute("SELECT operador_id, fecha, estatus FROM logistica_diaria WHERE fecha BETWEEN ? AND ?", (f_min, f_max))
+    log_map = {(r[0], r[1]): (r[2] or '').strip().upper() for r in c.fetchall()}
+
+    for idx, f_obj in enumerate(fechas_5d, start=1):
+        f_str = f_obj.strftime('%Y-%m-%d')
+        nom_dia = "Mañana" if idx == 1 else f"En {idx} días"
+        tarjetas = []
+
+        # A. Ausencias Programadas Justificadas (Vacaciones, Incapacidades, Permisos)
+        for op_id, nom, patron, prod in ops_catalogo:
+            est = log_map.get((op_id, f_str), '')
+            if est in ('VA', 'IN', 'MED', 'PER'):
+                est_map = {
+                    'VA': ('Vacaciones', 'blue', 'fa-plane-departure'),
+                    'IN': ('Incapacidad', 'yellow', 'fa-briefcase-medical'),
+                    'MED': ('Cita Médica', 'yellow', 'fa-notes-medical'),
+                    'PER': ('Permiso', 'yellow', 'fa-user-clock')
+                }
+                desc, color, ico = est_map.get(est, ('Ausencia', 'blue', 'fa-user-clock'))
+                tarjetas.append({
+                    "categoria": "ausencia",
+                    "tipo": "Ausencia Programada",
+                    "color": color,
+                    "icono": ico,
+                    "texto": f"{nom} tiene programadas {desc.lower()}.",
+                    "op": nom
+                })
+
+        # B. Déficits Operativos por Producto (31 Unidades)
+        for p in prods:
+            c.execute("SELECT l.estatus FROM logistica_diaria l JOIN operadores o ON l.operador_id = o.id WHERE o.producto=? AND l.fecha=? AND o.estatus_empleado='Activo'", (p, f_str))
+            disp = sum(1 for (e,) in c.fetchall() if str(e or '').startswith('TR'))
+            c.execute("SELECT COUNT(*) FROM logistica_diaria l JOIN operadores o ON l.operador_id=o.id WHERE l.estatus=? AND l.fecha=? AND o.estatus_empleado='Activo'", (prefijos[p], f_str))
+            disp += c.fetchone()[0]
+            req = unidades_cfg.get(p, 0)
+            deficit = disp - req
+            if deficit < 0:
+                tarjetas.append({
+                    "categoria": "deficit",
+                    "tipo": "Déficit Operativo",
+                    "color": "red",
+                    "icono": "fa-exclamation-triangle",
+                    "texto": f"Faltarán {abs(deficit)} operador(es) de {p}.",
+                    "producto": p,
+                    "deficit_num": abs(deficit),
+                    "fecha": f_str
+                })
+
+        # C. Auditoría de Ciclos, Inactividad y Maniobras de Patio
+        for op_id, nom, patron, prod in ops_catalogo:
+            p_clean = (patron or '').strip().upper()
+            if '8-1-8-6' in p_clean:
+                max_de, nom_rol = 6, '8-1-8-6'
+            elif '8X4' in p_clean or '8-4' in p_clean:
+                max_de, nom_rol = 4, '8x4'
+            elif '4X4' in p_clean or '4-4' in p_clean:
+                max_de, nom_rol = 4, '4x4'
+            else:
+                max_de, nom_rol = 6, 'Variable'
+
+            est_hoy = log_map.get((op_id, f_str), '')
+
+            # 1. Falta Injustificada
+            if est_hoy == 'FA':
+                tarjetas.append({
+                    "categoria": "sobregiro",
+                    "tipo": "Incidencia de Asistencia",
+                    "color": "red",
+                    "icono": "fa-user-xmark",
+                    "texto": f"Atención: {nom} tiene falta injustificada registrada el {f_str}. Conviene revisar causa con supervisión.",
+                    "op": nom
+                })
+
+            # 2. Descanso Excesivo (Días consecutivos > Límite oficial del ciclo)
+            elif est_hoy == 'DE':
+                racha_de = 0
+                cursor_d = f_obj
+                while True:
+                    s_prev = log_map.get((op_id, cursor_d.strftime('%Y-%m-%d')), '')
+                    if s_prev == 'DE':
+                        racha_de += 1
+                        cursor_d -= timedelta(days=1)
+                    else:
+                        break
+                
+                if racha_de > max_de:
+                    tarjetas.append({
+                        "categoria": "sobregiro",
+                        "tipo": "Inactividad Prolongada",
+                        "color": "yellow",
+                        "icono": "fa-user-clock",
+                        "texto": f"Revisando la plantilla: {nom} ya suma {racha_de} días seguidos en descanso (su rol {nom_rol} marca máx. {max_de}d). ¿Lo reactivamos o confirmamos con su supervisor?",
+                        "op": nom
+                    })
+
+            # 3. Sensor de Descanso Parche (Reseteo mañoso tras jornada continua)
+            elif est_hoy.startswith('TR'):
+                d_ant1 = (f_obj - timedelta(days=1)).strftime('%Y-%m-%d')
+                d_ant2 = (f_obj - timedelta(days=2)).strftime('%Y-%m-%d')
+                if log_map.get((op_id, d_ant1), '') == 'DE' and log_map.get((op_id, d_ant2), '') != 'DE':
+                    racha_tr_previa = 0
+                    cursor_tr = f_obj - timedelta(days=2)
+                    while True:
+                        s_tr = log_map.get((op_id, cursor_tr.strftime('%Y-%m-%d')), '')
+                        if s_tr.startswith('TR') or s_tr.startswith('CB'):
+                            racha_tr_previa += 1
+                            cursor_tr -= timedelta(days=1)
+                        else:
+                            break
+                    if racha_tr_previa >= 7:
+                        tarjetas.append({
+                            "categoria": "sobregiro",
+                            "tipo": "Descanso Parche",
+                            "color": "red",
+                            "icono": "fa-shield-halved",
+                            "texto": f"Ojo, {primer_nombre}: le programaron solo 1 descanso a {nom} tras {racha_tr_previa} días continuos de viaje. Por su rol {nom_rol} requiere su descanso completo para recuperar fatiga.",
+                            "op": nom
+                        })
+
+        bloques_dias.append({
+            "idx": idx,
+            "titulo": nom_dia,
+            "fecha": f_str,
+            "fecha_corta": f"{f_obj.day} {dias_nombres[f_obj.weekday()]}",
+            "tarjetas": tarjetas
+        })
+
+    conn.close()
+    return jsonify({"status": "success", "dias": bloques_dias})
+
+@app.route('/sw.js')
+def sw():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+@app.route('/api/centinela_ia', methods=['POST'])
+@login_required
+def api_centinela_ia():
+    import requests
+    data = request.json or {}
+    pregunta = data.get('pregunta', '').strip()
+    cambio = data.get('cambio') # {operador_id, fecha, estatus_nuevo}
+    ruta_pantalla = data.get('ruta_pantalla', request.referrer or '')
+
+    nombre_usuario = session.get('nombre_real', 'Personal Operativo')
+    primer_nombre = nombre_usuario.split()[0] if nombre_usuario else 'Compañero'
+    rol_usuario = session.get('rol', 'jefe_op')
+
+    api_key_limpia = os.environ.get("GEMINI_API_KEY", "").strip()
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    hoy = datetime.now().date()
+    ruta_baja = ruta_pantalla.lower()
+    contexto_pantalla = ""
+    deficits_detectados = []
+
+    # 1. ESPECIALIZACIÓN POR PANTALLA
+    if 'diesel' in ruta_baja:
+        # Analítica de Diésel: Choferes en zona roja (>75 L de exceso)
+        c.execute("SELECT valor FROM configuracion WHERE clave='diesel_db_json'")
+        res_d = c.fetchone()
+        datos_d = json.loads(res_d[0]) if (res_d and res_d[0]) else []
+        en_rojo = [f"{ch.get('CHOFER')}: +{ch.get('TOTAL_LTS', 0):.1f}L ({ch.get('TOTAL_PCT', 0)*100:.1f}%)" for ch in datos_d if ch.get('TOTAL_LTS', 0) > 75]
+        contexto_pantalla = f"PANTALLA CONTROL DIÉSEL: Focos rojos (>75L de exceso): {', '.join(en_rojo[:4]) if en_rojo else 'Ninguno en zona crítica'}."
+
+    elif 'dot' in ruta_baja or 'recursos' in ruta_baja:
+        # Analítica DOT y RH: Licencias o exámenes médicos por vencer (<15 días)
+        c.execute("SELECT nombre, vigencia_licencia, vigencia_medica FROM operadores WHERE estatus_empleado='Activo'")
+        vencidos = []
+        for nom, v_lic, v_med in c.fetchall():
+            for tipo, val in [("Licencia", v_lic), ("Médico", v_med)]:
+                if val and val != 'N/A':
+                    try:
+                        dias = (datetime.strptime(val, '%Y-%m-%d').date() - hoy).days
+                        if 0 <= dias <= 15:
+                            vencidos.append(f"{nom} ({tipo} vence en {dias}d)")
+                    except Exception:
+                        pass
+        contexto_pantalla = f"PANTALLA DOT / RH: Vencimientos próximos (15 días): {', '.join(vencidos[:4]) if vencidos else 'Documentos en regla'}."
+
+    else:
+        # Pantalla Sábana / Acumulado: Radiografía 31 unidades
+        unidades_cfg = get_config_unidades()
+        prods = ['ARGON', 'NITROGENO', 'OXIGENO', 'CO2']
+        prefijos = {'ARGON': 'CB-ARG', 'NITROGENO': 'CB-NIT', 'OXIGENO': 'CB-OXI', 'CO2': 'CB-CO2'}
+        fechas_5d = [(hoy + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(5)]
+        for f_str in fechas_5d:
+            for p in prods:
+                c.execute("SELECT estatus FROM logistica_diaria l JOIN operadores o ON l.operador_id = o.id WHERE o.producto=? AND l.fecha=? AND o.estatus_empleado='Activo'", (p, f_str))
+                disp = sum(1 for (e,) in c.fetchall() if str(e or '').startswith('TR'))
+                c.execute("SELECT COUNT(*) FROM logistica_diaria l JOIN operadores o ON l.operador_id=o.id WHERE l.estatus=? AND l.fecha=? AND o.estatus_empleado='Activo'", (prefijos[p], f_str))
+                disp += c.fetchone()[0]
+                req = unidades_cfg.get(p, 0)
+                if disp < req:
+                    deficits_detectados.append(f"{f_str} {p}: faltan {req - disp} (Disp: {disp}/{req})")
+        contexto_pantalla = f"PANTALLA SÁBANA OPERATIVA: Déficits 31 unidades: {', '.join(deficits_detectados) if deficits_detectados else 'Flota balanceada para los 31 viajes'}."
+
+    # 2. MOTOR HÍBRIDO: CONSULTA DIRECTA LOCAL + TEXT-TO-SQL
+    hoy_str = obtener_fecha_operativa()
+    datos_consulta_dinamica = ""
+    preg_lower = pregunta.lower().strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+
+    # Detección de horizonte temporal (hoy vs mañana)
+    es_manana = 'mañana' in preg_lower or 'manana' in preg_lower
+    fecha_target = (datetime.strptime(hoy_str, '%Y-%m-%d').date() + timedelta(days=1)).strftime('%Y-%m-%d') if es_manana else hoy_str
+    txt_dia = "MAÑANA " + fecha_target if es_manana else "HOY " + hoy_str
+
+    # Detección de exportación a PDF
+    quiere_pdf = any(k in preg_lower for k in ['pdf', 'descarg', 'imprim', 'export', 'archivo'])
+    boton_pdf_html = f'<div style="margin-top:10px;"><a href="/api/descargar_rol_pdf?fecha={fecha_target}" target="_blank" style="background:#ef4444; color:white; padding:8px 14px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:12px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 3px 8px rgba(239,68,68,0.3);"><i class="fas fa-file-pdf"></i> Descargar Rol PDF ({fecha_target})</a></div>'
+
+    # A. Candidatos para acomodar, cubrir faltantes o relevos
+    if any(k in preg_lower for k in ['acomod', 'cubrir', 'relev', 'mover', 'disponibl', 'candidat', 'quien puede']):
+        fechas_8d_target = [(datetime.strptime(fecha_target, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        placeholders = ','.join(['?'] * 8)
+        
+        # 1. Operadores que descansan con horas DOT libres (NOM-087)
+        c.execute(f"""
+            SELECT o.id, o.nombre, o.producto, l.estatus,
+                   (70.0 - COALESCE((SELECT SUM(horas) FROM dot_diario WHERE operador_id=o.id AND fecha IN ({placeholders})), 0.0)) as libres
+            FROM operadores o
+            JOIN logistica_diaria l ON o.id = l.operador_id
+            WHERE l.fecha = ? AND o.estatus_empleado = 'Activo'
+              AND (l.estatus = 'DE' OR l.estatus LIKE 'D%' OR l.estatus LIKE 'V%')
+            ORDER BY libres DESC
+        """, fechas_8d_target + [fecha_target])
+        candidatos_desc = [f"{r[1]} ({r[2]}: {round(r[4], 1)}h libres)" for r in c.fetchall() if r[4] >= 15.0]
+
+        # 2. Operadores de Oxígeno activos para cruce estructural
+        c.execute("""
+            SELECT o.nombre FROM operadores o
+            JOIN logistica_diaria l ON o.id = l.operador_id
+            WHERE l.fecha = ? AND o.producto = 'OXIGENO' AND o.estatus_empleado = 'Activo'
+              AND l.estatus LIKE 'TR%'
+            LIMIT 4
+        """, (fecha_target,))
+        sobrantes_oxi = [r[0] for r in c.fetchall()]
+
+        datos_consulta_dinamica = (
+            f"\n[CANDIDATOS EN BASE DE DATOS PARA RELEVO EN {txt_dia}]:\n"
+            f"- Choferes descansando con margen DOT para jalar: {', '.join(candidatos_desc[:4]) if candidatos_desc else 'Sin choferes descansando con horas libres'}.\n"
+            f"- Choferes de Oxígeno activos para cruzar a CO2/Argón: {', '.join(sobrantes_oxi) if sobrantes_oxi else 'Ninguno disponible'}."
+        )
+
+    # B. Consulta de Descansos (aplica tanto para hoy como para mañana)
+    elif any(k in preg_lower for k in ['descans', 'descanz', 'franco', 'quien descansa', 'cuantos descansan']):
+        c.execute("""
+            SELECT o.nombre, o.producto, l.estatus 
+            FROM logistica_diaria l 
+            JOIN operadores o ON l.operador_id = o.id 
+            WHERE l.fecha = ? AND o.estatus_empleado = 'Activo' 
+              AND (l.estatus = 'DE' OR l.estatus LIKE 'D%' OR l.estatus LIKE 'V%')
+            ORDER BY o.producto, o.nombre
+        """, (fecha_target,))
+        filas_desc = c.fetchall()
+        nombres_desc = [f"{r[0]} ({r[1]} - {r[2]})" for r in filas_desc]
+        datos_consulta_dinamica = f"\n[DATOS REALES DE BD - DESCANSOS EN {txt_dia}]:\nTotal descansando: {len(filas_desc)} operadores.\nNombres: {', '.join(nombres_desc) if nombres_desc else 'Ninguno descansa en esta fecha, toda la plantilla está en turno activo.'}"
+
+    # B. Extracción infalible directa para Licencias / Exámenes Médicos
+    elif any(k in preg_lower for k in ['licencia', 'medico', 'médico', 'vencid', 'vigencia', 'vence', 'vencen']):
+        c.execute("SELECT nombre, vigencia_licencia, vigencia_medica, producto FROM operadores WHERE estatus_empleado='Activo'")
+        vencidos = []
+        por_vencer = []
+        for nom, f_lic, f_med, prod in c.fetchall():
+            for doc_tipo, val in [("Licencia", f_lic), ("Médico", f_med)]:
+                if val and val != 'N/A':
+                    try:
+                        d_dif = (datetime.strptime(val, '%Y-%m-%d').date() - hoy).days
+                        if d_dif < 0:
+                            vencidos.append(f"{nom} ({doc_tipo} VENCIDA hace {abs(d_dif)} días)")
+                        elif d_dif <= 30:
+                            por_vencer.append(f"{nom} ({doc_tipo} vence en {d_dif} días: {val})")
+                    except Exception:
+                        pass
+        datos_consulta_dinamica = f"\n[DATOS REALES DE BD - DOCUMENTACIÓN HOY {hoy_str}]:\n- Documentos vencidos ({len(vencidos)}): {', '.join(vencidos) if vencidos else 'Ninguno'}\n- Por vencer en 30 días ({len(por_vencer)}): {', '.join(por_vencer) if por_vencer else 'Ninguno'}"
+
+    # C. Consulta directa de Horas y Fatiga NOM-087 (Por chofer específico o ranking general)
+    elif any(k in preg_lower for k in ['dot', 'nom-087', 'nom087', 'hora', 'horas', 'fatiga', 'tope']):
+        fechas_8d_dot = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        placeholders_8d = ','.join(['?'] * 8)
+        
+        # 1. Buscar si nombraron a un chofer específico
+        c.execute("SELECT id, nombre, producto FROM operadores WHERE estatus_empleado='Activo'")
+        choferes_activos = c.fetchall()
+        chofer_encontrado = None
+        for op_id, op_nom, op_prod in choferes_activos:
+            partes_nom = [p.lower() for p in op_nom.split() if len(p) > 2]
+            if any(p in preg_lower for p in partes_nom):
+                chofer_encontrado = (op_id, op_nom, op_prod)
+                break
+        
+        if chofer_encontrado:
+            cid, cnom, cprod = chofer_encontrado
+            c.execute(f"SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id = ? AND fecha IN ({placeholders_8d})", [cid] + fechas_8d_dot)
+            h_acum = round(float(c.fetchone()[0] or 0.0), 1)
+            h_libres = max(0.0, round(70.0 - h_acum, 1))
+            datos_consulta_dinamica = (
+                f"\n[DATOS EXACTOS DOT NOM-087 EN VIVO]:\n"
+                f"Operador: {cnom} ({cprod})\n"
+                f"- Horas trabajadas (últimos 8 días): {h_acum}h acumuladas de 70.0h tope.\n"
+                f"- Horas disponibles: Le restan {h_libres}h libres para viaje."
+            )
+        else:
+            # Ranking general y alertas de fatiga
+            c.execute(f"""
+                SELECT o.nombre, o.producto, ROUND(COALESCE(SUM(d.horas), 0.0), 1) as tot
+                FROM operadores o
+                LEFT JOIN dot_diario d ON o.id = d.operador_id AND d.fecha IN ({placeholders_8d})
+                WHERE o.estatus_empleado = 'Activo'
+                GROUP BY o.id
+                ORDER BY tot DESC
+            """, fechas_8d_dot)
+            ranking = c.fetchall()
+            top_horas = [f"{r[0]} ({r[1]}): {r[2]}h/70h (Libres: {max(0.0, round(70.0-r[2], 1))}h)" for r in ranking[:5]]
+            criticos = [f"{r[0]} ({r[2]}h)" for r in ranking if r[2] >= 52.0]
+            msg_top = "; ".join(top_horas)
+            msg_crit = ", ".join(criticos) if criticos else "Ninguno en riesgo"
+            datos_consulta_dinamica = f"\n[DATOS GENERALES DOT NOM-087 - ULTIMOS 8 DIAS]:\n- Top 5 acumuladas: {msg_top}.\n- Choferes en zona preventiva (>=52h): {msg_crit}."
+        try:
+            prompt_sql = f"""Eres un motor que convierte preguntas en SQL de SQLite para un ERP logístico.
+FECHA DE HOY: {hoy_str}
+TABLAS DISPONIBLES:
+- operadores(id, nombre, producto, esquema, eco, vigencia_licencia, vigencia_medica, estatus_empleado)
+- logistica_diaria(operador_id, fecha, estatus) [estatus: 'TR1'..'TR15', 'DE', 'VA']
+- dot_diario(operador_id, fecha, horas, horas_manejo, horas_maniobra)
+- viajes_archivados(fecha_operativa, producto, estatus, viaje_json)
+
+PREGUNTA: "{pregunta}"
+REGLAS:
+- Genera SOLO el SELECT en una línea.
+- Sin explicaciones ni bloques markdown.
+- Si es saludo casual: responde NINGUNA"""
+
+            r_sql = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt_sql}], "temperature": 0.0, "max_tokens": 120},
+                timeout=3.5
+            )
+            if r_sql.status_code == 200:
+                q_sql = r_sql.json()["choices"][0]["message"]["content"].strip().replace('```sql', '').replace('```', '').strip()
+                if q_sql.upper().startswith("SELECT") and not any(w in q_sql.upper() for w in ["DELETE", "UPDATE", "DROP", "INSERT"]):
+                    c.execute(q_sql)
+                    filas_res = c.fetchall()
+                    cols_res = [d[0] for d in c.description] if c.description else []
+                    datos_consulta_dinamica = f"\n[DATOS REALES DE BD]:\nQuery: {q_sql}\nResultados: {filas_res[:20]}"
+        except Exception:
+            pass
+
+    # Fatiga NOM-087 en vivo (Últimos 8 días)
+    fechas_8d = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+    c.execute(f"""
+        SELECT o.nombre, o.producto, ROUND(SUM(d.horas), 1) as tot
+        FROM dot_diario d
+        JOIN operadores o ON d.operador_id = o.id
+        WHERE d.fecha IN ({','.join(['?']*8)}) AND o.estatus_empleado='Activo'
+        GROUP BY o.id
+        HAVING tot >= 52.0
+        ORDER BY tot DESC
+    """, fechas_8d)
+    fatiga_nom = [f"{r[0]} ({r[1]}): {r[2]}h/70h" for r in c.fetchall()]
+
+    # 3. Contexto modal si viene un cambio propuesto
+    detalle_cambio = ""
+    if cambio and cambio.get('operador_id'):
+        op_id = cambio['operador_id']
+        f_cambio = cambio.get('fecha', '')
+        est_nuevo = cambio.get('estatus_nuevo', '')
+        c.execute("SELECT nombre, producto FROM operadores WHERE id=?", (op_id,))
+        op_row = c.fetchone()
+        if op_row:
+            fechas_op_8d = [(datetime.strptime(f_cambio, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+            c.execute(f"SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id=? AND fecha IN ({','.join(['?']*8)})", [op_id] + fechas_op_8d)
+            h_8d = float(c.fetchone()[0] or 0.0)
+            c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id=? AND fecha=?", (op_id, f_cambio))
+            r_act = c.fetchone()
+            est_act = r_act[0] if r_act else 'TR'
+            detalle_cambio = f"EVALUACIÓN MODAL: Operador {op_row[0]} ({op_row[1]}), fecha {f_cambio}, pasar de {est_act} a {est_nuevo}. Horas DOT en 8 días: {h_8d:.1f}h/70h."
+
+    conn.close()
+
+    prompt_personalidad = f"""Eres Centinela, copiloto táctico de operaciones en FNG San Luis Potosí.
+Hablas con: {nombre_usuario} ({rol_usuario}).
+Pantalla activa: {ruta_pantalla}.
+
+REGLAS INFALIBLES DE RESPUESTA:
+1. NUNCA des largas ("dame un momento", "deja checo el sistema", "ahorita te armo el pulso"). Contesta de INMEDIATO con la información en tu primer mensaje.
+2. Si te preguntan quién descansa, cuántos descansan, licencias o números: DEBES empezar directamente con la cifra y los nombres exactos en la primera línea.
+3. Si los datos dicen que nadie descansa o que no hay registros, dilo con franqueza y claridad.
+4. Sé breve, táctico (2 a 4 renglones) y habla con la naturalidad de un colega de patio.
+
+DATOS REALES EN VIVO:
+- Situación actual: {contexto_pantalla}
+- Choferes cerca del tope NOM-087 (>=52h): {'; '.join(fatiga_nom) if fatiga_nom else 'Sin incidencias críticas'}
+{datos_consulta_dinamica}
+{f"- SOLICITUD DE REPORTE PDF: El usuario pidió PDF o descarga. DEBES incluir este botón al final de tu mensaje: {boton_pdf_html}" if quiere_pdf else ""}
+{detalle_cambio}"""
+
+    historial = data.get('historial', [])
+    texto_usuario = pregunta or "Dame un resumen del estatus de la flota y riesgos inmediatos."
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+
+    # 1. Función para consultar a Groq (Llama 3.3 70B)
+    def ejecutar_groq():
+        if not groq_key:
+            return None
+        try:
+            mensajes_groq = [{"role": "system", "content": prompt_personalidad}]
+            for h in historial[-4:]:
+                rol_g = "user" if h.get('rol') == 'user' else "assistant"
+                mensajes_groq.append({"role": rol_g, "content": str(h.get('texto', '')).strip()})
+            mensajes_groq.append({"role": "user", "content": texto_usuario})
+
+            resp_g = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "openai/gpt-oss-120b",
+                    "messages": mensajes_groq,
+                    "temperature": 0.25,
+                    "max_tokens": 350
+                },
+                timeout=7
+            )
+            if resp_g.status_code == 200:
+                return resp_g.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
+            pass
+        return None
+
+    # 2. Función para consultar a Gemini (Google)
+    def ejecutar_gemini():
+        if not api_key_limpia:
+            return None
+        try:
+            contents = [
+                {"role": "user", "parts": [{"text": f"[CONTEXTO Y ROL]\n{prompt_personalidad}\n\nConfirma de forma breve y cercana que estás listo."}]},
+                {"role": "model", "parts": [{"text": f"¡Listo y al tiro con la torre de control, {primer_nombre}! ¿Qué onda, qué revisamos hoy?"}]}
+            ]
+            for h in historial[-4:]:
+                r_m = "user" if h.get('rol') == 'user' else "model"
+                contents.append({"role": r_m, "parts": [{"text": str(h.get('texto', '')).strip()}]})
+            contents.append({"role": "user", "parts": [{"text": texto_usuario}]})
+
+            r_models = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key_limpia}", timeout=8)
+            if r_models.status_code == 200:
+                modelos = [m['name'] for m in r_models.json().get('models', []) if 'generateContent' in m.get('supportedGenerationMethods', [])]
+                candidatos = sorted(modelos, key=lambda m: (
+                    0 if '2.0-flash' in m or '2.5' in m else
+                    1 if 'flash' in m and '1.5' not in m else
+                    2 if 'flash' in m else 3
+                ))
+                for mod in candidatos:
+                    url_gen = f"https://generativelanguage.googleapis.com/v1beta/{mod}:generateContent?key={api_key_limpia}"
+                    try:
+                        resp = requests.post(url_gen, json={"contents": contents}, timeout=15)
+                        if resp.status_code == 200:
+                            return resp.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return None
+
+    # =========================================================================
+    # FUSIÓN INTELIGENTE POR ESPECIALIZACIÓN (OPCIÓN A)
+    # =========================================================================
+    # Si viene del modal de la sábana o es un chip rápido, va primero a Groq (0.5s);
+    # si es plática abierta o consulta libre, va primero a Gemini (empático).
+    es_accion_tactica = bool(cambio or (pregunta and any(pregunta.startswith(emoji) for emoji in ['🚨', '⏱️', '🔄'])))
+
+    if es_accion_tactica:
+        respuesta = ejecutar_groq() or ejecutar_gemini()
+    else:
+        respuesta = ejecutar_gemini() or ejecutar_groq()
+
+    final_resp = respuesta if respuesta else (f"🟢 Centinela: " + (f"Déficits en 5 días: {', '.join(deficits_detectados)}." if deficits_detectados else "Flota de 31 unidades en regla."))
+    
+    # Persistir pregunta del usuario y respuesta de Centinela en SQLite
+    try:
+        u_actual = session.get('usuario', 'invitado')
+        conn_hist = sqlite3.connect(DB_NAME)
+        c_hist = conn_hist.cursor()
+        if pregunta:
+            c_hist.execute("INSERT INTO centinela_historial (usuario, rol, mensaje) VALUES (?, ?, ?)", (u_actual, 'user', pregunta))
+        c_hist.execute("INSERT INTO centinela_historial (usuario, rol, mensaje) VALUES (?, ?, ?)", (u_actual, 'model', final_resp))
+        conn_hist.commit()
+        conn_hist.close()
+    except Exception:
+        pass
+
+    return jsonify({"status": "success", "respuesta": final_resp})
 
 if __name__ == '__main__':
     # En producción debug debe ser False para no exponer consola interactiva

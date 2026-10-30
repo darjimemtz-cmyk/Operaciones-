@@ -3,7 +3,47 @@
 {% block title %}Control Diésel - Analista{% endblock %}
 
 {% block extra_css %}
-<!-- Estilos centralizados en fng_maestro.css -->
+<style>
+    .glass-pill-container { display: inline-flex; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(0, 45, 90, 0.15); border-radius: 30px; padding: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .glass-pill-btn { background: transparent; border: none; padding: 8px 20px; border-radius: 25px; font-weight: 700; font-size: 13px; color: #64748b; cursor: pointer; transition: all 0.3s ease; }
+    .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
+    
+    .btn-action { padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;}
+    .btn-success { background: #10b981; color: white; box-shadow: 0 4px 10px rgba(16,185,129,0.3);}
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16,185,129,0.4);}
+    .btn-danger { background: #ef4444; color: white; box-shadow: 0 4px 10px rgba(239,68,68,0.3);}
+    
+    .form-control-local { padding: 10px 15px; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; background: #f8fafc; color: var(--fng-blue); font-weight: 600; outline: none; border: 1px solid #cbd5e1; }
+
+    .table-wrapper { width: 100%; overflow-x: auto; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; margin-bottom: 20px; background: white;}
+    .tabla-es { width: 100%; border-collapse: collapse; min-width: 950px; font-size: 13px;}
+    .tabla-es thead th { background: var(--fng-blue); color: white; padding: 12px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; border-right: 1px solid rgba(255,255,255,0.1);}
+    .tabla-es tbody td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: middle; border-right: 1px solid #e2e8f0; }
+    .tabla-es tbody tr:hover { background: #f8fafc; }
+    .tabla-es tfoot { background: #f1f5f9; font-weight: bold; }
+    .tabla-es tfoot td { padding: 12px 10px; border-top: 2px solid var(--fng-blue); text-align: center;}
+    
+    .chofer-name { text-align: left !important; font-weight: bold; color: var(--fng-blue); }
+    .lts-cell { font-weight: bold; border-radius: 6px; }
+    .celda-descanso { color: #94a3b8 !important; font-size: 11px; font-style: italic; }
+
+    /* LUPA DE AUDITORÍA Y HOVER DE CELDAS */
+    .cell-hover:not(.celda-descanso) { transition: 0.2s; }
+    .cell-hover:not(.celda-descanso):hover { background: #f1f5f9 !important; cursor: pointer; border: 2px solid var(--fng-orange) !important; transform: scale(1.05); box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; position: relative;}
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal-content-large { background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+
+    body.dark-mode .table-wrapper { background: transparent; border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .tabla-es tbody td { border-bottom-color: rgba(255,255,255,0.05); border-right-color: rgba(255,255,255,0.05); color: #cbd5e1; }
+    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.05); }
+    body.dark-mode .tabla-es tfoot { background: rgba(0,0,0,0.4); }
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
+    body.dark-mode .glass-pill-btn { color: #94a3b8; }
+    body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
+    body.dark-mode .form-control-local { background: rgba(0,0,0,0.5); color: white; border-color: rgba(255,255,255,0.2); }
+    body.dark-mode .cell-hover:not(.celda-descanso):hover { background: rgba(255,255,255,0.1) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    body.dark-mode .modal-content-large { background: #0f172a; color: white; border: 1px solid #334155; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -22,22 +62,11 @@
     </div>
 
     <!-- TABLA 1: FIRMAS CONFIRMADAS -->
-    <h3 style="color: var(--text-main); margin-top: 0;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Tabla 1: Firmas Confirmadas</h3>
+    <h3 style="color: var(--fng-blue); margin-top: 0;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Tabla 1: Firmas Confirmadas</h3>
     <div class="table-wrapper">
         <table class="tabla-es" id="tablaFirmados">
             <thead>
                 <tr>
-                    <th style="text-align:left;">Chofer / Nómina</th>
-                    <th class="col-diaria" id="th-MIE">MIÉ</th><th class="col-diaria" id="th-JUE">JUE</th><th class="col-diaria" id="th-VIE">VIE</th><th class="col-diaria" id="th-SÁB">SÁB</th><th class="col-diaria" id="th-DOM">DOM</th><th class="col-diaria" id="th-LUN">LUN</th><th class="col-diaria" id="th-MAR">MAR</th>
-                    <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
-                    <th>TOTAL (L)</th><th>TOTAL (%)</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-            <tfoot><tr><td style="text-align:right;">TOTALES:</td><td colspan="7" class="col-diaria"></td><td colspan="4" class="col-mensual" style="display:none;"></td><td id="totLtsFirmados">0.0</td><td id="totPctFirmados">0.0%</td></tr></tfoot>
-        </table>
-    </div>
-
                     <th style="text-align:left;">Chofer / Nómina</th>
                     <th class="col-diaria" id="th-MIE">MIÉ</th><th class="col-diaria" id="th-JUE">JUE</th><th class="col-diaria" id="th-VIE">VIE</th><th class="col-diaria" id="th-SÁB">SÁB</th><th class="col-diaria" id="th-DOM">DOM</th><th class="col-diaria" id="th-LUN">LUN</th><th class="col-diaria" id="th-MAR">MAR</th>
                     <th class="col-mensual" style="display:none;">S 27</th><th class="col-mensual" style="display:none;">S 28</th><th class="col-mensual" style="display:none;">S 29</th><th class="col-mensual" style="display:none;">S 30</th>
@@ -100,15 +129,199 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Contenedores seguros de datos JSON (sin alertas de VS Code) -->
-<script id="raw_diesel_data" type="application/json">{{ data | tojson | safe }}</script>
-<script id="raw_cabeceras" type="application/json">{{ cabeceras | tojson | safe }}</script>
-
 <script>
-    // Asignación limpia sin choque de sintaxis en el editor
-    window.DIESEL_DATA = JSON.parse(document.getElementById('raw_diesel_data').textContent || '[]');
-    window.CABECERAS_DIN = JSON.parse(document.getElementById('raw_cabeceras').textContent || '{}');
-</script>
+    let datosGlobales = {{ data | tojson | safe }};
+    let cabecerasDin = {{ cabeceras | tojson | safe }};
+    const ordenDias = ['MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM', 'LUN', 'MAR'];
+    const ordenSemanas = ['S27', 'S28', 'S29', 'S30'];
 
-<script src="{{ url_for('static', filename='js/diesel.js') }}?v=1.0"></script>
+    window.onload = function() {
+        actualizarCabecerasUI(cabecerasDin);
+        if(datosGlobales.length > 0) renderTablas(datosGlobales);
+    };
+
+    // NUEVO MOTOR DE INTERPOLACIÓN TÉRMICA INVERTIDA
+    function getColorTermal(valor, esPorcentaje=false) {
+        let val = parseFloat(valor);
+        if (isNaN(val)) return '#cbd5e1'; 
+        
+        // Todo número positivo representa ahorro (gastar menos de lo esperado). Verde automático.
+        if (val > 0) return '#10b981';
+
+        // Lógica de Pérdidas (Números negativos)
+        let limiteVerde = esPorcentaje ? -2.0 : -20.0;
+        let limiteRojo = esPorcentaje ? -7.5 : -70.0;
+
+        if (val >= limiteVerde) return '#10b981'; // Ej: -10 >= -20 (Verde)
+        if (val <= limiteRojo) return '#ef4444';  // Ej: -80 <= -70 (Rojo Crítico)
+
+        // Transición fluida (Ej: -45)
+        let rango = limiteVerde - limiteRojo; 
+        let progreso = (limiteVerde - val) / rango; 
+        
+        let hue;
+        if (progreso < 0.5) { 
+            hue = 45 + (1 - (progreso * 2)) * 75; // Amarillo a Verde 
+        } else { 
+            let factorAlerta = (progreso - 0.5) * 2; 
+            hue = 45 - (factorAlerta * 45); // Amarillo a Rojo 
+        }
+        return `hsl(${hue}, 85%, 45%)`;
+    }
+
+    function switchVista(vista) {
+        if(vista === 'diaria') {
+            document.getElementById('btn-diario').classList.add('active-blue');
+            document.getElementById('btn-mensual').classList.remove('active-blue');
+            document.querySelectorAll('.col-diaria').forEach(el => el.style.display = 'table-cell');
+            document.querySelectorAll('.col-mensual').forEach(el => el.style.display = 'none');
+        } else {
+            document.getElementById('btn-diario').classList.remove('active-blue');
+            document.getElementById('btn-mensual').classList.add('active-blue');
+            document.querySelectorAll('.col-diaria').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.col-mensual').forEach(el => el.style.display = 'table-cell');
+        }
+    }
+
+    function actualizarCabecerasUI(cabeceras) {
+        if(!cabeceras || Object.keys(cabeceras).length === 0) return;
+        ['th-MIE', 'th-JUE', 'th-VIE', 'th-SÁB', 'th-DOM', 'th-LUN', 'th-MAR'].forEach((id, idx) => {
+            document.getElementById(id).innerText = cabeceras[ordenDias[idx]];
+            document.getElementById(id + '-2').innerText = cabeceras[ordenDias[idx]];
+        });
+    }
+
+    async function procesarArchivo() {
+        const archivo = document.getElementById('excelFile').files[0];
+        if (!archivo) return showToast("Selecciona un archivo Excel.", "warning");
+        
+        const formData = new FormData(); 
+        formData.append("file", archivo);
+        
+        let btn = event.target.closest('.btn-action');
+        let originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extrayendo...';
+        btn.disabled = true;
+
+        try {
+            const req = await fetch('/api/procesar_matriz', { method: 'POST', body: formData });
+            const res = await req.json();
+            
+            if (res.error) return showToast("Error: " + res.error, "warning");
+            actualizarCabecerasUI(res.cabeceras);
+            
+            // Reemplazo limpio con la data JSON empacada del backend (detalles_dias incluido)
+            datosGlobales = res.data;
+            renderTablas(datosGlobales);
+            showToast("Matriz procesada y auditada correctamente.", "success");
+        } catch (err) {
+            showToast("Error de conexión con el servidor.", "warning");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    function renderTablas(datos) {
+        const tFirm = document.querySelector('#tablaFirmados tbody');
+        const tNoFirm = document.querySelector('#tablaNoFirmados tbody');
+        tFirm.innerHTML = ''; tNoFirm.innerHTML = '';
+        
+        datos.forEach(row => {
+            let html = `<tr><td class="chofer-name">${row.CHOFER}<br><span style="font-size:10px; color:#64748b; font-weight:normal;">${row.NOMINA}</span></td>`;
+            
+            ordenDias.forEach(dia => {
+                let val = (row.dias && row.dias[dia] !== undefined && row.dias[dia] !== null) ? row.dias[dia] : null;
+                let displayVal = val !== null ? val.toFixed(1) : "DESCANSO";
+                
+                // Inyectamos la clase hover y el evento onclick para la lupa forense
+                html += `<td class="col-diaria lts-cell cell-hover" onclick="abrirDetalleViaje('${row.CHOFER}', '${dia}')">${displayVal}</td>`;
+            });
+            
+            ordenSemanas.forEach(sem => {
+                let sVal = (row.semanas && row.semanas[sem] !== undefined && row.semanas[sem] !== null) ? row.semanas[sem] : 0.0;
+                html += `<td class="col-mensual lts-cell" style="display:none;">${sVal.toFixed(1)}</td>`;
+            });
+            
+            html += `<td class="total-lts lts-cell" style="font-size: 14px; border-left:2px solid #cbd5e1;">${row.TOTAL_LTS.toFixed(1)}</td>
+                     <td class="total-pct lts-cell" style="font-size: 14px;">${(row.TOTAL_PCT * 100).toFixed(1)}%</td></tr>`;
+            
+            if(row.FIRMA === 'SI') tFirm.innerHTML += html;
+            else tNoFirm.innerHTML += html;
+        });
+        
+        aplicarColoresUI();
+        calcularTotalesFooter();
+        switchVista(document.getElementById('btn-mensual').classList.contains('active-blue') ? 'mensual' : 'diaria');
+    }
+
+    // FUNCIÓN LUPA FORENSE (DRILL-DOWN)
+    function abrirDetalleViaje(chofer, dia) {
+        let op = datosGlobales.find(r => r.CHOFER === chofer);
+        if(!op || !op.detalles_dias || !op.detalles_dias[dia] || op.detalles_dias[dia].length === 0) {
+            showToast("Día de descanso o sin viajes registrados.", "warning");
+            return;
+        }
+
+        document.getElementById('mdlChofer').innerText = chofer;
+        document.getElementById('mdlDia').innerText = cabecerasDin[dia] || dia;
+        
+        let tbody = document.querySelector('#tablaListaViajes tbody');
+        tbody.innerHTML = '';
+        
+        op.detalles_dias[dia].forEach(v => {
+            let colorLts = getColorTermal(v.diferencia_lts, false);
+            let colorPct = getColorTermal(v.variacion_pct * 100, true);
+            
+            let tr = `<tr>
+                <td style="font-size:11px; white-space:nowrap;">${v.fecha}</td>
+                <td style="font-weight:900; color:var(--fng-blue);">${v.unidad}</td>
+                <td style="font-size:11px;"><b>${v.tipo_carga}</b><br><span style="color:#64748b;">${v.estacion}</span></td>
+                <td style="font-size:11px;">${v.destino}</td>
+                <td style="font-size:12px; font-weight:bold; color:#475569;">${v.km_total} <span style="font-weight:normal; color:#94a3b8;">/ ${v.km_geo}</span></td>
+                <td style="font-size:12px; font-weight:bold; color:#475569;">${v.lts_fisico} <span style="font-weight:normal; color:#94a3b8;">/ ${v.lts_geo}</span></td>
+                <td style="font-size:14px; font-weight:900; color:${colorLts}">${v.diferencia_lts.toFixed(2)} L</td>
+                <td style="font-size:14px; font-weight:900; color:${colorPct}">${(v.variacion_pct * 100).toFixed(2)} %</td>
+            </tr>`;
+            tbody.innerHTML += tr;
+        });
+        
+        document.getElementById('modalDetalleViajes').style.display = 'flex';
+    }
+
+    function calcularTotalesFooter() {
+        ['tablaFirmados', 'tablaNoFirmados'].forEach(tblId => {
+            let tSum = 0; let conteoDiasLaborados = 0;
+            document.querySelectorAll(`#${tblId} tbody tr`).forEach(tr => {
+                tSum += parseFloat(tr.querySelector('.total-lts').innerText) || 0;
+                tr.querySelectorAll('.col-diaria').forEach(td => {
+                    if(td.innerText !== 'DESCANSO' && !isNaN(parseFloat(td.innerText))) { conteoDiasLaborados++; }
+                });
+            });
+            document.getElementById(tblId === 'tablaFirmados' ? 'totLtsFirmados' : 'totLtsNoFirmados').innerText = tSum.toFixed(1);
+            let pctGlobal = conteoDiasLaborados > 0 ? (tSum / (conteoDiasLaborados * 1000)) * 100 : 0.0;
+            document.getElementById(tblId === 'tablaFirmados' ? 'totPctFirmados' : 'totPctNoFirmados').innerText = pctGlobal.toFixed(1) + '%';
+        });
+    }
+
+    function aplicarColoresUI() {
+        document.querySelectorAll('tbody td.lts-cell').forEach(celda => {
+            let v = celda.innerText.replace('%','').trim();
+            if(v === 'DESCANSO') { celda.className = celda.className + ' celda-descanso'; }
+            else { celda.style.color = getColorTermal(v, celda.classList.contains('total-pct')); }
+        });
+    }
+
+    async function sellarReporte() {
+        if(!confirm("¿Sellar Base de Datos de Diésel?")) return;
+        const req = await fetch('/api/sellar_dia', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(datosGlobales) });
+        const res = await req.json();
+        
+        let btn = document.getElementById('btnSellar');
+        btn.innerHTML = '<i class="fas fa-lock"></i> Matriz Sellada y Bloqueada';
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-success');
+        showToast(res.msg, "success");
+    }
+</script>
 {% endblock %}

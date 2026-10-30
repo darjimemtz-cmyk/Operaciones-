@@ -4,13 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}Control Maestro FNG{% endblock %}</title>
+
+    <!-- SOPORTE PWA INSTALABLE -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#002d5a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Hoja Centralizada de Estilos y Paleta Dual FNG -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/fng_maestro.css') }}?v=3.4">
     <style>
+        /* 1. TOKENS Y VARIABLES MAESTRAS DE COLOR */
+        :root { 
+            --fng-blue: #002d5a; 
+            --fng-orange: #FF8C00; 
+            --fng-blue-light: #38bdf8;
+            
+            /* TEMA CLARO (Por defecto) */
+            --bg-body: linear-gradient(135deg, #d2e0f0 0%, #eef2f5 50%, #dce5f0 100%); 
+            --bg-surface: #ffffff;
+            --bg-surface-2: #f8fafc;
+            --text-main: #002d5a; 
+            --text-muted: #64748b;
+            --border-subtle: #cbd5e1;
+            --shadow-sm: 0 5px 25px rgba(0,0,0,0.08);
+            --input-bg: rgba(255,255,255,0.6);
+        }
+        
+        body.dark-mode { 
+            /* Estilos de Tema Oscuro */
+            --bg-body: linear-gradient(135deg, #0b0f19 0%, #0f172a 100%);
+            --bg-surface: #131b2e; /* Pizarra Marino - Tarjetas y Modales */
+            --bg-surface-2: #1c2640; /* Cabeceras, Etiquetas y Elementos elevados */
+            --text-main: #f8fafc; /* Blanco titanio nítido */
+            --text-muted: #94a3b8; /* Gris plata */
+            --border-subtle: rgba(255,255,255,0.08); /* Bordes sutiles cristalinos */
+            --shadow-sm: 0 10px 30px rgba(0,0,0,0.5);
+            --input-bg: #0b0f19; /* Fondo hondo para inputs */
+        }
 
         /* 2. REGLAS UNIVERSALES DE ADAPTACIÓN (Sincronizan todo el sistema) */
         body { font-family: 'Poppins', sans-serif; background: var(--bg-body); padding: 100px 1% 40px 1%; color: var(--text-main); margin: 0; transition: background 0.3s, color 0.3s; overflow-x: hidden;}
@@ -242,6 +274,12 @@
             {% if rol not in ['seguridad', 'analista_diesel', 'operador'] %}
             <div class="dropdown-container">
                 
+                {% if rol in ['jefe_op', 'aux_dot', 'supervisor', 'gerencia', 'super_usuario'] %}
+                <span onclick="abrirAuditoria30D()" style="cursor: pointer; margin-right: 18px; font-size: 20px; color: var(--text-main); transition: 0.3s;" title="Auditoría de Movimientos (30 días)">
+                    <i class="fas fa-history"></i>
+                </span>
+                {% endif %}
+
                 {% if rol == 'jefe_op' %}
                 <span onclick="abrirModalPase()" style="cursor: pointer; margin-right: 18px; font-size: 20px; color: var(--text-main); transition: 0.3s;" title="Generar Pase de Salida">
                     <i class="fas fa-ticket-alt"></i>
@@ -253,7 +291,7 @@
                 
                 <span onclick="toggleDropdown('dropNotifTop')" style="position: relative; cursor: pointer; margin-right: 10px; font-size: 20px; color: var(--text-main); transition: 0.3s;" title="Notificaciones">
                     <i class="fas fa-bell"></i>
-                    <span class="badge {% if total_alertas == 0 %}badge-oculto{% endif %}" id="mainBadge" style="position: absolute; top: -6px; right: -8px;">{{ total_alertas }}</span>
+                    <span class="badge" id="mainBadge" style="position: absolute; top: -6px; right: -8px; display:{% if total_alertas > 0 %}inline-block{% else %}none{% endif %};">{{ total_alertas }}</span>
                 </span>
                 
                 <div id="dropNotifTop" class="dropdown-panel">
@@ -266,12 +304,7 @@
                         <!-- 1. SOLICITUDES DE AUTORIZACIÓN (EXCLUSIVO JEFE OP) -->
                         {% if rol == 'jefe_op' %}
                             {% for s in solicitudes_globales %}
-                                <div class="notif-card req" id="req-card-{{ s.id }}" style="cursor: pointer;" 
-                                     data-id="{{ s.id }}" 
-                                     data-usuario="{{ s.usuario }}" 
-                                     data-fecha="{{ s.fecha }}" 
-                                     data-info="{{ s.datos | tojson | forceescape }}" 
-                                     onclick="abrirModalSolicitudDetalle(Number(this.dataset.id), 'revisar', JSON.parse(this.dataset.info), this.dataset.usuario, this.dataset.fecha)">
+                                <div class="notif-card req" id="req-card-{{ s.id }}" style="cursor: pointer;" onclick='abrirModalSolicitudDetalle({{ s.id }}, "revisar", {{ s.datos | tojson | safe }}, "{{ s.usuario }}", "{{ s.fecha }}")'>
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                         <b style="color: var(--fng-orange);"><i class="fas fa-clock"></i> Solicitud Pendiente</b>
                                         <span style="font-size: 10px; color: var(--text-muted);">{{ s.fecha }}</span>
@@ -288,11 +321,7 @@
 
                         <!-- 2. HISTORIAL DE AVISOS Y NOTIFICACIONES GENERALES -->
                         {% for n in notificaciones_globales %}
-                            <div id="notif-{{ n.id }}" class="notif-card {% if n.leida == 0 %}unread{% endif %}" style="cursor: pointer;" 
-                                 data-id="{{ n.id }}" 
-                                 data-fecha="{{ n.fecha }}" 
-                                 data-msj="{{ n.msj | forceescape }}" 
-                                 onclick="abrirAviso(Number(this.dataset.id), this.dataset.fecha, this.dataset.msj)">
+                            <div id="notif-{{ n.id }}" class="notif-card {% if n.leida == 0 %}unread{% endif %}" style="cursor: pointer;" onclick="abrirAviso({{ n.id }}, '{{ n.fecha }}', '{{ n.msj | replace('\'', '\\\'') }}')">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                                     <b style="color: var(--text-main); font-size: 11px;"><i class="fas fa-info-circle" style="color: #38bdf8;"></i> Aviso</b>
                                     <span style="font-size: 10px; color: var(--text-muted);">{{ n.fecha }}</span>
@@ -521,9 +550,1493 @@
 
     {% block content %}{% endblock %}
 
-    <!-- ENLACE AL NÚCLEO JAVASCRIPT GLOBAL FNG -->
-    <script src="{{ url_for('static', filename='js/fng_global.js') }}?v=1.0"></script>
+    <script>
+        function abrirMenu() { document.getElementById('floatingMenu').classList.add('open'); document.getElementById('menuOverlay').classList.add('open'); }
+        function cerrarMenu() { document.getElementById('floatingMenu').classList.remove('open'); document.getElementById('menuOverlay').classList.remove('open'); }
 
+        function toggleDropdown(id) {
+            let el = document.getElementById(id);
+            if (el.style.display === 'block') { 
+                el.style.display = 'none'; 
+            } else {
+                document.querySelectorAll('.dropdown-panel').forEach(d => d.style.display = 'none');
+                el.style.display = 'block';
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-container')) {
+                document.querySelectorAll('.dropdown-panel').forEach(d => d.style.display = 'none');
+            }
+        });
+
+        if(localStorage.getItem('fng_dark_mode') === 'true') { 
+            document.body.classList.add('dark-mode'); 
+            const ts = document.getElementById('theme-switch'); if(ts) ts.checked = true;
+        }
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('fng_dark_mode', isDark);
+            const ts = document.getElementById('theme-switch'); if(ts) ts.checked = isDark;
+        }
+
+        function showToast(msg, type="success") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div'); toast.className = `toast ${type}`;
+            toast.innerHTML = (type === 'success' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-hourglass-half"></i>') + ' ' + msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000); 
+        }
+
+        let idRechazoActivo = null;
+        async function procesarSolicitud(id, accion) {
+            if(accion === 'rechazar') {
+                idRechazoActivo = id; document.getElementById('motivoRechazoInput').value = '';
+                document.getElementById('modalRechazoGlobal').style.display = 'flex'; return;
+            }
+            ejecutarAccion(id, accion, "Sin observaciones");
+        }
+
+        function enviarRechazoFinal() {
+            let motivo = document.getElementById('motivoRechazoInput').value;
+            if(!motivo) { showToast("⚠️ Ingresa un motivo para el rechazo", "warning"); return; }
+            document.getElementById('modalRechazoGlobal').style.display = 'none';
+            ejecutarAccion(idRechazoActivo, 'rechazar', motivo);
+        }
+
+        async function ejecutarAccion(id, accion, motivo) {
+            const res = await fetch('/api/gestionar_solicitud', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id, accion: accion, motivo: motivo})});
+            if(res.ok) { let card = document.getElementById(`req-card-${id}`); card.style.opacity = '0'; setTimeout(() => card.remove(), 300); showToast("Procesado", "success"); }
+        }
+
+        function buscadorGlobal(inputId, selectorTabla) {
+            let input = document.getElementById(inputId).value.toLowerCase();
+            let rows = document.querySelectorAll(selectorTabla);
+            rows.forEach(row => {
+                let nameCell = row.cells[0]; 
+                if (nameCell) { row.style.display = nameCell.textContent.toLowerCase().includes(input) ? '' : 'none'; }
+            });
+        }
+
+        function actualizarBadge(restar_todo = false) {
+            let badge = document.getElementById('mainBadge');
+            if(!badge) return;
+            if(restar_todo) { badge.style.display = 'none'; badge.innerText = "0"; return; }
+            let actual = parseInt(badge.innerText);
+            if(actual > 1) { badge.innerText = actual - 1; } 
+            else { badge.style.display = 'none'; badge.innerText = "0"; }
+        }
+
+        async function marcarTodasLeidas() {
+            const res = await fetch('/api/leer_notificacion', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: 'all'})});
+            if(res.ok) {
+                document.querySelectorAll('.notif-card.unread').forEach(el => { el.classList.remove('unread'); el.onclick = null; });
+                actualizarBadge(true);
+            }
+        }
+
+        function abrirModalPase() {
+            document.getElementById('modalPaseGlobal').style.display = 'flex';
+        }
+
+        async function enviarPaseGlobal(e) {
+            e.preventDefault();
+            const data = {
+                empleado: document.getElementById('pase_empleado').value,
+                num_emp: document.getElementById('pase_num_emp').value,
+                depto: document.getElementById('pase_depto').value,
+                puesto: document.getElementById('pase_puesto').value,
+                tipo_permiso: document.getElementById('pase_tipo').value,
+                motivo: document.getElementById('pase_motivo').value,
+                lugar: document.getElementById('pase_lugar').value,
+                hora_esperada: document.getElementById('pase_hora_salida').value,
+                hora_regreso: document.getElementById('pase_hora_regreso').value,
+                tipo_incidencia: document.getElementById('pase_incidencia').value
+            };
+
+            try {
+                const res = await fetch('/api/solicitar_pase_salida', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const responseData = await res.json();
+
+                if(responseData.status === 'success') {
+                    document.getElementById('modalPaseGlobal').style.display = 'none';
+                    document.getElementById('formPaseGlobal').reset();
+                    showToast("Pase emitido exitosamente a Caseta", "success");
+                } else {
+                    showToast("Error al emitir el pase", "warning");
+                }
+            } catch (err) {
+                showToast("Error de conexión", "warning");
+            }
+        }
+        
+        function abrirSeccionCaseta(id, btn) {
+            cerrarMenu();
+            if (typeof abrirSeccion === "function") {
+                abrirSeccion(id, null);
+            }
+            document.querySelectorAll('.sidebar-nav .sidebar-link').forEach(l => l.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+
+        let solActualData = null;
+
+        function abrirModalSolicitudDetalle(id, accion, datos, usuario, fecha) {
+            solActualData = { id: id, accion: accion, datos: datos };
+            
+            const titulo = document.getElementById('modalSolTitulo');
+            const cajaMotivo = document.getElementById('cajaMotivoRechazo');
+            const cajaBotones = document.getElementById('cajaBotonesDecision');
+
+            document.getElementById('modalSolUsuario').innerText = usuario || 'Personal de Turno';
+            document.getElementById('modalSolFecha').innerText = fecha || '--';
+            document.getElementById('modalSolOperador').innerText = datos.nombre || 'N/A';
+            
+            const fInicio = datos.fecha || '--';
+            const fFin = datos.fecha_fin || fInicio;
+            document.getElementById('modalSolCambio').innerText = `${datos.estatus_ant || 'TR'} ➔ ${datos.estatus_nuevo || 'DE'}`;
+            document.getElementById('modalSolRango').innerText = fInicio === fFin ? `Día ${fInicio}` : `Del ${fInicio} al ${fFin}`;
+            
+            cajaMotivo.style.display = 'none';
+
+            titulo.innerHTML = '<i class="fas fa-clipboard-check" style="color: var(--fng-orange);"></i> Revisión de Solicitud Operativa';
+            
+            cajaBotones.innerHTML = `
+                <button type="button" onclick="document.getElementById('modalConfirmarSolicitud').style.display='none'" class="btn-light" style="padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">Cerrar</button>
+                <button type="button" onclick="prepararRechazo()" style="padding: 10px 18px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer;"><i class="fas fa-times"></i> Rechazar</button>
+                <button type="button" onclick="ejecutarAprobacionDirecta()" style="padding: 10px 20px; border-radius: 8px; border: none; background: #10b981; color: white; font-weight: bold; cursor: pointer;"><i class="fas fa-check"></i> Aprobar Cambio</button>
+            `;
+
+            document.getElementById('modalConfirmarSolicitud').style.display = 'flex';
+        }
+
+        function prepararRechazo() {
+            solActualData.accion = 'rechazar';
+            document.getElementById('cajaMotivoRechazo').style.display = 'block';
+            const cajaBotones = document.getElementById('cajaBotonesDecision');
+            cajaBotones.innerHTML = `
+                <button type="button" onclick="abrirModalSolicitudDetalle(solActualData.id, 'revisar', solActualData.datos, document.getElementById('modalSolUsuario').innerText, document.getElementById('modalSolFecha').innerText)" class="btn-light" style="padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">Volver</button>
+                <button type="button" onclick="ejecutarDecisionFinal()" style="padding: 10px 20px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: bold; cursor: pointer;">Confirmar Rechazo</button>
+            `;
+        }
+
+        function ejecutarAprobacionDirecta() {
+            solActualData.accion = 'aprobar';
+            ejecutarDecisionFinal();
+        }
+
+        async function ejecutarDecisionFinal() {
+            if (!solActualData) return;
+            
+            let motivo = 'Sin observaciones';
+            if (solActualData.accion === 'rechazar') {
+                motivo = document.getElementById('inputMotivoRechazoDetalle').value.trim();
+                if (!motivo) {
+                    showToast("⚠️ Ingresa el motivo del rechazo", "warning");
+                    return;
+                }
+            }
+
+            document.getElementById('modalConfirmarSolicitud').style.display = 'none';
+            
+            const res = await fetch('/api/gestionar_solicitud', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: solActualData.id, accion: solActualData.accion, motivo: motivo })
+            });
+
+            if (res.ok) {
+                let card = document.getElementById(`req-card-${solActualData.id}`);
+                if (card) {
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
+                actualizarBadge();
+                showToast(solActualData.accion === 'aprobar' ? "✅ Cambio autorizado y aplicado" : "❌ Solicitud rechazada", "success");
+            } else {
+                showToast("⚠️ Error al procesar solicitud", "warning");
+            }
+        }
+
+        async function abrirAviso(id, fecha, msj) {
+            document.getElementById('avisoDetalleFecha').innerHTML = `<i class="far fa-clock"></i> ${fecha}`;
+            document.getElementById('avisoDetalleMsj').innerText = msj;
+            document.getElementById('modalAvisoDetalle').style.display = 'flex';
+            
+            let card = document.getElementById('notif-' + id);
+            if (card && card.classList.contains('unread')) {
+                const res = await fetch('/api/leer_notificacion', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({id: id})
+                });
+                if (res.ok) {
+                    card.classList.remove('unread');
+                    actualizarBadge();
+                }
+            }
+        }
+    </script>
+
+    <!-- MODAL: AUDITORÍA DE MOVIMIENTOS EN SÁBANA (30 DÍAS) -->
+    <div id="modalAuditoria30D" class="modal-overlay-global">
+        <div class="modal-box-global" style="max-width: 780px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--fng-orange); padding-bottom: 10px; margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-history" style="color: var(--fng-orange);"></i> Auditoría de Sábana (Últimos 30 días)
+                </h3>
+                <button type="button" onclick="document.getElementById('modalAuditoria30D').style.display='none'" style="background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer;"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Buscador interno compacto -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <input type="text" id="buscadorMovimientos" class="form-control" placeholder="Buscar por chofer, supervisor o estatus..." oninput="filtrarTablaAuditoria()" style="margin: 0; padding: 8px 12px; font-size: 12px;">
+                <span id="contadorAuditoria" style="font-size: 11px; font-weight: bold; color: var(--text-muted); white-space: nowrap;">0 registros</span>
+            </div>
+
+            <!-- Pastillas de conteo por supervisor (Ranking interactivo) -->
+            <div id="contenedorChipsSupervisores" style="display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 10px 2px; margin-bottom: 12px; white-space: nowrap; -webkit-overflow-scrolling: touch; flex-shrink: 0;"></div>
+
+            <!-- Tabla compacta con scroll -->
+            <div style="overflow-y: auto; flex: 1; min-height: 280px; border: 1px solid var(--border-subtle); border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left; margin: 0;">
+                    <thead style="position: sticky; top: 0; z-index: 5;">
+                        <tr>
+                            <th style="padding: 8px 10px; width: 115px; white-space: nowrap;">Fecha/Hora</th>
+                            <th style="padding: 8px 10px; width: 140px;">Supervisor</th>
+                            <th style="padding: 8px 10px; width: 160px;">Operador</th>
+                            <th style="padding: 8px 10px; width: 120px; text-align: center;">Fecha Afectada</th>
+                            <th style="padding: 8px 10px; min-width: 130px; text-align: center;">Transición</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyAuditoriaMovimientos">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                <button type="button" onclick="document.getElementById('modalAuditoria30D').style.display='none'" class="btn-light" style="padding: 8px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cacheMovimientos = [];
+
+        // Convierte nombres largos como "Claudia Guadalupe Gonzalez Hernandez" a "Claudia Gonzalez"
+        function formatearNombreCorto(nombreCompleto) {
+            if (!nombreCompleto) return "--";
+            const palabras = nombreCompleto.trim().split(/\s+/).filter(Boolean);
+            if (palabras.length <= 2) return palabras.join(" ");
+
+            // Lista de segundos nombres comunes a omitir para tomar el apellido real
+            const nombresComunes = ["DE", "DEL", "LA", "LAS", "LOS", "GUADALUPE", "JESUS", "JESÚS", "ANTONIO", "FERNANDO", "YESENIA", "JOSUE", "JOSUÉ", "EDUARDO", "LUIS"];
+            let primerNombre = palabras[0];
+            let apellido = palabras[1];
+
+            if (nombresComunes.includes(palabras[1].toUpperCase()) && palabras.length > 2) {
+                apellido = palabras[2];
+            }
+            return `${primerNombre} ${apellido}`;
+        }
+
+        function parsearMensajeMovimiento(texto) {
+            // Ejemplo: "Claudia Guadalupe Gonzalez Hernandez modificó a NESS ANTONIO MANDUJANO ALARCON el 2026-11-06: de TR9 a DE."
+            const regexModifico = /^(.*?)\s+(?:modificó a|actualizó a|cambió a)\s+(.*?)\s+(?:el|del)\s+([^:]+):\s*(?:de\s+)?(.*?)(?:\.|\s*$)/i;
+            const matchMod = texto.match(regexModifico);
+
+            if (matchMod) {
+                return {
+                    supervisor: formatearNombreCorto(matchMod[1]),
+                    operador: formatearNombreCorto(matchMod[2]),
+                    fechaAfectada: matchMod[3].trim(),
+                    movimiento: matchMod[4].trim()
+                };
+            }
+
+            // Ejemplo: "✅ Aprobado por Esteban Alvarado: Salvador Morales pasa a DE el 2026-10-22."
+            const regexAprobado = /(?:Aprobado|Rechazado)\s+por\s+(.*?):\s+(.*?)\s+(?:pasa a|se negó.*?para)\s+(.*?)\s+(?:el|del)\s+(.*?)(?:\.|\s*$)/i;
+            const matchApr = texto.match(regexAprobado);
+
+            if (matchApr) {
+                return {
+                    supervisor: formatearNombreCorto(matchApr[1]),
+                    operador: formatearNombreCorto(matchApr[2]),
+                    fechaAfectada: matchApr[4].trim(),
+                    movimiento: matchApr[3].trim()
+                };
+            }
+
+            return {
+                supervisor: "Sistema",
+                operador: "--",
+                fechaAfectada: "--",
+                movimiento: texto
+            };
+        }
+
+        async function abrirAuditoria30D() {
+            document.getElementById('modalAuditoria30D').style.display = 'flex';
+            document.getElementById('buscadorMovimientos').value = '';
+            const tbody = document.getElementById('tbodyAuditoriaMovimientos');
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Consultando últimos 30 días...</td></tr>`;
+            
+            try {
+                const res = await fetch('/api/auditoria_movimientos_30d');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    cacheMovimientos = data.data;
+                    renderizarTablaAuditoria(cacheMovimientos);
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#ef4444;">No fue posible obtener los datos.</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#ef4444;">Fallo de conexión al servidor.</td></tr>`;
+            }
+        }
+
+        function formatearBadgesEstatus(txt) {
+            return txt
+                .replace(/\bTR(\d*)\b/g, '<span style="color:#10b981; font-weight:800; font-size:11px;">TR$1</span>')
+                .replace(/\bDE\b/g, '<span style="background:#f3e8ff; color:#7e22ce; padding:1px 6px; border-radius:4px; font-weight:bold; font-size:11px;">DE</span>')
+                .replace(/\bVA\b/g, '<span style="background:#e0f2fe; color:#0369a1; padding:1px 6px; border-radius:4px; font-weight:bold; font-size:11px;">VA</span>')
+                .replace(/\bFA\b/g, '<span style="background:#ffe4e6; color:#be123c; padding:1px 6px; border-radius:4px; font-weight:bold; font-size:11px;">FA</span>')
+                .replace(/\ba\b/g, '➔');
+        }
+
+        let filtroSupervisorActivo = null;
+
+        function generarChipsSupervisores(listaCompleta) {
+            const cont = document.getElementById('contenedorChipsSupervisores');
+            if (!cont) return;
+
+            // Agrupar conteo por supervisor
+            const conteo = {};
+            listaCompleta.forEach(item => {
+                const info = parsearMensajeMovimiento(item.evento);
+                const sup = info.supervisor || 'Sistema';
+                conteo[sup] = (conteo[sup] || 0) + 1;
+            });
+
+            // Ordenar de mayor a menor número de movimientos
+            const ordenados = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+
+            let html = `
+                <button type="button" class="btn-chip ${filtroSupervisorActivo === null ? 'active' : ''}" 
+                        onclick="filtrarPorSupervisorDirecto(null)" 
+                        style="padding: 4px 10px; font-size: 11px; border-radius: 12px; border: 1px solid var(--border-subtle); background: ${filtroSupervisorActivo === null ? 'var(--fng-blue)' : 'var(--bg-surface)'}; color: ${filtroSupervisorActivo === null ? '#fff' : 'var(--text-main)'}; cursor: pointer; font-weight: 700;">
+                    Todos (${listaCompleta.length})
+                </button>
+            `;
+
+            ordenados.forEach(([sup, cant]) => {
+                const esActivo = filtroSupervisorActivo === sup;
+                html += `
+                    <button type="button" class="btn-chip" 
+                            onclick="filtrarPorSupervisorDirecto('${sup}')" 
+                            style="padding: 6px 14px; font-size: 11.5px; border-radius: 20px; border: 1px solid var(--border-subtle); background: ${esActivo ? 'var(--fng-orange)' : 'var(--bg-surface)'}; color: ${esActivo ? '#fff' : 'var(--text-main)'}; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                        <span>👤 ${sup}:</span> <b style="font-weight: 800; color: ${esActivo ? '#fff' : 'var(--fng-orange)'};">${cant} movs</b>
+                    </button>
+                `;
+            });
+
+            cont.innerHTML = html;
+        }
+
+        function filtrarPorSupervisorDirecto(sup) {
+            filtroSupervisorActivo = sup;
+            document.getElementById('buscadorMovimientos').value = '';
+            filtrarTablaAuditoria();
+        }
+
+        function renderizarTablaAuditoria(lista) {
+            const tbody = document.getElementById('tbodyAuditoriaMovimientos');
+            document.getElementById('contadorAuditoria').innerText = `${lista.length} registros`;
+            tbody.innerHTML = '';
+
+            // Regenerar pastillas de supervisores según la lista original
+            generarChipsSupervisores(cacheMovimientos);
+
+            if (lista.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Sin movimientos registrados en este lapso.</td></tr>`;
+                return;
+            }
+
+            lista.forEach(item => {
+                const info = parsearMensajeMovimiento(item.evento);
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border-subtle)';
+
+                tr.innerHTML = `
+                    <td style="padding: 6px 10px; font-weight: 600; color: var(--text-muted); font-size: 10.5px; white-space: nowrap; vertical-align: middle;">
+                        ${item.fecha_hora}
+                    </td>
+                    <td style="padding: 6px 10px; font-weight: 700; color: var(--text-main); font-size: 11px; vertical-align: middle;">
+                        <i class="fas fa-user-shield" style="font-size:10px; color:var(--fng-orange); margin-right:4px;"></i>${info.supervisor}
+                    </td>
+                    <td style="padding: 6px 10px; font-weight: 600; color: var(--text-main); font-size: 11px; vertical-align: middle;">
+                        ${info.operador}
+                    </td>
+                    <td style="padding: 6px 10px; font-weight: 600; font-size: 11px; text-align: center; color: var(--text-muted); white-space: nowrap; vertical-align: middle;">
+                        ${info.fechaAfectada}
+                    </td>
+                    <td style="padding: 6px 10px; text-align: center; font-size: 11px; vertical-align: middle;">
+                        ${formatearBadgesEstatus(info.movimiento)}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarTablaAuditoria() {
+            const q = document.getElementById('buscadorMovimientos').value.toLowerCase();
+            const filtrados = cacheMovimientos.filter(m => {
+                const info = parsearMensajeMovimiento(m.evento);
+                const coincideTexto = m.evento.toLowerCase().includes(q) || m.fecha_hora.toLowerCase().includes(q);
+                const coincideSupervisor = !filtroSupervisorActivo || info.supervisor === filtroSupervisorActivo;
+                return coincideTexto && coincideSupervisor;
+            });
+            renderizarTablaAuditoria(filtrados);
+        }
+    </script>
+
+    <!-- GLOBO CÁPSULA TIPO WHATSAPP (VERDE CON TEXTO BLANCO) -->
+    <div id="centinelaSpeech" onclick="abrirDesdeGlobo()" style="display: none; position: fixed; z-index: 9994; max-width: 280px; background: #25D366; color: #ffffff; padding: 10px 16px; border-radius: 20px 20px 4px 20px; font-size: 12px; font-weight: 600; line-height: 1.35; box-shadow: 0 10px 25px rgba(37,211,102,0.35); cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); animation: popIn 0.3s ease;">
+        <div id="centinelaSpeechTexto">Cargando...</div>
+        <span id="centinelaSpeechFlecha" style="display: none;"></span>
+    </div>
+
+    <!-- BURBUJA FLOTANTE TIPO MESSENGER CON BADGE ROJO -->
+    <div id="centinelaBubble" style="position: fixed; top: calc(100vh - 90px); right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--fng-blue), var(--fng-orange)); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: grab; box-shadow: 0 10px 25px rgba(0,45,90,0.45); z-index: 9995; user-select: none; touch-action: none; transition: transform 0.15s ease;">
+        <i class="fas fa-robot" style="pointer-events: none;"></i>
+        <span id="centinelaBadge" style="display: none; position: absolute; top: -3px; right: -3px; background: #ef4444; color: white; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">1</span>
+    </div>
+
+    <!-- VENTANA POPUP CENTINELA IA (DISEÑO 2026 FLUID GLASS) -->
+    <div id="centinelaWindow" class="centinela-panel-2026">
+        <!-- HEADER MODERNO CON CONTROLES SEGMENTADOS -->
+        <div class="c26-header">
+            <div class="c26-segmented-dock">
+                <button type="button" id="tabCentinelaChat" class="c26-seg-btn active" onclick="cambiarPestanaCentinela('chat')">
+                    <i class="fas fa-message"></i> <span>Chat</span>
+                </button>
+                <button type="button" id="tabCentinelaRadar" class="c26-seg-btn" onclick="cambiarPestanaCentinela('radar')">
+                    <i class="fas fa-bolt"></i> <span>Radar 5D</span>
+                    <span id="badgeRadarConteo" class="c26-badge-counter" style="display:none;">0</span>
+                </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="c26-icon-btn" onclick="limpiarHistorialCentinela()" title="Reiniciar chat">
+                    <i class="fas fa-sparkles"></i>
+                </button>
+                <button type="button" class="c26-icon-btn close-btn" onclick="toggleCentinelaChat()" title="Cerrar">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VISTA 1: CHAT CONVERSACIONAL CON MICRO-BUBBLES -->
+        <div id="centinelaVistaChat" class="c26-view-container">
+            <div id="centinelaChatBody" class="c26-chat-scroll">
+                {% set primer_nombre_usuario = (nombre_real or 'Operador').split(' ')[0] %}
+                <div class="c26-msg-bot intro">
+                    <div class="c26-bot-tag"><i class="fas fa-robot"></i> Centinela</div>
+                    Hola, <b>{{ primer_nombre_usuario }}</b>. Flota monitoreada en tiempo real. ¿Qué evaluamos hoy?
+                </div>
+            </div>
+
+            <!-- CHIPS FLOTANTES HORIZONTALES -->
+            <div id="centinelaQuickChips" class="c26-quick-dock">
+                <button type="button" class="c26-quick-pill" onclick="lanzarConsultaRapida('🚨 ¿Cómo andamos de déficits hoy en las 31 unidades?')">
+                    <span>🚨</span> Déficits 31 unid.
+                </button>
+                <button type="button" class="c26-quick-pill" onclick="lanzarConsultaRapida('⏱️ ¿Quién anda cerca del tope de 70h en NOM-087?')">
+                    <span>⏱️</span> Fatiga NOM-087
+                </button>
+                <button type="button" class="c26-quick-pill" onclick="lanzarConsultaRapida('🔄 ¿A quién sugieres mover para equilibrar?')">
+                    <span>🔄</span> Equilibrar
+                </button>
+            </div>
+
+            <!-- INPUT TIPO PILA MODERNA CON BOTÓN EMBEBIDO -->
+            <div class="c26-input-bar">
+                <div class="c26-input-wrapper">
+                    <input type="text" id="centinelaInput" placeholder="Pregunta o consulta la flota..." onkeypress="if(event.key==='Enter') enviarConsultaCentinela()" autocomplete="off">
+                    <button type="button" class="c26-send-btn" onclick="enviarConsultaCentinela()">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 2: RADAR TÁCTICO 5 DÍAS (CLEAN CARDS) -->
+        <div id="centinelaVistaRadar" class="c26-view-container" style="display: none;">
+            <!-- FILTROS TONALES SUTILES -->
+            <div class="c26-filter-strip">
+                <button type="button" class="c26-filter-tab active" onclick="filtrarCardsRadar('todos', this)">Todos</button>
+                <button type="button" class="c26-filter-tab f-red" onclick="filtrarCardsRadar('deficit', this)">Déficits</button>
+                <button type="button" class="c26-filter-tab f-yellow" onclick="filtrarCardsRadar('sobregiro', this)">Descansos</button>
+                <button type="button" class="c26-filter-tab f-blue" onclick="filtrarCardsRadar('ausencia', this)">Ausencias</button>
+            </div>
+
+            <!-- CONTENEDOR DESPLAZABLE -->
+            <div id="contenedorRadar5D" class="c26-radar-scroll">
+                <div class="c26-empty-state"><i class="fas fa-circle-notch fa-spin"></i> Sincronizando radar...</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* ========================================================
+           SISTEMA DE DISEÑO CENTINELA 2026 (FLUID GLASS & ISLANDS)
+           ======================================================== */
+        .centinela-panel-2026 {
+            position: fixed;
+            width: 375px;
+            max-width: 94vw;
+            height: 520px;
+            max-height: 84vh;
+            border-radius: 24px;
+            z-index: 9996;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.88) !important;
+            backdrop-filter: blur(28px) saturate(180%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.7) !important;
+            box-shadow: 0 25px 60px -15px rgba(0, 30, 70, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.92) translateY(15px);
+            transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .centinela-panel-2026.abierto {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transform: scale(1) translateY(0) !important;
+        }
+
+        body.dark-mode .centinela-panel-2026 {
+            background: rgba(15, 23, 42, 0.88) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+        }
+
+        /* CABECERA MINIMALISTA CON SEGMENTED CONTROL */
+        .c26-header {
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.5);
+        }
+        body.dark-mode .c26-header {
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .c26-segmented-dock {
+            display: inline-flex;
+            background: rgba(0, 45, 90, 0.06);
+            padding: 3px;
+            border-radius: 14px;
+            gap: 2px;
+        }
+        body.dark-mode .c26-segmented-dock {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .c26-seg-btn {
+            background: transparent;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 11px;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: inherit;
+        }
+        .c26-seg-btn i.fa-bolt {
+            color: var(--fng-orange);
+        }
+        body.dark-mode .c26-seg-btn {
+            color: #94a3b8;
+        }
+        .c26-seg-btn.active {
+            background: #ffffff;
+            color: var(--fng-blue);
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        body.dark-mode .c26-seg-btn.active {
+            background: var(--bg-surface-2);
+            color: #ffffff;
+        }
+
+        .c26-badge-counter {
+            background: #ef4444;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .c26-icon-btn {
+            background: transparent;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.15s ease;
+        }
+        .c26-icon-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-main);
+        }
+        body.dark-mode .c26-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* CONTENEDORES Y CHAT STREAM */
+        .c26-view-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .c26-chat-scroll {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .c26-msg-bot {
+            align-self: flex-start;
+            background: #ffffff;
+            color: var(--text-main);
+            padding: 12px 14px;
+            border-radius: 18px 18px 18px 4px;
+            font-size: 12.5px;
+            line-height: 1.45;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            max-width: 86%;
+        }
+        body.dark-mode .c26-msg-bot {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.06);
+            color: #f1f5f9;
+        }
+        .c26-msg-bot.intro {
+            border-left: 3px solid var(--fng-orange);
+        }
+        .c26-bot-tag {
+            font-size: 9.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--fng-orange);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .c26-msg-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--fng-blue), #034b94);
+            color: #ffffff;
+            padding: 10px 14px;
+            border-radius: 18px 18px 4px 18px;
+            font-size: 12.5px;
+            line-height: 1.4;
+            max-width: 82%;
+            box-shadow: 0 4px 12px rgba(0, 45, 90, 0.2);
+        }
+
+        /* PASTILLAS PROMPT FLOTANTES */
+        .c26-quick-dock {
+            display: flex;
+            gap: 6px;
+            padding: 6px 14px 10px 14px;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none;
+        }
+        .c26-quick-dock::-webkit-scrollbar { display: none; }
+
+        .c26-quick-pill {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 45, 90, 0.08);
+            border-radius: 20px;
+            padding: 5px 11px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+        .c26-quick-pill:hover {
+            background: #ffffff;
+            color: var(--fng-orange);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
+        body.dark-mode .c26-quick-pill {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+        }
+
+        /* INPUT BAR MODERNA */
+        .c26-input-bar {
+            padding: 10px 14px 14px 14px;
+            background: transparent;
+        }
+        .c26-input-wrapper {
+            position: relative;
+            background: #ffffff;
+            border-radius: 24px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: center;
+            padding: 3px 4px 3px 14px;
+            transition: all 0.2s ease;
+        }
+        .c26-input-wrapper:focus-within {
+            border-color: var(--fng-orange);
+            box-shadow: 0 4px 20px rgba(255, 140, 0, 0.15);
+        }
+        body.dark-mode .c26-input-wrapper {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .c26-input-wrapper input {
+            border: none !important;
+            background: transparent !important;
+            outline: none !important;
+            font-size: 12.5px;
+            font-family: inherit;
+            color: var(--text-main);
+            width: 100%;
+            padding: 6px 0;
+        }
+
+        .c26-send-btn {
+            background: var(--fng-blue);
+            color: #ffffff;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: transform 0.15s ease, background 0.2s;
+            flex-shrink: 0;
+        }
+        .c26-send-btn:hover {
+            background: var(--fng-orange);
+            transform: scale(1.06);
+        }
+
+        /* VISTA RADAR 5D ESTILO APPLE HEALTH */
+        .c26-filter-strip {
+            display: flex;
+            gap: 6px;
+            padding: 10px 14px;
+            background: transparent;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .c26-filter-strip::-webkit-scrollbar { display: none; }
+
+        .c26-filter-tab {
+            background: rgba(0, 45, 90, 0.05);
+            border: none;
+            padding: 4px 11px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .c26-filter-tab.active {
+            background: #ffffff;
+            color: var(--text-main);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            font-weight: 700;
+        }
+        .c26-filter-tab.f-red.active { background: #fee2e2; color: #b91c1c; }
+        .c26-filter-tab.f-yellow.active { background: #fef3c7; color: #b45309; }
+        .c26-filter-tab.f-blue.active { background: #e0f2fe; color: #0369a1; }
+
+        body.dark-mode .c26-filter-tab {
+            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+        }
+        body.dark-mode .c26-filter-tab.active {
+            background: var(--bg-surface-2);
+            color: #ffffff;
+        }
+
+        .c26-radar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 14px 16px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* TARJETA DE DÍA AGRUPADO (ISLAND) */
+        .c26-day-island {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 12px 14px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        body.dark-mode .c26-day-island {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .c26-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        body.dark-mode .c26-day-header {
+            border-bottom-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .c26-day-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: 0.3px;
+        }
+        .c26-day-pill {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #64748b;
+            background: rgba(0, 45, 90, 0.04);
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+        body.dark-mode .c26-day-pill {
+            background: rgba(255, 255, 255, 0.06);
+            color: #94a3b8;
+        }
+
+        /* FILA INDIVIDUAL DE ALERTA */
+        .c26-card-alert {
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: transform 0.15s ease;
+        }
+        .c26-card-alert:hover {
+            transform: translateX(2px);
+        }
+        .c26-card-alert.card-red {
+            background: #fff5f5;
+            border-left: 3px solid #ef4444;
+        }
+        .c26-card-alert.card-yellow {
+            background: #fffdf5;
+            border-left: 3px solid #f59e0b;
+        }
+        .c26-card-alert.card-blue {
+            background: #f0f7ff;
+            border-left: 3px solid #3b82f6;
+        }
+
+        body.dark-mode .c26-card-alert.card-red { background: rgba(239, 68, 68, 0.12); }
+        body.dark-mode .c26-card-alert.card-yellow { background: rgba(245, 158, 11, 0.12); }
+        body.dark-mode .c26-card-alert.card-blue { background: rgba(59, 130, 246, 0.12); }
+
+        .c26-tag-tipo {
+            font-size: 9.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .card-red .c26-tag-tipo { color: #dc2626; }
+        .card-yellow .c26-tag-tipo { color: #d97706; }
+        .card-blue .c26-tag-tipo { color: #2563eb; }
+
+        .c26-text-desc {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.35;
+        }
+
+        .c26-btn-action-ia {
+            align-self: flex-start;
+            margin-top: 4px;
+            background: var(--fng-orange);
+            color: #ffffff;
+            border: none;
+            padding: 3px 9px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+        }
+        .c26-btn-action-ia:hover {
+            filter: brightness(1.1);
+            transform: scale(1.03);
+        }
+
+        .c26-empty-state {
+            text-align: center;
+            padding: 35px 20px;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+
+    <script>
+        let centinelaHistorial = [];
+        const bubble = document.getElementById('centinelaBubble');
+        const speech = document.getElementById('centinelaSpeech');
+        const speechTxt = document.getElementById('centinelaSpeechTexto');
+        const speechArrow = document.getElementById('centinelaSpeechFlecha');
+        let currentSide = 'right';
+
+        // 1. CÁLCULO DINÁMICO: POSICIONA Y ANCLA EL ORIGEN DE LA ANIMACIÓN A LA BURBUJA
+        function posicionarVentanaCentinela() {
+            const win = document.getElementById('centinelaWindow');
+            const bRect = bubble.getBoundingClientRect();
+            const winWidth = Math.min(350, window.innerWidth - 24);
+            const winHeight = Math.min(460, window.innerHeight - 80);
+
+            win.style.width = `${winWidth}px`;
+            win.style.height = `${winHeight}px`;
+
+            const centroX = bRect.left + bRect.width / 2;
+            currentSide = (centroX < window.innerWidth / 2) ? 'left' : 'right';
+
+            // Pegado al lateral donde descansa la burbuja
+            if (currentSide === 'left') {
+                win.style.left = `${Math.max(12, bRect.left)}px`;
+                win.style.right = 'auto';
+            } else {
+                win.style.right = `${Math.max(12, window.innerWidth - bRect.right)}px`;
+                win.style.left = 'auto';
+            }
+
+            // Si la burbuja está en la parte superior, abre hacia abajo; si está abajo, hacia arriba
+            let topPos;
+            let originY = 'top';
+
+            if (bRect.top < window.innerHeight / 2) {
+                topPos = bRect.bottom + 10;
+                if (topPos + winHeight > window.innerHeight - 15) {
+                    topPos = window.innerHeight - winHeight - 15;
+                }
+                originY = 'top';
+            } else {
+                topPos = bRect.top - winHeight - 10;
+                if (topPos < 65) {
+                    topPos = 65;
+                }
+                originY = 'bottom';
+            }
+
+            win.style.top = `${topPos}px`;
+            win.style.bottom = 'auto';
+            win.style.transformOrigin = `${originY} ${currentSide}`;
+        }
+
+        // 2. COMPORTAMIENTO DRAG & SNAP (ESTILO MESSENGER)
+        let isDragging = false;
+        let hasMoved = false;
+        let startX, startY;
+        let initialLeft, initialTop;
+
+        function onPointerDown(e) {
+            const win = document.getElementById('centinelaWindow');
+            if (win && win.classList.contains('abierto')) {
+                win.classList.remove('abierto');
+            }
+            isDragging = true;
+            hasMoved = false;
+            bubble.style.transition = 'none';
+            bubble.style.cursor = 'grabbing';
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            startX = clientX;
+            startY = clientY;
+
+            const rect = bubble.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+
+            speech.style.display = 'none';
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            if (Math.hypot(dx, dy) > 6) {
+                hasMoved = true;
+            }
+
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+
+            newLeft = Math.max(10, Math.min(window.innerWidth - 66, newLeft));
+            newTop = Math.max(70, Math.min(window.innerHeight - 70, newTop));
+
+            bubble.style.left = `${newLeft}px`;
+            bubble.style.top = `${newTop}px`;
+            bubble.style.right = 'auto';
+            bubble.style.bottom = 'auto';
+        }
+
+        function onPointerUp() {
+            if (!isDragging) return;
+            isDragging = false;
+            bubble.style.cursor = 'grab';
+
+            if (!hasMoved) {
+                toggleCentinelaChat();
+                return;
+            }
+
+            bubble.style.transition = 'left 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            const rect = bubble.getBoundingClientRect();
+            const centroX = rect.left + rect.width / 2;
+
+            if (centroX < window.innerWidth / 2) {
+                bubble.style.left = '16px';
+                currentSide = 'left';
+            } else {
+                bubble.style.left = `${window.innerWidth - 72}px`;
+                currentSide = 'right';
+            }
+
+            actualizarPosicionGlobo();
+        }
+
+        bubble.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        bubble.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+
+        // 3. GLOBO DE NOTIFICACIÓN PROACTIVO EXTERNO
+        function mostrarGloboAviso(texto) {
+            speechTxt.innerHTML = texto;
+            speech.style.display = 'block';
+            actualizarPosicionGlobo();
+
+            setTimeout(() => {
+                speech.style.display = 'none';
+            }, 9000);
+        }
+
+        function actualizarPosicionGlobo() {
+            if (speech.style.display === 'none') return;
+            const bRect = bubble.getBoundingClientRect();
+
+            speech.style.top = `${bRect.top + 6}px`;
+
+            if (currentSide === 'left') {
+                speech.style.left = `${bRect.right + 12}px`;
+                speech.style.right = 'auto';
+                speechArrow.style.left = '-7px';
+                speechArrow.style.right = 'auto';
+                speechArrow.style.borderRight = '7px solid var(--fng-orange)';
+                speechArrow.style.borderLeft = 'none';
+            } else {
+                speech.style.left = 'auto';
+                speech.style.right = `${(window.innerWidth - bRect.left) + 12}px`;
+                speechArrow.style.right = '-7px';
+                speechArrow.style.left = 'auto';
+                speechArrow.style.borderLeft = '7px solid var(--fng-orange)';
+                speechArrow.style.borderRight = 'none';
+            }
+        }
+
+        function abrirDesdeGlobo() {
+            speech.style.display = 'none';
+            const win = document.getElementById('centinelaWindow');
+            if (!win.classList.contains('abierto')) {
+                toggleCentinelaChat();
+            }
+        }
+
+        // 4. RADAR ACTIVO EN SÁBANA (CENTINELA VIGILANTE)
+        let ultimoIdNotifRadar = 0;
+        let radarInicioSilencioso = true;
+
+        async function checarMovimientosSabana() {
+            try {
+                const res = await fetch(`/api/centinela_radar_movimientos?ultimo_id=${ultimoIdNotifRadar}`);
+                const d = await res.json();
+                if (d.status === 'success') {
+                    ultimoIdNotifRadar = d.ultimo_id;
+                    // Solo despliega el globo si ya pasó la carga inicial y surge un movimiento nuevo
+                    if (d.hay_movimiento && d.mensaje && !radarInicioSilencioso) {
+                        mostrarGloboAviso(`<span style="color:var(--fng-orange);"><i class="fas fa-user-edit"></i> <b>Movimiento en Sábana:</b></span> ${d.mensaje}`);
+                    }
+                    radarInicioSilencioso = false;
+                }
+            } catch (err) {}
+        }
+
+        async function cargarHistorialCentinela() {
+            try {
+                const res = await fetch('/api/centinela_historial');
+                const d = await res.json();
+                if (d.status === 'success' && d.mensajes && d.mensajes.length > 0) {
+                    const chat = document.getElementById('centinelaChatBody');
+                    chat.innerHTML = '';
+                    d.mensajes.forEach(m => {
+                        if (m.rol === 'user') {
+                            chat.innerHTML += `<div style="align-self: flex-end; background: var(--fng-blue); color: white; padding: 8px 12px; border-radius: 12px; max-width: 80%;">${m.mensaje}</div>`;
+                            centinelaHistorial.push({ rol: 'user', texto: m.mensaje });
+                        } else {
+                            chat.innerHTML += `<div style="background: rgba(0,45,90,0.06); padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--fng-orange); line-height: 1.4;">${m.mensaje}</div>`;
+                            centinelaHistorial.push({ rol: 'model', texto: m.mensaje });
+                        }
+                    });
+                    chat.scrollTop = chat.scrollHeight;
+                }
+            } catch (err) {}
+        }
+
+        async function checarAlertasPredictivasCentinela() {
+            try {
+                const res = await fetch('/api/centinela_alerta_predictiva');
+                const d = await res.json();
+                if (d.hay_alerta && d.mensaje) {
+                    const badge = document.getElementById('centinelaBadge');
+                    if (badge) {
+                        badge.innerText = "1";
+                        badge.style.display = 'inline-block';
+                    }
+                    // Muestra el globo una sola vez por sesión; al dar F5 se mantiene solo el badge
+                    const alertaGuardada = sessionStorage.getItem('centinela_alerta_vista');
+                    if (alertaGuardada !== d.mensaje) {
+                        mostrarGloboAviso(d.mensaje);
+                        sessionStorage.setItem('centinela_alerta_vista', d.mensaje);
+                    }
+                }
+            } catch (err) {}
+        }
+
+        async function limpiarHistorialCentinela() {
+            if (!confirm("¿Deseas reiniciar la conversación de Centinela?")) return;
+            try {
+                const res = await fetch('/api/centinela_historial', { method: 'DELETE' });
+                if (res.ok) {
+                    centinelaHistorial = [];
+                    const chat = document.getElementById('centinelaChatBody');
+                    chat.innerHTML = `<div style="background: rgba(0,45,90,0.06); padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--fng-orange);">🧹 Conversación reiniciada. ¿Qué evaluamos ahora?</div>`;
+                    showToast("Historial reiniciado", "success");
+                }
+            } catch (err) {}
+        }
+
+        // =====================================================================
+        // MOTOR REACTIVO EN TIEMPO REAL (LIVE-SYNC TIPO FACEBOOK)
+        // =====================================================================
+        let ultimoSyncId = 0;
+        let syncInicioSilencioso = true;
+
+        async function sincronizarEnVivo() {
+            try {
+                const res = await fetch(`/api/sync_en_vivo?ultimo_id=${ultimoSyncId}`);
+                if (!res.ok) return;
+                const d = await res.json();
+                if (d.status === 'success') {
+                    // 1. Actualizar la campanita global al instante
+                    const badge = document.getElementById('mainBadge');
+                    if (badge) {
+                        badge.innerText = d.total_badge;
+                        badge.style.display = d.total_badge > 0 ? 'inline-block' : 'none';
+                    }
+                    // 2. Procesar eventos delta solo cuando ocurran después de cargar
+                    if (d.eventos && d.eventos.length > 0) {
+                        d.eventos.forEach(ev => {
+                            if (ev.id > ultimoSyncId) ultimoSyncId = ev.id;
+                            if (!syncInicioSilencioso) {
+                                if (ev.tipo === 'notificacion') {
+                                    showToast(ev.payload.mensaje, 'warning');
+                                }
+                                if (ev.tipo === 'celda_sabana') {
+                                    document.dispatchEvent(new CustomEvent('live:celda_actualizada', { detail: ev.payload }));
+                                }
+                                document.dispatchEvent(new CustomEvent(`live:${ev.tipo}`, { detail: ev.payload }));
+                            }
+                        });
+                    } else if (d.ultimo_id > ultimoSyncId) {
+                        ultimoSyncId = d.ultimo_id;
+                    }
+                    syncInicioSilencioso = false;
+                }
+            } catch (err) {}
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checarMovimientosSabana();
+            setInterval(checarMovimientosSabana, 10000);
+            cargarHistorialCentinela();
+            setTimeout(checarAlertasPredictivasCentinela, 3500);
+            // Iniciar sincronización en vivo cada 3.5 segundos
+            sincronizarEnVivo();
+            setInterval(sincronizarEnVivo, 3500);
+        });
+
+        // 5. APERTURA Y CIERRE CON ANIMACIÓN DESDE LA BURBUJA
+        function toggleCentinelaChat() {
+            speech.style.display = 'none';
+            const win = document.getElementById('centinelaWindow');
+            const estaAbierto = win.classList.contains('abierto');
+
+            if (estaAbierto) {
+                win.classList.remove('abierto');
+            } else {
+                posicionarVentanaCentinela();
+                win.classList.add('abierto');
+                const chat = document.getElementById('centinelaChatBody');
+                if (chat) chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        function lanzarConsultaRapida(texto) {
+            const input = document.getElementById('centinelaInput');
+            if (input) {
+                input.value = texto;
+                enviarConsultaCentinela();
+            }
+        }
+
+        async function enviarConsultaCentinela(datosCambio = null) {
+            const input = document.getElementById('centinelaInput');
+            const chat = document.getElementById('centinelaChatBody');
+            const texto = input.value.trim();
+
+            if (!texto && !datosCambio) return;
+
+            if (texto) {
+                chat.innerHTML += `<div style="align-self: flex-end; background: var(--fng-blue); color: white; padding: 8px 12px; border-radius: 12px; max-width: 80%;">${texto}</div>`;
+                centinelaHistorial.push({ rol: 'user', texto: texto });
+                input.value = '';
+            }
+
+            const loadId = 'load_' + Date.now();
+            chat.innerHTML += `<div id="${loadId}" style="background: rgba(0,45,90,0.06); padding: 8px 12px; border-radius: 12px; align-self: flex-start;"><i class="fas fa-spinner fa-spin"></i> Analizando impacto...</div>`;
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                const res = await fetch('/api/centinela_ia', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pregunta: texto,
+                        cambio: datosCambio,
+                        ruta_pantalla: window.location.pathname,
+                        historial: centinelaHistorial.slice(-4)
+                    })
+                });
+                const d = await res.json();
+                document.getElementById(loadId).remove();
+                if (d.status === 'success') {
+                    chat.innerHTML += `<div style="background: rgba(0,45,90,0.06); padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--fng-orange); line-height: 1.4;">${d.respuesta}</div>`;
+                    centinelaHistorial.push({ rol: 'model', texto: d.respuesta });
+                } else {
+                    chat.innerHTML += `<div style="color: #ef4444; font-size: 11px;">⚠️ ${d.msg || 'Error al consultar'}</div>`;
+                }
+            } catch (err) {
+                document.getElementById(loadId).remove();
+                chat.innerHTML += `<div style="color: #ef4444; font-size: 11px;">⚠️ Error de conexión con Centinela.</div>`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function cambiarPestanaCentinela(tab) {
+            const vChat = document.getElementById('centinelaVistaChat');
+            const vRadar = document.getElementById('centinelaVistaRadar');
+            const tChat = document.getElementById('tabCentinelaChat');
+            const tRadar = document.getElementById('tabCentinelaRadar');
+
+            // Limpiamos estilos inline para que mande el CSS nativo de 2026
+            tChat.removeAttribute('style');
+            tRadar.removeAttribute('style');
+
+            if (tab === 'chat') {
+                vChat.style.display = 'flex';
+                vRadar.style.display = 'none';
+                tChat.classList.add('active');
+                tRadar.classList.remove('active');
+            } else {
+                vChat.style.display = 'none';
+                vRadar.style.display = 'flex';
+                tRadar.classList.add('active');
+                tChat.classList.remove('active');
+                cargarRadar5D();
+            }
+        }
+
+        async function cargarRadar5D() {
+            const cont = document.getElementById('contenedorRadar5D');
+            cont.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Escaneando próximos 5 días...</div>';
+            try {
+                const res = await fetch('/api/centinela_radar_5d');
+                const d = await res.json();
+                if (d.status === 'success' && d.dias) {
+                    cont.innerHTML = '';
+                    let totalAlertas = 0;
+
+                    d.dias.forEach(dia => {
+                        let colHtml = `
+                            <div class="c26-day-island">
+                                <div class="c26-day-header">
+                                    <span class="c26-day-title">${dia.titulo.toUpperCase()}</span>
+                                    <span class="c26-day-pill">${dia.fecha_corta}</span>
+                                </div>
+                        `;
+
+                        if (!dia.tarjetas || dia.tarjetas.length === 0) {
+                            colHtml += `<div style="font-size:11px; color:#10b981; font-weight:700; padding:4px 0;"><i class="fas fa-circle-check"></i> Todo despejado</div>`;
+                        } else {
+                            totalAlertas += dia.tarjetas.length;
+                            dia.tarjetas.forEach(t => {
+                                let cardColorClass = t.color === 'red' ? 'card-red' : (t.color === 'yellow' ? 'card-yellow' : 'card-blue');
+                                
+                                let botonAccion = '';
+                                if (t.categoria === 'deficit') {
+                                    botonAccion = `<button type="button" class="c26-btn-action-ia" onclick="preguntarSolucionIA('${t.producto}', '${dia.fecha}', ${t.deficit_num})"><i class="fas fa-sparkles"></i> Resolver con IA</button>`;
+                                }
+
+                                colHtml += `
+                                    <div class="c26-card-alert ${cardColorClass} card-radar-item" data-cat="${t.categoria}">
+                                        <div class="c26-tag-tipo"><i class="fas ${t.icono}"></i> ${t.tipo}</div>
+                                        <div class="c26-text-desc">${t.texto}</div>
+                                        ${botonAccion}
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        colHtml += `</div>`;
+                        cont.innerHTML += colHtml;
+                    });
+
+                    const badge = document.getElementById('badgeRadarConteo');
+                    if (badge) {
+                        badge.innerText = totalAlertas;
+                        badge.style.display = totalAlertas > 0 ? 'inline-block' : 'none';
+                    }
+                }
+            } catch (err) {
+                cont.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 11px;">Error al consultar radar 5D.</div>';
+            }
+        }
+
+        function filtrarCardsRadar(cat, btn) {
+            if (btn) {
+                document.querySelectorAll('.c26-filter-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            document.querySelectorAll('.card-radar-item').forEach(card => {
+                if (cat === 'todos' || card.getAttribute('data-cat') === cat) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function preguntarSolucionIA(producto, fecha, deficit) {
+            cambiarPestanaCentinela('chat');
+            const input = document.getElementById('centinelaInput');
+            input.value = `¿A quién sugieres para cubrir el faltante de ${deficit} operador(es) de ${producto} el ${fecha}?`;
+            enviarConsultaCentinela();
+        }
+    </script>
     {% block scripts %}{% endblock %}
+
+    <!-- REGISTRO DEL SERVICE WORKER PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
