@@ -83,10 +83,22 @@
     }
 
     .header-actions-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-    .btn-nav-week { background: #f1f5f9; color: var(--fng-blue); border: 1px solid #cbd5e1; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; }
+    .btn-nav-week { background: #f1f5f9; color: var(--fng-blue); border: 1px solid #cbd5e1; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; text-decoration: none; }
     .btn-nav-week:hover { background: var(--fng-blue); color: white; border-color: var(--fng-blue); }
-    .week-display-badge { background: white; padding: 5px 16px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 700; color: var(--fng-blue); text-align: center; line-height: 1.25; position: relative; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: border-color 0.2s; }
-    .week-display-badge:hover { border-color: var(--fng-orange); }
+    .range-selector-wrapper { display: flex; align-items: center; gap: 8px; background: white; padding: 4px 10px; border-radius: 10px; border: 1px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.03); flex-wrap: wrap; }
+    .range-item { display: flex; align-items: center; gap: 4px; }
+    .range-item label { font-size: 11px; font-weight: 700; color: var(--fng-blue); text-transform: uppercase; }
+    .range-item input[type="date"] { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 6px; font-size: 12px; font-weight: 600; color: var(--fng-blue); background: #f8fafc; outline: none; font-family: inherit; }
+    .range-item input[type="date"]:focus { border-color: var(--fng-orange); }
+    .week-display-badge { background: #f1f5f9; padding: 5px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 700; color: var(--fng-blue); text-align: center; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .week-display-badge:hover { border-color: var(--fng-orange); background: white; }
+
+    /* MODO OSCURO DUAL */
+    body.dark-mode .range-selector-wrapper { background: var(--bg-surface-2) !important; border-color: var(--border-subtle) !important; }
+    body.dark-mode .range-item label { color: var(--fng-blue-light) !important; }
+    body.dark-mode .range-item input[type="date"] { background: var(--bg-surface) !important; border-color: var(--border-subtle) !important; color: #ffffff !important; }
+    body.dark-mode .range-item input[type="date"]:focus { border-color: var(--fng-orange) !important; }
+    body.dark-mode .week-display-badge { background: var(--bg-surface) !important; border-color: var(--border-subtle) !important; color: #ffffff !important; }
 
     .btn-export-pdf { background: #ef4444; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; box-shadow: 0 4px 10px rgba(239,68,68,0.25); white-space: nowrap; transition: transform 0.2s, background 0.2s; height: 42px; box-sizing: border-box; }
     .btn-export-pdf:hover { background: #dc2626; transform: translateY(-1px); }
@@ -432,7 +444,7 @@
         .header-toolbar { 
             flex-direction: column; 
             align-items: stretch; 
-            gap: 12px; 
+            gap: 10px; 
         }
         .header-title-box {
             justify-content: center;
@@ -443,6 +455,22 @@
             transform: none !important;
             justify-content: center; 
             width: 100%; 
+            gap: 6px;
+        }
+        .range-selector-wrapper {
+            flex: 1;
+            max-width: calc(100% - 84px);
+            justify-content: center;
+            padding: 6px 8px;
+            gap: 6px;
+        }
+        .range-item {
+            flex: 1 1 100%;
+            justify-content: space-between;
+        }
+        .range-item input[type="date"] {
+            flex: 1;
+            margin-left: 6px;
         }
         .header-actions-right { 
             width: 100%; 
@@ -707,16 +735,26 @@
         </div>
         
         <div class="date-navigator-box">
-            <button onclick="window.location.href='?mes={{ f_atras }}'" class="btn-nav-week" title="Mes Anterior"><i class="fas fa-arrow-left"></i></button>
-            <div class="week-display-badge" onclick="document.getElementById('dateJump').showPicker()">
-                <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
-                    <i class="far fa-calendar-alt" style="color: var(--fng-orange);"></i>
-                    <span>{{ texto_mes }}</span>
+            <a href="{{ nav_atras }}" class="btn-nav-week" title="Periodo Anterior"><i class="fas fa-arrow-left"></i></a>
+            
+            <div class="range-selector-wrapper">
+                <div class="range-item">
+                    <label for="fechaIniFiltro">Del:</label>
+                    <input type="date" id="fechaIniFiltro" value="{{ fecha_inicio_req }}" onchange="filtrarRangoAutomatico()">
                 </div>
-                <!-- Control selector por mes YYYY-MM -->
-                <input type="month" id="dateJump" style="position: absolute; opacity: 0; width: 0; height: 0;" value="{{ mes_actual_str }}" onchange="window.location.href='?mes=' + this.value">
+                <div class="range-item">
+                    <label for="fechaFinFiltro">Al:</label>
+                    <input type="date" id="fechaFinFiltro" value="{{ fecha_fin_req }}" onchange="filtrarRangoAutomatico()">
+                </div>
+                <!-- Atajo rápido a mes completo sin perder la vista continua -->
+                <div class="week-display-badge" onclick="document.getElementById('dateJump').showPicker()" title="Ver mes completo">
+                    <i class="far fa-calendar-alt" style="color: var(--fng-orange); margin-right: 4px;"></i>
+                    <span>{{ texto_mes }}</span>
+                    <input type="month" id="dateJump" style="position: absolute; opacity: 0; width: 0; height: 0;" value="{{ mes_actual_str }}" onchange="window.location.href='?mes=' + this.value">
+                </div>
             </div>
-            <button onclick="window.location.href='?mes={{ f_adelante }}'" class="btn-nav-week" title="Mes Siguiente"><i class="fas fa-arrow-right"></i></button>
+
+            <a href="{{ nav_adelante }}" class="btn-nav-week" title="Periodo Siguiente"><i class="fas fa-arrow-right"></i></a>
         </div>
 
         <div class="header-actions-right">
@@ -959,6 +997,22 @@
                                     <option value="OTRO">OTRO</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <!-- SUBCATEGORIZACIÓN OFICIAL SGC / SSMA PARA ESTATUS OTRO -->
+                        <div id="contenedorSubEstatusOtro" style="margin-bottom: 12px; display: none; background: #fffbeb; border: 1px solid #fde68a; padding: 10px; border-radius: 8px;">
+                            <label style="font-size: 11px; font-weight: bold; color: #b45309;"><i class="fas fa-tags" style="font-size:9px;"></i> Causa Estandarizada (SGC / SSMA):</label>
+                            <select id="editSubEstatus" class="form-control" style="margin-top: 4px;">
+                                <option value="">-- Selecciona el motivo oficial --</option>
+                                <option value="Examen Médico / No Apto">Examen Médico / No Apto</option>
+                                <option value="Suspensión Administrativa">Suspensión Administrativa</option>
+                                <option value="Trámite de Licencia / Apto">Trámite de Licencia / Apto</option>
+                                <option value="Falta Injustificada">Falta Injustificada</option>
+                                <option value="Permiso Especial Sin Goce">Permiso Especial Sin Goce</option>
+                                <option value="Trámite Visa / R-Control">Trámite Visa / R-Control</option>
+                                <option value="Guardia / Taller Mecánico">Guardia / Taller Mecánico</option>
+                                <option value="Causa Externa / Concesión">Causa Externa / Concesión</option>
+                            </select>
                         </div>
 
                         <div id="camposVehiculosDOT">
@@ -1479,6 +1533,7 @@
             document.getElementById('editDotManejo').value = objDia.manejo || objDia.horas_manejo || 0.0;
             document.getElementById('editDotManiobra').value = objDia.maniobra || objDia.horas_maniobra || 0.0;
             document.getElementById('editObservaciones').value = objDia.observaciones || '';
+            document.getElementById('editSubEstatus').value = objDia.sub_estatus || '';
             
             if(objDia.evidencia_foto && objDia.evidencia_foto !== 'N/A') {
                 document.getElementById('visorEvidencia').src = '/evidencias/' + objDia.evidencia_foto;
@@ -1511,10 +1566,33 @@
         toggleCamposVehiculos();
     }
 
+    // Disparo inmediato al cambiar las fechas (cero botón 'Consultar')
+    function filtrarRangoAutomatico() {
+        const fIni = document.getElementById('fechaIniFiltro').value;
+        const fFin = document.getElementById('fechaFinFiltro').value;
+        if (fIni && fFin) {
+            if (fFin < fIni) {
+                showToast("⚠️ La fecha final no puede ser menor a la inicial.", "warning");
+                return;
+            }
+            window.location.href = `?fecha_inicio=${fIni}&fecha_fin=${fFin}`;
+        }
+    }
+
     function toggleCamposVehiculos() {
         const sel = document.getElementById('editDotEstatus').value;
         const cont = document.getElementById('camposVehiculosDOT');
-        if(['D', 'V', 'I', 'B', 'P', 'C'].includes(sel)) {
+        const contSub = document.getElementById('contenedorSubEstatusOtro');
+
+        // Mostrar / ocultar desplegable de incidencias
+        if (sel === 'OTRO') {
+            contSub.style.display = 'block';
+        } else {
+            contSub.style.display = 'none';
+        }
+
+        // Si es ausencia o estatus sin unidad en ruta
+        if (['D', 'V', 'I', 'B', 'P', 'C', 'OTRO'].includes(sel)) {
             cont.style.display = 'none';
             document.getElementById('editDotManejo').value = 0.0;
             document.getElementById('editDotManiobra').value = 0.0;
@@ -1567,6 +1645,12 @@
 
         if(totalHoras > 24) { showToast("⚠️ No puedes registrar más de 24h en un solo día.", "warning"); return; }
 
+        const subEstatus = document.getElementById('editSubEstatus').value;
+        if (estatus === 'OTRO' && !subEstatus) {
+            showToast("⚠️ Debes seleccionar una causa oficial para el estatus OTRO.", "warning");
+            return;
+        }
+
         let objDia = {
             fecha: fecha, 
             horas: totalHoras, 
@@ -1580,6 +1664,7 @@
             clave_nocturna: claNoc,
             viaje_mina: viaMin,
             observaciones: obs,
+            sub_estatus: subEstatus,
             auditado: (tipoReg === 'Real' ? 1 : 0)
         };
 

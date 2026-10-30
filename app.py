@@ -245,6 +245,8 @@ def init_db():
     except sqlite3.OperationalError: pass
     try: cursor.execute("ALTER TABLE dot_diario ADD COLUMN observaciones TEXT DEFAULT ''")
     except sqlite3.OperationalError: pass
+    try: cursor.execute("ALTER TABLE dot_diario ADD COLUMN sub_estatus TEXT DEFAULT ''")
+    except sqlite3.OperationalError: pass
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS pines_emergencia (id INTEGER PRIMARY KEY, operador_id INTEGER, pin TEXT, expira_en TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS solicitudes_cambio (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP, usuario_solicita TEXT, tipo_movimiento TEXT, datos_json TEXT, estatus TEXT DEFAULT 'Pendiente')''')
@@ -1357,8 +1359,59 @@ def api_obtener_amonestaciones():
 def auditoria_dot():
     if session.get('rol') not in ['jefe_op', 'aux_dot', 'super_usuario']: return abort(403)
     
-    # Extraemos el mes y generamos el arreglo completo (28 a 31 días)
-    dias_mes, texto_mes, f_atras, f_adelante, mes_actual_str = get_mes_data(request.args.get('mes'))
+    fecha_ini_req = request.args.get('fecha_inicio')
+    fecha_fin_req = request.args.get('fecha_fin')
+    mes_req = request.args.get('mes')
+    hoy = datetime.now().date()
+    nombres_dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    meses_abrev = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+    # Modo 1: Rango libre de fechas (cruces de mes, quincenas o semanas)
+    if fecha_ini_req and fecha_fin_req:
+        try:
+            f_ini = datetime.strptime(fecha_ini_req.strip(), '%Y-%m-%d').date()
+            f_fin = datetime.strptime(fecha_fin_req.strip(), '%Y-%m-%d').date()
+            if f_fin < f_ini:
+                f_ini, f_fin = f_fin, f_ini
+            # Límite de seguridad a 45 días continuos para rendimiento fluido
+            if (f_fin - f_ini).days > 45:
+                f_fin = f_ini + timedelta(days=45)
+
+            num_dias = (f_fin - f_ini).days + 1
+            dias_mes = []
+            for d in range(num_dias):
+                f_act = f_ini + timedelta(days=d)
+                dias_mes.append({
+                    'fecha': f_act.strftime('%Y-%m-%d'),
+                    'label': f"{nombres_dias[f_act.weekday()]} {f_act.day}",
+                    'es_hoy': f_act == hoy,
+                    'es_fin_semana': f_act.weekday() >= 5
+                })
+
+            texto_mes = f"{f_ini.day} {meses_abrev[f_ini.month - 1]} - {f_fin.day} {meses_abrev[f_fin.month - 1]} {f_fin.year}"
+            f_atras_ini = (f_ini - timedelta(days=num_dias)).strftime('%Y-%m-%d')
+            f_atras_fin = (f_ini - timedelta(days=1)).strftime('%Y-%m-%d')
+            f_adel_ini = (f_fin + timedelta(days=1)).strftime('%Y-%m-%d')
+            f_adel_fin = (f_fin + timedelta(days=num_dias)).strftime('%Y-%m-%d')
+            nav_atras = f"?fecha_inicio={f_atras_ini}&fecha_fin={f_atras_fin}"
+            nav_adelante = f"?fecha_inicio={f_adel_ini}&fecha_fin={f_adel_fin}"
+            mes_actual_str = f_ini.strftime('%Y-%m')
+            fecha_inicio_val = f_ini.strftime('%Y-%m-%d')
+            fecha_fin_val = f_fin.strftime('%Y-%m-%d')
+        except Exception:
+            dias_mes, texto_mes, f_atras, f_adelante, mes_actual_str = get_mes_data(mes_req)
+            nav_atras = f"?mes={f_atras}"
+            nav_adelante = f"?mes={f_adelante}"
+            fecha_inicio_val = dias_mes[0]['fecha']
+            fecha_fin_val = dias_mes[-1]['fecha']
+    else:
+        # Modo 2: Mes calendario estándar
+        dias_mes, texto_mes, f_atras, f_adelante, mes_actual_str = get_mes_data(mes_req)
+        nav_atras = f"?mes={f_atras}"
+        nav_adelante = f"?mes={f_adelante}"
+        fecha_inicio_val = dias_mes[0]['fecha']
+        fecha_fin_val = dias_mes[-1]['fecha']
+
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
     c.execute("SELECT id, no_empleado, nombre FROM operadores WHERE estatus_empleado='Activo' ORDER BY nombre")
     ops_raw = c.fetchall()
@@ -1367,23 +1420,32 @@ def auditoria_dot():
     fechas_str = [d['fecha'] for d in dias_mes]
     todos_nombres = [op[2] for op in ops_raw]
 
-    # Cálculos estrictos NOM-087: Restantes sobre los últimos 8 días respecto al límite de visualización
-    hoy = datetime.now().date()
-    mes_ref_dt = datetime.strptime(mes_actual_str, '%Y-%m').date()
-    if hoy.year == mes_ref_dt.year and hoy.month == mes_ref_dt.month:
-        fecha_fin_8d = hoy
-    else:
-        _, ult_dia = calendar.monthrange(mes_ref_dt.year, mes_ref_dt.month)
-        fecha_fin_8d = datetime(mes_ref_dt.year, mes_ref_dt.month, ult_dia).date()
-        
+    # Evaluación de fatiga NOM-087 sobre el límite de corte de la consulta
+    f_corte_dt = datetime.strptime(fecha_fin_val, '%Y-%m-%d').date()
+    fecha_fin_8d = hoy if (f_corte_dt >= hoy) else f_corte_dt
     fechas_8dias = [(fecha_fin_8d - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(8)]
 
     hoy_str = hoy.strftime('%Y-%m-%d')
     placeholders_mes = ','.join(['?'] * len(fechas_str))
 
-    # Consulta en bulto para el mes completo: DOT y Sábana cruzados en memoria
-    c.execute(f"SELECT operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, horas_manejo, horas_maniobra, auditado, evidencia_foto, tipo_registro, no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones FROM dot_diario WHERE fecha IN ({placeholders_mes})", fechas_str)
-    dot_global = {(r[0], r[1]): {'horas': r[2], 'estatus': r[3], 'estatus_dia': r[3], 'unidad': r[4], 'pipas': r[5], 'manejo': r[6], 'maniobra': r[7], 'auditado': r[8], 'evidencia_foto': r[9], 'tipo_registro': r[10], 'no_bitacora': r[11], 'folio_bhs': r[12], 'clave_nocturna': r[13], 'viaje_mina': r[14], 'observaciones': r[15]} for r in c.fetchall()}
+    # Consulta con rango abierto incorporando sub_estatus homologado
+    c.execute(f"""
+        SELECT operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, 
+               horas_manejo, horas_maniobra, auditado, evidencia_foto, tipo_registro, 
+               no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones, 
+               COALESCE(sub_estatus, '') 
+        FROM dot_diario 
+        WHERE fecha IN ({placeholders_mes})
+    """, fechas_str)
+    dot_global = {
+        (r[0], r[1]): {
+            'horas': r[2], 'estatus': r[3], 'estatus_dia': r[3], 'unidad': r[4], 'pipas': r[5], 
+            'manejo': r[6], 'maniobra': r[7], 'auditado': r[8], 'evidencia_foto': r[9], 
+            'tipo_registro': r[10], 'no_bitacora': r[11], 'folio_bhs': r[12], 
+            'clave_nocturna': r[13], 'viaje_mina': r[14], 'observaciones': r[15], 
+            'sub_estatus': r[16]
+        } for r in c.fetchall()
+    }
 
     c.execute(f"SELECT operador_id, fecha, estatus FROM logistica_diaria WHERE fecha IN ({placeholders_mes})", fechas_str)
     sabana_global = {(r[0], r[1]): (r[2] or '').strip().upper() for r in c.fetchall()}
@@ -1447,7 +1509,7 @@ def auditoria_dot():
         })
     conn.close()
     
-    return render_template('horas_dot.html', operadores=ops, dias_mes=dias_mes, texto_mes=texto_mes, lista_ocr=json.dumps(todos_nombres), f_atras=f_atras, f_adelante=f_adelante, mes_actual_str=mes_actual_str, hoy_str=hoy_str)
+    return render_template('horas_dot.html', operadores=ops, dias_mes=dias_mes, texto_mes=texto_mes, lista_ocr=json.dumps(todos_nombres), nav_atras=nav_atras, nav_adelante=nav_adelante, mes_actual_str=mes_actual_str, hoy_str=hoy_str, fecha_inicio_req=fecha_inicio_val, fecha_fin_req=fecha_fin_val)
 
 @app.route('/api/actualizar_dot', methods=['POST'])
 @login_required
@@ -1479,18 +1541,19 @@ def actualizar_dot():
             clave_noc = reg.get('clave_nocturna', '')
             viaje_mina = reg.get('viaje_mina', 'NO')
             obs = reg.get('observaciones', '')
+            sub_est = reg.get('sub_estatus', '')
             
             c.execute('''INSERT INTO dot_diario 
                          (operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, horas_manejo, horas_maniobra, auditado, 
-                         tipo_registro, no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                         tipo_registro, no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones, sub_estatus) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
                          ON CONFLICT(operador_id, fecha) DO UPDATE SET 
                          horas=excluded.horas, estatus_dia=excluded.estatus_dia, eco_unidad=excluded.eco_unidad, 
                          eco_pipas=excluded.eco_pipas, horas_manejo=excluded.horas_manejo, horas_maniobra=excluded.horas_maniobra, 
                          auditado=excluded.auditado, tipo_registro=excluded.tipo_registro, no_bitacora=excluded.no_bitacora, 
                          folio_bhs=excluded.folio_bhs, clave_nocturna=excluded.clave_nocturna, viaje_mina=excluded.viaje_mina, 
-                         observaciones=excluded.observaciones''', 
-                      (op_id, fecha, h, estatus, unidad, pipas, manejo, maniobra, auditado, tipo_reg, no_bit, folio_bhs, clave_noc, viaje_mina, obs))
+                         observaciones=excluded.observaciones, sub_estatus=excluded.sub_estatus''', 
+                      (op_id, fecha, h, estatus, unidad, pipas, manejo, maniobra, auditado, tipo_reg, no_bit, folio_bhs, clave_noc, viaje_mina, obs, sub_est))
 
             registrar_evento_sync(c, 'dot_actualizado', {
                 'operador_id': op_id,
@@ -1507,7 +1570,8 @@ def actualizar_dot():
                 'folio_bhs': folio_bhs,
                 'clave_nocturna': clave_noc,
                 'viaje_mina': viaje_mina,
-                'observaciones': obs
+                'observaciones': obs,
+                'sub_estatus': sub_est
             })
                       
         conn.commit(); return jsonify({"status": "success", "msg": "Horas actualizadas."})
@@ -2484,7 +2548,11 @@ def api_drilldown_radar():
         filtro_prod = ""
 
     c.execute(f"""
-        SELECT id, nombre, producto 
+        SELECT id, nombre, producto, 
+               COALESCE(productos_descarga, 'N/A'), 
+               COALESCE(tipo_unidad, 'FULL'), 
+               COALESCE(vigencia_licencia, 'N/A'), 
+               COALESCE(vigencia_medica, 'N/A') 
         FROM operadores 
         WHERE estatus_empleado NOT LIKE 'Baja%' {filtro_prod}
         ORDER BY nombre
@@ -2503,7 +2571,10 @@ def api_drilldown_radar():
         # Días previos para evaluar reseteo continuo
         fechas_previas = [(fecha_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(1, 8)]
 
-        for op_id, op_nombre, op_prod in operadores:
+        # Ventana de 15 días atrás para historial de rutas pesadas (Minas/Foráneos)
+        fecha_15d_ant = (fecha_dt - timedelta(days=15)).strftime('%Y-%m-%d')
+
+        for op_id, op_nombre, op_prod, op_prods_desc, op_tipo_uni, op_vlic, op_vmed in operadores:
             # 1. Validar que esté descansando en la fecha consultada
             c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id = ? AND fecha = ?", (op_id, fecha_str))
             row_est = c.fetchone()
@@ -2548,17 +2619,62 @@ def api_drilldown_radar():
 
             es_reseteo_largo = descanso_continuo >= 4
 
-            # 5. Clasificación Semafórica
-            # 🟢 Verde: Regresa hoy o mañana y tiene margen DOT suficiente
-            # 🟡 Amarillo: Regresa en 2 a 3 días
-            # 🔴 Rojo: Reseteo largo (>= 4 días) o regresa en más de 3 días
+            # --- FILTRO 1: BLINDAJE LEGAL DE VIGENCIAS (SCT / SSMA) ---
+            alertas_doc = []
+            for nom_doc, v_val in [('Licencia', op_vlic), ('Médico', op_vmed)]:
+                if v_val and v_val != 'N/A':
+                    try:
+                        d_vig = (datetime.strptime(v_val, '%Y-%m-%d').date() - fecha_dt).days
+                        if d_vig < 0:
+                            alertas_doc.append(f"{nom_doc} VENCIDA")
+                        elif d_vig <= 7:
+                            alertas_doc.append(f"{nom_doc} vence en {d_vig}d")
+                    except Exception:
+                        pass
+            doc_riesgo = len(alertas_doc) > 0
+
+            # --- FILTRO 2: EVALUACIÓN DE EFECTO DOMINÓ (DÍA SIGUIENTE) ---
+            f_manana_str = (fecha_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+            c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id = ? AND fecha = ?", (op_id, f_manana_str))
+            r_man = c.fetchone()
+            est_man = (r_man[0] if r_man and r_man[0] else 'DE').strip().upper()
+            tiene_turno_manana = est_man.startswith('TR') or est_man.startswith('CB')
+
+            # --- FILTRO 3: CERTIFICACIONES RH DE PRODUCTO ---
+            prods_upper = op_prods_desc.upper()
+            req_prod = producto.upper()
+            if req_prod == 'CRYO':
+                tiene_certificacion = any(p in prods_upper for p in ['LIN', 'LOX', 'LAR'])
+            else:
+                tiene_certificacion = (req_prod in prods_upper) or (req_prod == 'NITROGENO' and 'LIN' in prods_upper) or (req_prod == 'OXIGENO' and 'LOX' in prods_upper) or (req_prod == 'ARGON' and 'LAR' in prods_upper)
+
+            # --- FILTRO 4: HISTORIAL DE RUTAS PESADAS (15 DÍAS) ---
+            c.execute("SELECT viaje_json FROM viajes_archivados WHERE fecha_operativa >= ? AND viaje_json LIKE ?", (fecha_15d_ant, f"%{op_nombre}%"))
+            viajes_recientes = c.fetchall()
+            rutas_pesadas_count = 0
+            for (v_json_raw,) in viajes_recientes:
+                try:
+                    v_dat = json.loads(v_json_raw)
+                    if str(v_dat.get('operador', '')).strip().upper() == op_nombre.upper():
+                        escalas = v_dat.get('escalas', [])
+                        destinos_str = " ".join([str(e.get('cliente', '')).upper() + " " + str(e.get('ubicacion', '')).upper() for e in escalas])
+                        if any(k in destinos_str for k in ['MINA', 'FORANEO', 'RETORNO', 'MONTERREY', 'GUADALAJARA', 'QUERETARO']) or len(escalas) >= 2:
+                            rutas_pesadas_count += 1
+                except Exception:
+                    pass
+
+            # Clasificación Semafórica Refinada
             f_fmt = datetime.strptime(fecha_regreso_str, '%Y-%m-%d').strftime('%d/%m') if fecha_regreso_str else ''
 
-            if es_reseteo_largo or dias_para_volver > 3:
+            if es_reseteo_largo or dias_para_volver > 3 or doc_riesgo or not tiene_certificacion:
                 color = "red"
                 icono = "🔴"
                 prioridad = 3
-                if es_reseteo_largo:
+                if not tiene_certificacion:
+                    detalle = f"Sin certificación en {producto} ({op_prods_desc})"
+                elif doc_riesgo:
+                    detalle = f"Riesgo Documental: {', '.join(alertas_doc)}"
+                elif es_reseteo_largo:
                     detalle = f"Reseteo de ciclo ({descanso_continuo}d) • " + (f"Regresa en {dias_para_volver}d ({f_fmt})" if f_fmt else "Sin regreso prog.")
                 else:
                     detalle = f"Regreso lejano (en {dias_para_volver}d - {f_fmt})" if f_fmt else "Sin turno programado"
@@ -2567,13 +2683,13 @@ def api_drilldown_radar():
                 icono = "🟢"
                 prioridad = 1
                 txt_ret = "Regresa mañana" if dias_para_volver == 1 else "Regresa hoy"
-                detalle = f"{txt_ret} ({f_fmt}) • Margen DOT disponible" if f_fmt else f"{txt_ret} • Margen DOT disponible"
+                detalle = f"{txt_ret} ({f_fmt}) • Margen DOT disponible ({op_tipo_uni})"
             else:
                 color = "yellow"
                 icono = "🟡"
                 prioridad = 2
                 if fecha_regreso_str:
-                    detalle = f"Regresa en {dias_para_volver} días ({f_fmt}) • {h_libres}h DOT libres"
+                    detalle = f"Regresa en {dias_para_volver} días ({f_fmt}) • {h_libres}h libres"
                 else:
                     detalle = f"Margen DOT: {h_libres}h libres • Sin fecha de reanudación"
 
@@ -2583,7 +2699,12 @@ def api_drilldown_radar():
                 "color": color,
                 "icono": icono,
                 "libres": h_libres,
-                "prioridad": prioridad
+                "prioridad": prioridad,
+                "certificaciones": op_prods_desc,
+                "tipo_unidad": op_tipo_uni,
+                "docs_status": ", ".join(alertas_doc) if alertas_doc else "Vigente",
+                "rutas_pesadas_15d": rutas_pesadas_count,
+                "turno_manana": est_man
             })
 
         # 6. Ordenamiento: Prioridad ascendente (verde primero) y mayor cantidad de horas libres desc
@@ -3577,6 +3698,9 @@ def api_centinela_ia():
                         pass
         contexto_pantalla = f"PANTALLA DOT / RH: Vencimientos próximos (15 días): {', '.join(vencidos[:4]) if vencidos else 'Documentos en regla'}."
 
+    elif 'drilldown' in ruta_baja:
+        contexto_pantalla = "MODAL CANDIDATOS TÁCTICOS: Asignación inmediata de relevos para cubrir déficit de unidad. Priorizar menor impacto en fatiga NOM-087 y fecha de regreso."
+
     else:
         # Pantalla Sábana / Acumulado: Radiografía 31 unidades
         unidades_cfg = get_config_unidades()
@@ -3867,7 +3991,7 @@ DATOS REALES EN VIVO:
     # =========================================================================
     # Si viene del modal de la sábana o es un chip rápido, va primero a Groq (0.5s);
     # si es plática abierta o consulta libre, va primero a Gemini (empático).
-    es_accion_tactica = bool(cambio or (pregunta and any(pregunta.startswith(emoji) for emoji in ['🚨', '⏱️', '🔄'])))
+    es_accion_tactica = bool(cambio or 'drilldown' in ruta_baja or (pregunta and any(pregunta.startswith(emoji) for emoji in ['🚨', '⏱️', '🔄'])))
 
     if es_accion_tactica:
         respuesta = ejecutar_groq() or ejecutar_gemini()

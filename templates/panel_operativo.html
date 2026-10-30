@@ -129,6 +129,57 @@
     body.dark-mode .badge-dot-libre.badge-red { background: rgba(239, 68, 68, 0.25); color: #f87171; }
     body.dark-mode .badge-dot-libre.badge-blue { background: rgba(56, 189, 248, 0.25); color: #38bdf8; }
 
+    /* BANNER DICTAMEN TÁCTICO IA (TEMA DUAL Y RESPONSIVO) */
+    .caja-dictamen-ia {
+        background: linear-gradient(135deg, rgba(2, 132, 199, 0.08), rgba(255, 140, 0, 0.08));
+        border: 1px solid rgba(2, 132, 199, 0.25);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-top: 12px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+    }
+    .icono-dictamen-ia {
+        background: var(--fng-blue);
+        color: #ffffff;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px rgba(0,45,90,0.22);
+    }
+    .badge-estado-ia {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #dcfce7;
+        color: #15803d;
+        white-space: nowrap;
+    }
+    body.dark-mode .caja-dictamen-ia {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85)) !important;
+        border-color: rgba(56, 189, 248, 0.25) !important;
+    }
+    body.dark-mode .icono-dictamen-ia {
+        background: var(--fng-orange) !important;
+        color: #0f172a !important;
+    }
+    body.dark-mode .badge-estado-ia {
+        background: rgba(16, 185, 129, 0.2) !important;
+        color: #34d399 !important;
+    }
+    body.dark-mode #textoDictamenIA {
+        color: #cbd5e1 !important;
+    }
+
     /* TARJETAS DEL RESUMEN PREDICTIVO - COMPACTO */
     .predictivo-card { background: #ffffff; border-radius: 10px; padding: 10px; border-left: 5px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: flex-start; gap: 8px; transition: transform 0.2s;}
     .predictivo-card:hover { transform: translateY(-2px); }
@@ -187,13 +238,12 @@
         .date-controls input { flex: 1.3 1 auto !important; min-width: 0 !important; width: auto !important; max-width: 140px !important; padding: 7px 4px !important; font-size: 12px !important; text-align: center !important; }
         /* AJUSTE RESPONSIVO PARA EL DOCK SECUNDARIO */
         .sub-dock-container {
-            width: 100%; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; box-sizing: border-box;
+            width: 100%; display: flex; overflow-x: hidden; box-sizing: border-box;
         }
-        .sub-dock-container::-webkit-scrollbar { display: none; }
-        .sub-dock { width: 100%; display: flex; box-sizing: border-box; padding: 4px; }
-        .sub-dock-btn { flex: 1; justify-content: center; padding: 8px 4px; font-size: 11px; white-space: nowrap; gap: 4px; }
+        .sub-dock { width: 100%; display: flex; box-sizing: border-box; padding: 4px; gap: 4px; }
+        .sub-dock-btn { flex: 1 1 0; min-width: 0; justify-content: center; padding: 8px 2px; font-size: 11px; white-space: nowrap; gap: 4px; }
         .sub-dock-btn i { font-size: 11px; }
+        .txt-dock-desktop { display: none !important; }
     }
 
     /* FORZAR TEXTO BLANCO BRILLANTE EN MODO OSCURO (RADAR OPERATIVO) */
@@ -507,11 +557,11 @@
         <!-- DOCK PREDICTIVO -->
         <div class="sub-dock-container">
             <div class="sub-dock">
-                <button class="sub-dock-btn pred-btn active" onclick="switchPredictivoTab('sub-pred-ausencias', this)"><i class="fas fa-user-clock"></i> Personal y Ausencias</button>
-                <button class="sub-dock-btn pred-btn" onclick="switchPredictivoTab('sub-pred-clientes', this)"><i class="fas fa-industry"></i> Surtimientos y Clientes</button>
+                <button class="sub-dock-btn pred-btn active" onclick="switchPredictivoTab('sub-pred-ausencias', this)"><i class="fas fa-user-clock"></i> <span class="txt-dock-desktop">Personal y </span>Ausencias</button>
+                <button class="sub-dock-btn pred-btn" onclick="switchPredictivoTab('sub-pred-clientes', this)"><i class="fas fa-industry"></i> <span class="txt-dock-desktop">Surtimientos y </span>Clientes</button>
                 {% if rol in ['jefe_op', 'gerencia', 'super_usuario'] %}
                 <button class="sub-dock-btn pred-btn" onclick="switchPredictivoTab('sub-pred-equidad', this)" style="color: var(--fng-blue); font-weight: 700;">
-                    <i class="fas fa-balance-scale" style="color: var(--fng-orange);"></i> Auditoría de Equidad
+                    <i class="fas fa-balance-scale" style="color: var(--fng-orange);"></i> <span class="txt-dock-desktop">Auditoría de </span>Equidad
                 </button>
                 {% endif %}
             </div>
@@ -574,6 +624,23 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
+
+        <!-- DICTAMEN TÁCTICO CENTINELA IA (SOLO EN FALTANTES / DEFICIT) -->
+        <div id="cajaDictamenIA" class="caja-dictamen-ia" style="display: none;">
+            <div class="icono-dictamen-ia">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 4px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--fng-blue); text-transform: uppercase; letter-spacing: 0.4px;">Dictamen Táctico Centinela</span>
+                    <span id="badgeEstadoIA" class="badge-estado-ia"><i class="fas fa-circle-notch fa-spin"></i> Analizando...</span>
+                </div>
+                <p id="textoDictamenIA" style="margin: 0; font-size: 12px; color: #334155; line-height: 1.35; font-weight: 600;">
+                    Evaluando historial de fatiga, descansos y rotación de flota...
+                </p>
+            </div>
+        </div>
+
         <div id="contenedorCandidatos" class="drill-list">
         </div>
     </div>
@@ -1127,6 +1194,42 @@
 
             if (data.status === 'success') {
                 cont.innerHTML = '';
+                const cajaIA = document.getElementById('cajaDictamenIA');
+                const badgeIA = document.getElementById('badgeEstadoIA');
+                const textoIA = document.getElementById('textoDictamenIA');
+
+                // Si se consultan FALTANTES (Deficit), activamos a Centinela IA
+                if (tipo === 'Deficit' && data.data && data.data.length > 0) {
+                    cajaIA.style.display = 'flex';
+                    badgeIA.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analizando...';
+                    badgeIA.style.background = '#fef3c7';
+                    badgeIA.style.color = '#b45309';
+                    textoIA.innerText = 'Evaluando el mejor candidato táctico según descansos y NOM-087...';
+
+                    const promptIA = `Analiza estos candidatos para cubrir faltante de ${producto} el ${fecha} con criterio táctico de tráfico FNG: ` + 
+                                     data.data.map(c => `${c.nombre} [DOT:${c.libres}h libres, Estatus:${c.detalle}, Certificado:${c.certificaciones||'N/A'}, Unidad:${c.tipo_unidad||'FULL'}, Docs:${c.docs_status||'Vigente'}, RutasPesadas15d:${c.rutas_pesadas_15d||0}, TurnoMañana:${c.turno_manana||'DE'}]`).join('; ') + 
+                                     `. Da tu DICTAMEN TÁCTICO en 2 renglones ejecutivos: nombra a la MEJOR opción justificando por qué no rompe el turno de mañana ni vigencias, y advierte a quién NO tocar por descanso largo o rutas foráneas pesadas.`;
+
+                    fetch('/api/centinela_ia', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pregunta: promptIA, ruta_pantalla: 'drilldown_candidatos' })
+                    })
+                    .then(r => r.json())
+                    .then(resIA => {
+                        textoIA.innerHTML = resIA.respuesta || 'Priorizar choferes en verde que reanudan turno mañana sin romper ciclos de descanso.';
+                        badgeIA.innerHTML = '<i class="fas fa-check"></i> Dictamen Listo';
+                        badgeIA.style.background = '#dcfce7';
+                        badgeIA.style.color = '#15803d';
+                    })
+                    .catch(() => {
+                        textoIA.innerText = 'Recomendación táctica: Priorizar candidatos en verde con regreso próximo sin interrumpir reseteos de ciclo largos.';
+                        badgeIA.innerHTML = 'Automático';
+                    });
+                } else {
+                    cajaIA.style.display = 'none';
+                }
+
                 if (!data.data || data.data.length === 0) {
                     cont.innerHTML = `
                         <div style="text-align:center; padding:30px; color:#94a3b8; font-size:13px;">
