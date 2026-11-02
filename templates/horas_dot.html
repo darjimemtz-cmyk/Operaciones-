@@ -820,52 +820,42 @@
                     {% for i in range(dias_mes|length) %}
                         {% set h_obj = op.horas_diarias[i] %}
                         {% set f_str = dias_mes[i].fecha %}
-                        {% set est_sab = (h_obj.estatus_sabana if (h_obj and h_obj.estatus_sabana) else '')|upper %}
+                        {# LECTURA DIRECTA DE BITÁCORA DOT (DESCONECTADO DE LA SÁBANA) #}
+                        {% set est_dot = (h_obj.estatus_dia if (h_obj and h_obj.estatus_dia) else (h_obj.estatus if (h_obj and h_obj.estatus) else ''))|upper|trim %}
                         {% set es_futuro = (f_str > f_hoy) %}
                         {% set tiene_horas = (h_obj and h_obj.horas is not none and h_obj.horas != '' and h_obj.horas != 'None') %}
                         {% set h_val = (h_obj.horas|float) if tiene_horas else 0.0 %}
 
-                        {# RECONOCER TR, CB Y NÚMEROS DE ROL (1 AL 15) COMO DÍAS DE TRABAJO #}
-                        {% set numeros_rol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'] %}
-                        {% set es_trabajo = (est_sab.startswith('TR') or est_sab.startswith('CB') or est_sab in numeros_rol) %}
-
-                        {# ASIGNACIÓN DE COLOR SEGÚN CATÁLOGO OPERATIVO #}
+                        {# ASIGNACIÓN DE COLOR SEGÚN ESTATUS DOT #}
                         {% set rol_class = 'txt-rol-gen' %}
-                        {% if est_sab in ['DE', 'D', 'DESCANSO'] %}
+                        {% if est_dot in ['D', 'DE', 'DESCANSO'] %}
                             {% set rol_class = 'txt-rol-de' %}
-                        {% elif est_sab in ['VA', 'V', 'VACACIONES'] %}
+                        {% elif est_dot in ['V', 'VA', 'VACACIONES'] %}
                             {% set rol_class = 'txt-rol-va' %}
-                        {% elif est_sab in ['FA', 'FALTA'] %}
+                        {% elif est_dot in ['FA', 'FALTA'] %}
                             {% set rol_class = 'txt-rol-fa' %}
-                        {% elif est_sab in ['IN', 'I', 'INCAPACIDAD'] %}
+                        {% elif est_dot in ['I', 'IN', 'INCAPACIDAD'] %}
                             {% set rol_class = 'txt-rol-in' %}
-                        {% elif est_sab in ['PER', 'P', 'PERMISO'] %}
+                        {% elif est_dot in ['P', 'PER', 'PERMISO'] %}
                             {% set rol_class = 'txt-rol-per' %}
-                        {% elif est_sab in ['MED', 'CITA MEDICA'] %}
+                        {% elif est_dot in ['M', 'MED', 'CITA MEDICA'] %}
                             {% set rol_class = 'txt-rol-med' %}
-                        {% elif est_sab in ['LIC', 'LICENCIA'] %}
-                            {% set rol_class = 'txt-rol-lic' %}
-                        {% elif est_sab in ['CAP', 'C', 'CAPACITACION'] %}
+                        {% elif est_dot in ['C', 'CAP', 'CAPACITACION'] %}
                             {% set rol_class = 'txt-rol-cap' %}
                         {% endif %}
 
                         <td class="col-dia {% if dias_mes[i].es_hoy %}es-hoy{% endif %}">
                             {% if es_futuro %}
-                                {# FECHAS FUTURAS: CONSULTA RÁPIDA #}
-                                {% if es_trabajo %}
-                                    <span class="futuro-rol" style="cursor: pointer;" onclick="mostrarPopover(event, '{{ est_sab }} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
-                                {% elif est_sab != '' %}
-                                    <span class="txt-rol {{ rol_class }}" style="opacity: 0.55;" onclick="mostrarPopover(event, '{{ est_sab }} (Programado)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
+                                {% if est_dot != '' and est_dot != 'NONE' and est_dot != 'NAN' %}
+                                    <span class="txt-rol {{ rol_class }}" style="opacity: 0.55;" onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_dot }}</span>
                                 {% else %}
-                                    <span class="celda-futura" style="cursor: pointer;" onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">-</span>
+                                    <span class="celda-futura">-</span>
                                 {% endif %}
                             {% else %}
-                                {# FECHAS PASADAS Y HOY #}
                                 {% if tiene_horas and h_val > 0 %}
-                                    {# SE CAPTURÓ: NÚMERO DIRECTO (VERDE REAL O NARANJA ESTIMADO) #}
                                     {% set es_real = (h_obj.auditado == 1 or h_obj.auditado == true or h_obj.tipo_registro == 'Real') %}
                                     <span class="{% if es_real %}horas-auditadas{% else %}horas-crudas{% endif %}"
-                                          onclick="mostrarPopover(event, '{{ h_obj.estatus_dia|default(h_obj.estatus)|default(est_sab) }}', '{{ h_obj.unidad }}', '{{ h_obj.pipas }}', '{{ h_obj.manejo }}', '{{ h_obj.maniobra }}', '{{ f_str }}')"
+                                          onclick="mostrarPopover(event, '{{ est_dot|default('EN VIAJE') }}', '{{ h_obj.unidad }}', '{{ h_obj.pipas }}', '{{ h_obj.manejo }}', '{{ h_obj.maniobra }}', '{{ f_str }}')"
                                           title="{% if es_real %}🟢 Real Auditado: {{ h_obj.horas }}h{% else %}🟠 Estimado: {{ h_obj.horas }}h{% endif %}">
                                         {% if h_obj.evidencia_foto and h_obj.evidencia_foto != 'N/A' %}
                                             <i class="fas fa-camera" style="font-size: 9px; margin-right: 2px;"></i>
@@ -873,19 +863,11 @@
                                         {{ h_obj.horas }}
                                     </span>
                                 {% else %}
-                                    {# SIN CAPTURA #}
-                                    {% if es_trabajo %}
-                                        {# 🔴 ROJO: SOLO EL GUION RECARGADO EN NEGRITA #}
-                                        <span class="falta-bitacora celda-falta-bitacora"
-                                              onclick="mostrarPopover(event, '{{ est_sab }} (Sin Bitácora)', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')"
-                                              title="🚨 Turno laborado sin captura.">-</span>
-                                    {% elif est_sab != '' %}
-                                        {# EVENTO DE CATÁLOGO: TEXTO PLANO CON SU COLOR OFICIAL #}
+                                    {% if est_dot != '' and est_dot != 'NONE' and est_dot != 'NAN' %}
                                         <span class="txt-rol {{ rol_class }}"
-                                              onclick="mostrarPopover(event, '{{ est_sab }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_sab }}</span>
+                                              onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_dot }}</span>
                                     {% else %}
-                                        <span style="color: #cbd5e1; font-weight: 600; cursor: pointer;"
-                                              onclick="mostrarPopover(event, 'Sin Asignar', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">-</span>
+                                        <span style="color: #cbd5e1; font-weight: 600;">-</span>
                                     {% endif %}
                                 {% endif %}
                             {% endif %}
@@ -1135,7 +1117,7 @@
     }
 
     // ==========================================
-    // CÁLCULO DINÁMICO DE KPIS DOT (NOM-087) MENSUAL
+    // CÁLCULO DINÁMICO DE KPIS DOT (NOM-087) HOMOLOGADO AL ESTÁNDAR FNG
     // ==========================================
     function calcularKPIDOT(filtro = '') {
         filtro = filtro.trim().toUpperCase();
@@ -1155,74 +1137,76 @@
         let diasEstimados = 0;
         let plantilla = opsFiltrados.length;
 
-        // EVALUACIÓN ESTRICTA DEL MES CORRIENTE (DÍA 1 HASTA HOY)
-        const hoyLimite = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
-        const numerosRol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
-
         opsFiltrados.forEach(op => {
             let rachaTrabajo = 0;
-            
-            // Sobregiros reales sobre la ventana rodante
-            if (op.restantes <= 0 && op.total > 0) {
-                sobregiros++;
-            }
+            let descansosOp = 0;
 
-            op.horas_diarias.forEach(dia => {
+            op.horas_diarias.forEach((dia) => {
                 if (!dia || !dia.fecha) return;
 
-                // IGNORAR FECHAS FUTURAS: Solo se audita lo transcurrido del mes
-                if (dia.fecha > hoyLimite) return;
-
-                const estSab = (dia.estatus_sabana || '').toUpperCase();
-                const estDia = (dia.estatus || dia.estatus_dia || '').toUpperCase();
+                const est = (dia.estatus_dia || '').trim().toUpperCase();
                 const tieneHoras = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None');
                 const h = tieneHoras ? (parseFloat(dia.horas) || 0) : 0;
+                const tipoReg = (dia.tipo_registro || '').trim().toUpperCase();
+                const esAuditado = (dia.auditado === 1 || dia.auditado === true || tipoReg === 'REAL');
 
-                const esDescanso = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'LIC', 'CAP', 'FA'].includes(estSab) ||
-                                   ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+                // Clasificación estricta oficial FNG
+                const esTrabajo = ['EN VIAJE', 'G', 'C'].includes(est) || h > 0;
+                const esDescansoPuro = (est === 'D');
 
-                const esTrabajo = estSab.startsWith('TR') || estSab.startsWith('CB') || numerosRol.includes(estSab) || (tieneHoras && h > 0);
-
-                if (esDescanso) {
-                    descansos++;
-                    rachaTrabajo = 0;
-                } else if (esTrabajo) {
+                if (esTrabajo) {
                     diasLaborados++;
                     sumaHorasDecimal += h;
                     rachaTrabajo++;
 
-                    if (h > 14.0) sobretrabajo14++;
-                    if (rachaTrabajo > 8) sobretrabajo8++;
-                    if (rachaTrabajo > 6 && rachaTrabajo <= 8) descansosIncompletos++;
+                    // Sobretrabajo oficial (Jornadas extremas >= 14:30 hrs)
+                    if (h >= 14.5) sobretrabajo14++;
+                    
+                    // Sobretrabajo 8 días: contador nativo del Excel
+                    let dTrabOficial = (dia.dias_trabajados_calc !== undefined && dia.dias_trabajados_calc > 0) 
+                        ? dia.dias_trabajados_calc 
+                        : rachaTrabajo;
+                    if (dTrabOficial > 8) sobretrabajo8++;
 
-                    // Solo cuenta como estimado si tiene horas cargadas no auditadas
-                    if (tieneHoras && h > 0 && (dia.auditado === 0 || dia.auditado === false || dia.tipo_registro === 'Estimado')) {
+                    if (tipoReg === 'ESTIMADO' || (!esAuditado && h > 0)) {
                         diasEstimados++;
                     }
+                } else if (esDescansoPuro) {
+                    descansos++;
+                    descansosOp++;
+                    rachaTrabajo = 0;
                 } else {
                     rachaTrabajo = 0;
                 }
+
+                // Sobregiro oficial DOT (Tope NOM-087 >= 70h importado de la matriz)
+                let hDotVal = (dia.horas_dot_calc !== undefined && dia.horas_dot_calc > 0) ? dia.horas_dot_calc : 0;
+                if (hDotVal >= 70.0) {
+                    sobregiros++;
+                }
             });
+            if (descansosOp < 6) descansosIncompletos++;
         });
 
-        let penalizacion = (sobregiros * 15) + (sobretrabajo14 * 10) + (sobretrabajo8 * 10);
-        let calificacion = Math.max(0, 100 - penalizacion);
+        // 2. Calificación oficial FNG (percentH)
+        let incidencias = sobregiros + sobretrabajo8;
+        let calificacion = diasLaborados > 0 
+            ? Math.max(0, Math.round(((diasLaborados - incidencias) / diasLaborados) * 100))
+            : 100;
 
-        // Capacidad y utilización proporcional exacta a los días transcurridos
-        let diasTranscurridos = 1;
-        if (opsFiltrados.length > 0 && opsFiltrados[0].horas_diarias) {
-            diasTranscurridos = opsFiltrados[0].horas_diarias.filter(d => d && d.fecha <= hoyLimite).length || 1;
-        }
-        let maxCapacidadHoras = plantilla * (diasTranscurridos / 8) * 70;
-        let utilizacion = maxCapacidadHoras > 0 ? ((sumaHorasDecimal / maxCapacidadHoras) * 100).toFixed(2) : "0.00";
+        // 3. Utilización oficial FNG (percentU)
+        let diasProgramablesFlota = plantilla * 25.3624; 
+        let utilizacion = diasProgramablesFlota > 0 
+            ? ((diasLaborados / diasProgramablesFlota) * 100).toFixed(2) 
+            : "0.00";
 
+        // Inyección directa a las tarjetas superiores
         document.getElementById('kpiSobregiros').innerText = sobregiros;
         document.getElementById('kpiDiasLaborados').innerText = diasLaborados;
         document.getElementById('kpiHorasAcumuladas').innerText = decimalToTime(sumaHorasDecimal);
         document.getElementById('kpiSobretrabajo14').innerText = sobretrabajo14;
         document.getElementById('kpiSobretrabajo8').innerText = sobretrabajo8;
         document.getElementById('kpiDescansos').innerText = descansos;
-        
         document.getElementById('kpiDescansosIncompletos').innerText = descansosIncompletos;
         document.getElementById('kpiDiasEstimados').innerText = diasEstimados;
         document.getElementById('kpiPlantilla').innerText = plantilla;
@@ -1268,7 +1252,7 @@
         let diasTrab = 0;
         let dotSum = 0;
 
-        // Procesamiento sincronizado con la sábana
+        // Procesamiento puro de bitácora DOT (independiente de la sábana)
         data.forEach(dia => {
             if (!dia) {
                 cells.tipo.push('-'); cells.estatus.push('-'); cells.equipo.push('/');
@@ -1276,43 +1260,37 @@
                 return;
             }
 
-            const estSab = (dia.estatus_sabana || '').trim().toUpperCase();
-            const estDia = (dia.estatus || dia.estatus_dia || '').trim().toUpperCase();
+            const estDia = (dia.estatus_dia || dia.estatus || '').trim().toUpperCase();
             const hDec = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None') ? (parseFloat(dia.horas) || 0.0) : 0.0;
 
-            // 1. Detectar descanso o ausencia usando tanto Sábana como DOT
-            const isRest = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'CITA MEDICA', 'LIC', 'CAP', 'FA'].includes(estSab) ||
-                           ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
+            // 1. Detectar descanso o ausencia según bitácora oficial
+            const isRest = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia) || (!estDia && hDec === 0);
 
-            // 2. Fila Tipo: Solo marca 'R' o 'E' si realmente hay horas capturadas
+            // 2. Fila Tipo
             let tipo = '-';
             if (hDec > 0) {
                 tipo = (dia.auditado === 1 || dia.auditado === true || dia.tipo_registro === 'Real') ? 'R' : 'E';
             }
             cells.tipo.push(tipo);
 
-            // 3. Fila Estatus: Refleja el catálogo oficial sin forzar 'EN VIAJE'
-            let estVisual = 'EN VIAJE';
-            if (['DE', 'D', 'DESCANSO'].includes(estSab) || ['DE', 'D', 'DESCANSO'].includes(estDia)) {
-                estVisual = '<span class="txt-rol txt-rol-de">DE</span>';
-            } else if (['VA', 'V', 'VACACIONES'].includes(estSab) || ['VA', 'V', 'VACACIONES'].includes(estDia)) {
-                estVisual = '<span class="txt-rol txt-rol-va">VA</span>';
-            } else if (['MED', 'CITA MEDICA'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-med">MED</span>';
-            } else if (['IN', 'I', 'INCAPACIDAD'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-in">IN</span>';
-            } else if (['PER', 'P', 'PERMISO'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-per">PER</span>';
-            } else if (['FA', 'FALTA'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-fa">FA</span>';
-            } else if (['LIC', 'LICENCIA'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-lic">LIC</span>';
-            } else if (['CAP', 'C', 'CAPACITACION'].includes(estSab)) {
-                estVisual = '<span class="txt-rol txt-rol-cap">CAP</span>';
-            } else if (estDia && estDia !== 'EN VIAJE') {
-                estVisual = estDia;
-            } else if (estSab && !estSab.startsWith('TR') && !['1','2','3','4','5','6','7','8'].includes(estSab)) {
-                estVisual = estSab;
+            // 3. Fila Estatus: Muestra el valor puro de la bitácora DOT
+            let estVisual = estDia || '-';
+            if (['D', 'DE', 'DESCANSO'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-de">D</span>';
+            } else if (['V', 'VA', 'VACACIONES'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-va">V</span>';
+            } else if (['I', 'IN', 'INCAPACIDAD'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-in">I</span>';
+            } else if (['P', 'PER', 'PERMISO'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-per">P</span>';
+            } else if (['M', 'MED', 'CITA MEDICA'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-med">M</span>';
+            } else if (['C', 'CAP', 'CAPACITACION'].includes(estDia)) {
+                estVisual = '<span class="txt-rol txt-rol-cap">C</span>';
+            } else if (['G', 'GUARDIA'].includes(estDia)) {
+                estVisual = 'G';
+            } else if (hDec > 0 && (!estDia || estDia === 'EN VIAJE')) {
+                estVisual = 'EN VIAJE';
             }
             cells.estatus.push(estVisual);
 
@@ -1680,49 +1658,193 @@
 
     {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
     function descargarReporteDOT() {
-        showToast("⏳ Imprimiendo Reporte de Alta Calidad...", "warning");
+        showToast("⏳ Generando Kardex Oficial paginado por operador...", "warning");
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'landscape', format: 'letter' });
         
-        const fngBlue = [0, 45, 90]; const fngOrange = [255, 140, 0];
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(fngBlue[0], fngBlue[1], fngBlue[2]);
-        doc.text("REPORTE DE AUDITORÍA DOT (FATIGA)", doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-        doc.setFontSize(12); doc.setTextColor(fngOrange[0], fngOrange[1], fngOrange[2]);
-        doc.text("KARDEX MENSUAL: {{ texto_mes|upper }}", doc.internal.pageSize.getWidth() / 2, 28, { align: 'center' });
+        // Formato Oficio (Legal) en horizontal (355.6 mm ancho x 215.9 mm alto)
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'legal' });
+        const fngBlue = [0, 45, 90]; 
+        const fngOrange = [255, 140, 0];
         
-        // Compactación para PDF
+        // Paginación estricta: 3 operadores completos por hoja
+        const OPS_POR_PAGINA = 5;
+        
         const dias_label = [{% for d in dias_mes %}"{{ d.label.split(' ')[0] }}\n{{ d.label.split(' ')[1] }}",{% endfor %}];
-        const head = [['Operador', 'Rest.', ...dias_label, 'TOTAL']];
-        const body = [];
-        
+        const head = [['Operador / Métrica', 'Rest.', ...dias_label, 'TOTAL']];
         const ops = {{ operadores | tojson | safe }};
-        ops.forEach(op => {
-            const fila = [op.nombre, op.restantes + 'h'];
-            op.horas_diarias.forEach(h => fila.push(h ? h.horas : '-'));
-            fila.push(op.total + 'h');
-            body.push(fila);
-        });
         
-        doc.autoTable({
-            head: head, body: body, startY: 38, theme: 'grid',
-            styles: { fontSize: 6, halign: 'center', valign: 'middle', cellPadding: 1, overflow: 'linebreak' },
-            headStyles: { fillColor: fngBlue, textColor: 255 },
-            bodyStyles: { textColor: [50, 50, 50] },
-            columnStyles: { 0: { halign: 'left', fontStyle: 'bold', textColor: fngBlue, cellWidth: 40 }, 1: { fontStyle: 'bold', cellWidth: 15 } },
-            horizontalPageBreak: true, // Tolerancia a muchas columnas
-            didParseCell: function(data) {
-                if (data.section === 'body' && data.column.index === 1) {
-                    const rest = parseFloat(data.cell.raw);
-                    if (rest < 10) { data.cell.styles.textColor = [220, 53, 69]; } else { data.cell.styles.textColor = [25, 135, 84]; }
+        const numDias = dias_label.length;
+        const colStyles = {
+            0: { halign: 'left', cellWidth: 42 },
+            1: { halign: 'center', cellWidth: 11 }
+        };
+        const anchoDia = Math.floor((341.6 - 42 - 11 - 13) / numDias * 10) / 10;
+        for (let c = 2; c < 2 + numDias; c++) {
+            colStyles[c] = { cellWidth: anchoDia, halign: 'center' };
+        }
+        colStyles[2 + numDias] = { halign: 'center', cellWidth: 13 };
+
+        const totalPaginas = Math.ceil(ops.length / OPS_POR_PAGINA);
+
+        for (let pIdx = 0; pIdx < totalPaginas; pIdx++) {
+            if (pIdx > 0) doc.addPage();
+
+            doc.setFont('helvetica', 'bold'); 
+            doc.setFontSize(12); 
+            doc.setTextColor(fngBlue[0], fngBlue[1], fngBlue[2]);
+            doc.text("GRUPO FNG - REPORTE GENERAL DE AUDITORÍA Y FATIGA D.O.T. (NOM-087)", doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+            
+            doc.setFontSize(8); 
+            doc.setTextColor(fngOrange[0], fngOrange[1], fngOrange[2]);
+            doc.text("KARDEX MENSUAL COMPLETO: {{ texto_mes|upper }} | TERMINAL SAN LUIS POTOSÍ | PÁGINA " + (pIdx + 1) + " DE " + totalPaginas, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+            const sliceOps = ops.slice(pIdx * OPS_POR_PAGINA, (pIdx + 1) * OPS_POR_PAGINA);
+            const pageBody = [];
+            const metadataFilas = [];
+
+            sliceOps.forEach(op => {
+                const filaOp = [op.nombre, (op.restantes !== undefined ? op.restantes + 'h' : '70.0h')];
+                op.horas_diarias.forEach(dia => {
+                    if (!dia) { filaOp.push('-'); return; }
+                    const est = (dia.estatus_dia || dia.estatus || '').trim().toUpperCase();
+                    const tieneH = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None');
+                    const hNum = tieneH ? parseFloat(dia.horas) : 0;
+                    if (tieneH && hNum > 0) filaOp.push(hNum.toFixed(1));
+                    else if (est) filaOp.push(est);
+                    else filaOp.push('-');
+                });
+                filaOp.push((op.total || 0) + 'h');
+                pageBody.push(filaOp);
+                metadataFilas.push({ tipo: 'operador_header' });
+
+                const subMetricas = [
+                    { key: 'tipo', label: '  Tipo' },
+                    { key: 'estatus', label: '  Estatus' },
+                    { key: 'equipo', label: '  Tractor / Pipa' },
+                    { key: 'servicio', label: '  Horas de Servicio' },
+                    { key: 'dot', label: '  Horas D.O.T.' },
+                    { key: 'acumulado', label: '  Acumulado' },
+                    { key: 'dias', label: '  Días Trabajados' }
+                ];
+
+                const celdasSub = { tipo: [], estatus: [], equipo: [], servicio: [], dot: [], acumulado: [], dias: [] };
+                let acumH = 0, diasTrab = 0, dotSum = 0;
+
+                op.horas_diarias.forEach(dia => {
+                    if (!dia) {
+                        celdasSub.tipo.push('-'); celdasSub.estatus.push('-'); celdasSub.equipo.push('/');
+                        celdasSub.servicio.push('00:00'); celdasSub.dot.push('-'); celdasSub.acumulado.push('-'); celdasSub.dias.push('-');
+                        return;
+                    }
+                    const estDia = (dia.estatus_dia || dia.estatus || '').trim().toUpperCase();
+                    const hDec = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None') ? (parseFloat(dia.horas) || 0.0) : 0.0;
+                    const isRest = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia) || (!estDia && hDec === 0);
+
+                    celdasSub.tipo.push(hDec > 0 ? ((dia.auditado === 1 || dia.auditado === true || dia.tipo_registro === 'Real') ? 'R' : 'E') : '-');
+                    celdasSub.estatus.push(estDia || (hDec > 0 ? 'EN VIAJE' : '-'));
+
+                    const tractor = (dia.unidad && dia.unidad !== 'N/A') ? dia.unidad : '';
+                    const pipa = (dia.pipas && dia.pipas !== 'N/A') ? dia.pipas : '';
+                    celdasSub.equipo.push((tractor || pipa) && !isRest ? `${tractor}/${pipa}` : '/');
+                    celdasSub.servicio.push(decimalToTime(hDec));
+
+                    const hDotOficial = (dia.horas_dot_calc !== undefined && dia.horas_dot_calc > 0) ? dia.horas_dot_calc : null;
+                    const dTrabOficial = (dia.dias_trabajados_calc !== undefined && dia.dias_trabajados_calc > 0) ? dia.dias_trabajados_calc : null;
+
+                    if (isRest) { acumH = 0; diasTrab = 0; dotSum = 0; }
+                    else { acumH += hDec; diasTrab += 1; dotSum += hDec; }
+
+                    celdasSub.dot.push(hDotOficial !== null ? decimalToTime(hDotOficial) : (dotSum > 0 ? decimalToTime(dotSum) : '-'));
+                    celdasSub.acumulado.push(acumH > 0 ? decimalToTime(acumH) : '-');
+                    celdasSub.dias.push(dTrabOficial !== null ? dTrabOficial : (diasTrab > 0 ? diasTrab : '-'));
+                });
+
+                subMetricas.forEach(m => {
+                    const filaM = [m.label, '-'];
+                    celdasSub[m.key].forEach(val => filaM.push(val));
+                    filaM.push('-');
+                    pageBody.push(filaM);
+                    metadataFilas.push({ tipo: 'subfila', subKey: m.key });
+                });
+            });
+
+            doc.autoTable({
+                head: head,
+                body: pageBody,
+                startY: 19,
+                theme: 'grid',
+                margin: { left: 7, right: 7, top: 19, bottom: 8 },
+                styles: {
+                    fontSize: 5.2,
+                    minCellHeight: 4.4,
+                    cellPadding: { top: 0.9, bottom: 0.9, left: 0.2, right: 0.2 },
+                    valign: 'middle',
+                    overflow: 'ellipsize',
+                    lineColor: [226, 232, 240],
+                    lineWidth: 0.15
+                },
+                headStyles: {
+                    fillColor: fngBlue,
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 5.5,
+                    halign: 'center'
+                },
+                columnStyles: colStyles,
+                horizontalPageBreak: false,
+                didParseCell: function(data) {
+                    if (data.section !== 'body') return;
+                    const meta = metadataFilas[data.row.index];
+                    if (!meta) return;
+
+                    if (meta.tipo === 'operador_header') {
+                        data.cell.styles.fillColor = [241, 245, 249];
+                        data.cell.styles.fontStyle = 'bold';
+                        if (data.column.index === 0) {
+                            data.cell.styles.textColor = fngBlue;
+                            data.cell.styles.fontSize = 6.0;
+                        } else if (data.column.index === 1) {
+                            const val = parseFloat(data.cell.raw);
+                            if (!isNaN(val) && val < 10) {
+                                data.cell.styles.textColor = [220, 53, 69];
+                            } else {
+                                data.cell.styles.textColor = [22, 163, 74];
+                            }
+                        }
+                    } else if (meta.tipo === 'subfila') {
+                        if (data.column.index === 0) {
+                            data.cell.styles.textColor = [71, 85, 105];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [100, 116, 139];
+                            data.cell.styles.fontSize = 4.9;
+                        }
+                        if (data.cell.raw === 'D') {
+                            data.cell.styles.textColor = [124, 58, 237];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        if (meta.subKey === 'dias') {
+                            const dNum = parseInt(data.cell.raw);
+                            if (!isNaN(dNum)) {
+                                if (dNum > 8) {
+                                    data.cell.styles.textColor = [220, 53, 69];
+                                    data.cell.styles.fontStyle = 'bold';
+                                } else if (dNum >= 7) {
+                                    data.cell.styles.textColor = [217, 119, 6];
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-        });
-        doc.save(`Auditoria_DOT_{{ mes_actual_str }}.pdf`);
-        showToast("✅ Reporte Generado Exitosamente.", "success");
+            });
+        }
+
+        doc.save(`Kardex_DOT_{{ mes_actual_str }}_Oficio.pdf`);
+        showToast("✅ Kardex descargado sin cortes de operadores.", "success");
     }
     {% endif %}
 
-    // --- FUNCIONES DEL BUSCADOR Y CIERRE GLOBAL ---
     function expandirBuscadorRH() {
         const bar = document.getElementById('searchBarContainerRH');
         if (!bar.classList.contains('active')) {
@@ -1808,17 +1930,33 @@
 
         switch(tipo) {
             case 'sobregiros':
-                titulo.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Operadores en Sobregiro (0 hrs restantes)';
-                desc.innerText = 'Operadores que agotaron el límite de 70 horas en su ventana rodante de 8 días (NOM-087).';
-                thVar.innerText = 'Restantes / Consumo';
+                titulo.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Operadores en Sobregiro (+70 hrs NOM-087)';
+                desc.innerText = 'Operadores que excedieron el límite legal de 70 horas en ventana rodante de 7 días en el mes.';
+                thVar.innerText = 'Días con Sobregiro y Horas Acumuladas';
 
                 todosOperadoresData.forEach(op => {
-                    if (op.restantes <= 0 && op.total > 0) {
+                    let ventana = [];
+                    let diasExcedidos = [];
+
+                    op.horas_diarias.forEach(d => {
+                        if (!d || !d.fecha) return;
+                        let h = (d.horas !== null && d.horas !== undefined && d.horas !== '' && d.horas !== 'None') ? (parseFloat(d.horas) || 0) : 0;
+                        ventana.push(h);
+                        if (ventana.length > 7) ventana.shift();
+
+                        let acum7 = ventana.reduce((acc, v) => acc + v, 0);
+                        if (acum7 > 70.0) {
+                            let fPartes = d.fecha.split('-');
+                            diasExcedidos.push(`${fPartes[2]}/${fPartes[1]} (<b>${acum7.toFixed(1)}h</b>)`);
+                        }
+                    });
+
+                    if (diasExcedidos.length > 0) {
                         totalCasos++;
                         filasHTML += `
                             <tr>
                                 <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
-                                <td style="text-align: center; padding: 9px; color: #ef4444; font-weight: 800;">0.0 hrs libres (Total mes: ${op.total}h)</td>
+                                <td style="text-align: center; padding: 9px; color: #b91c1c; font-size: 11.5px;">${diasExcedidos.join(' | ')}</td>
                                 <td style="text-align: center; padding: 9px;">
                                     <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
                                 </td>
@@ -1904,44 +2042,24 @@
                 break;
 
             case 'descansos_incompletos':
-                titulo.innerHTML = '<i class="fas fa-bed" style="color: #0284c7;"></i> Descansos Incompletos (Rachas > 6 Días)';
-                desc.innerText = 'Operadores que alcanzaron 7 u 8 días laborados sin haber tomado su corte de descanso en lo que va del mes.';
-                thVar.innerText = 'Racha Activa';
-
-                const hoyLim6 = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
-                const numsRol6 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
+                titulo.innerHTML = '<i class="fas fa-bed" style="color: #0284c7;"></i> Descansos Incompletos (< 6 Días en el Mes)';
+                desc.innerText = 'Operadores que no alcanzaron el mínimo de 6 descansos en el periodo mensual.';
+                thVar.innerText = 'Descansos Registrados';
 
                 todosOperadoresData.forEach(op => {
-                    let racha = 0;
-                    let maxRacha = 0;
+                    let totalDesc = 0;
                     op.horas_diarias.forEach(d => {
-                        if (!d || !d.fecha || d.fecha > hoyLim6) return;
-
-                        let estSab = (d.estatus_sabana || '').toUpperCase();
-                        let estDia = (d.estatus || d.estatus_dia || '').toUpperCase();
-                        let tieneH = (d.horas !== null && d.horas !== undefined && d.horas !== '' && d.horas !== 'None');
-                        let h = tieneH ? (parseFloat(d.horas) || 0) : 0;
-
-                        let esDesc = ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO', 'MED', 'LIC', 'CAP', 'FA'].includes(estSab) ||
-                                     ['D', 'DE', 'DESCANSO', 'V', 'VA', 'VACACIONES', 'I', 'IN', 'INCAPACIDAD', 'B', 'BAJA', 'P', 'PER', 'PERMISO'].includes(estDia);
-
-                        let esTrab = estSab.startsWith('TR') || estSab.startsWith('CB') || numsRol6.includes(estSab) || (tieneH && h > 0);
-
-                        if (esDesc) {
-                            racha = 0;
-                        } else if (esTrab) {
-                            racha++;
-                            if (racha > maxRacha) maxRacha = racha;
-                        } else {
-                            racha = 0;
+                        if (d && (d.estatus_dia === 'D' || d.estatus === 'D')) {
+                            totalDesc++;
                         }
                     });
-                    if (maxRacha > 6 && maxRacha <= 8) {
+
+                    if (totalDesc < 6) {
                         totalCasos++;
                         filasHTML += `
                             <tr>
                                 <td style="text-align: left; padding: 9px 12px; font-weight: 700; color: var(--fng-blue);">${op.nombre}</td>
-                                <td style="text-align: center; padding: 9px; color: #0284c7; font-weight: 700;">${maxRacha} días trabajados</td>
+                                <td style="text-align: center; padding: 9px; color: #b91c1c; font-weight: 800;">${totalDesc} descanso(s) en el mes</td>
                                 <td style="text-align: center; padding: 9px;">
                                     <button onclick="cerrarModalKPI(); toggleAccordion('${op.id}');" class="btn-action" title="Abrir kardex"><i class="fas fa-eye"></i></button>
                                 </td>
@@ -2141,8 +2259,9 @@
         calcularKPIDOT(document.getElementById('buscadorRH')?.value || '');
     }
 
-    document.addEventListener('live:celda_sabana', procesarSincronizacionSabanaEnDOT);
-    document.addEventListener('live:celda_actualizada', procesarSincronizacionSabanaEnDOT);
+    // DESCONEXIÓN DE SÁBANA OPERATIVA: Auditoría DOT queda 100% independiente
+    // document.addEventListener('live:celda_sabana', procesarSincronizacionSabanaEnDOT);
+    // document.addEventListener('live:celda_actualizada', procesarSincronizacionSabanaEnDOT);
 
     document.addEventListener('live:dot_actualizado', (e) => {
         const payload = e.detail;

@@ -76,7 +76,7 @@ limiter = Limiter(
 # ==========================================
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,       # Impide que scripts de JS lean la cookie de sesión
-    SESSION_COOKIE_SECURE=True,         # Fuerza transmisión exclusiva sobre HTTPS (Cloudflare)
+    SESSION_COOKIE_SECURE=False,         # Fuerza transmisión exclusiva sobre HTTPS (Cloudflare)
     SESSION_COOKIE_SAMESITE="Lax",      # Previene ataques de falsificación de peticiones (CSRF)
     MAX_CONTENT_LENGTH=5 * 1024 * 1024  # Máximo 5 MB por archivo subido (evita saturar el disco)
 ) 
@@ -1220,7 +1220,7 @@ def expediente_historial():
         
         # Horas acumuladas de los últimos 8 días (NOM-087)
         f_dt = datetime.strptime(f, '%Y-%m-%d').date()
-        fechas_8d = [(f_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        fechas_8d = [(f_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
         h_acum = round(sum(horas_map.get(fk, 0.0) for fk in fechas_8d), 1)
         h_rest = max(0.0, round(70.0 - h_acum, 1))
 
@@ -1413,7 +1413,16 @@ def auditoria_dot():
         fecha_fin_val = dias_mes[-1]['fecha']
 
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
-    c.execute("SELECT id, no_empleado, nombre FROM operadores WHERE estatus_empleado='Activo' ORDER BY nombre")
+    # Plantilla completa de la terminal San Luis Potosí
+    c.execute("""
+        SELECT id, no_empleado, nombre 
+        FROM operadores 
+        WHERE UPPER(estatus_empleado) = 'ACTIVO' 
+          AND COALESCE(esquema, '') != 'Varios' 
+          AND UPPER(COALESCE(linea_negocio, '')) != 'VARIOS'
+          AND UPPER(COALESCE(producto, '')) != 'VARIOS'
+        ORDER BY nombre
+    """)
     ops_raw = c.fetchall()
     
     ops = []
@@ -1423,7 +1432,7 @@ def auditoria_dot():
     # Evaluación de fatiga NOM-087 sobre el límite de corte de la consulta
     f_corte_dt = datetime.strptime(fecha_fin_val, '%Y-%m-%d').date()
     fecha_fin_8d = hoy if (f_corte_dt >= hoy) else f_corte_dt
-    fechas_8dias = [(fecha_fin_8d - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(8)]
+    fechas_7dias = [(fecha_fin_8d - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
 
     hoy_str = hoy.strftime('%Y-%m-%d')
     placeholders_mes = ','.join(['?'] * len(fechas_str))
@@ -1433,7 +1442,7 @@ def auditoria_dot():
         SELECT operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, 
                horas_manejo, horas_maniobra, auditado, evidencia_foto, tipo_registro, 
                no_bitacora, folio_bhs, clave_nocturna, viaje_mina, observaciones, 
-               COALESCE(sub_estatus, '') 
+               COALESCE(sub_estatus, ''), COALESCE(horas_dot_calc, 0.0), COALESCE(dias_trabajados_calc, 0)
         FROM dot_diario 
         WHERE fecha IN ({placeholders_mes})
     """, fechas_str)
@@ -1443,7 +1452,7 @@ def auditoria_dot():
             'manejo': r[6], 'maniobra': r[7], 'auditado': r[8], 'evidencia_foto': r[9], 
             'tipo_registro': r[10], 'no_bitacora': r[11], 'folio_bhs': r[12], 
             'clave_nocturna': r[13], 'viaje_mina': r[14], 'observaciones': r[15], 
-            'sub_estatus': r[16]
+            'sub_estatus': r[16], 'horas_dot_calc': r[17], 'dias_trabajados_calc': r[18]
         } for r in c.fetchall()
     }
 
@@ -1477,25 +1486,15 @@ def auditoria_dot():
                     'pipas': 'N/A',
                     'manejo': 0.0,
                     'maniobra': 0.0,
-                    'evidencia_foto': 'N/A'
+                    'evidencia_foto': 'N/A',
+                    'horas_dot_calc': 0.0,
+                    'dias_trabajados_calc': 0
                 })
                 
-        # Extraer ventana de 8 días para columna "Restantes" (Reseteo Inteligente en último Descanso)
-        c.execute("SELECT fecha, estatus FROM logistica_diaria WHERE operador_id=? AND fecha IN ({seq}) ORDER BY fecha DESC".format(seq=','.join(['?']*8)), [op_id] + fechas_8dias)
-        historial_8d = c.fetchall()
-        
-        fechas_ciclo = []
-        for f, est in historial_8d:
-            est_limpio = (est or '').strip().upper()
-            if est_limpio in ['D', 'DE', 'DESCANSO', 'V', 'VA', 'I', 'IN', 'B']:
-                break
-            fechas_ciclo.append(f)
-            
-        usadas_8d = 0.0
-        if fechas_ciclo:
-            c.execute("SELECT SUM(horas) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*len(fechas_ciclo))), [op_id] + fechas_ciclo)
-            res_8d = c.fetchone()
-            usadas_8d = float(res_8d[0]) if res_8d and res_8d[0] else 0.0
+        # Ventana rodante estricta NOM-087: 70h menos horas reales en los últimos 8 días calendario
+        c.execute("SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*7)), [op_id] + fechas_7dias)
+        res_7d = c.fetchone()
+        usadas_7d = float(res_7d[0]) if (res_7d and res_7d[0]) else 0.0
             
         nombre_credencial = f"{no_emp} | {nombre}" if no_emp != 'N/A' else nombre
             
@@ -1505,7 +1504,7 @@ def auditoria_dot():
             'nombre_credencial': nombre_credencial, 
             'horas_diarias': horas_diarias, 
             'total': round(total_mes, 1), 
-            'restantes': max(0, round(70.0 - usadas_8d, 1))
+            'restantes': max(0, round(70.0 - usadas_7d, 1))
         })
     conn.close()
     
@@ -2561,8 +2560,8 @@ def api_drilldown_radar():
 
     if tipo == 'Deficit':
         candidatos = []
-        fechas_8d = [(fecha_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
-        placeholders_8d = ','.join(['?'] * 8)
+        fechas_8d = [(fecha_dt - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
+        placeholders_8d = ','.join(['?'] * 7)
 
         # Ventana de proyección hacia adelante (próximos 14 días)
         fechas_futuras = [(fecha_dt + timedelta(days=k)).strftime('%Y-%m-%d') for k in range(1, 15)]
@@ -3735,8 +3734,8 @@ def api_centinela_ia():
 
     # A. Candidatos para acomodar, cubrir faltantes o relevos
     if any(k in preg_lower for k in ['acomod', 'cubrir', 'relev', 'mover', 'disponibl', 'candidat', 'quien puede']):
-        fechas_8d_target = [(datetime.strptime(fecha_target, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
-        placeholders = ','.join(['?'] * 8)
+        fechas_8d_target = [(datetime.strptime(fecha_target, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
+        placeholders = ','.join(['?'] * 7)
         
         # 1. Operadores que descansan con horas DOT libres (NOM-087)
         c.execute(f"""
@@ -3800,7 +3799,7 @@ def api_centinela_ia():
 
     # C. Consulta directa de Horas y Fatiga NOM-087 (Por chofer específico o ranking general)
     elif any(k in preg_lower for k in ['dot', 'nom-087', 'nom087', 'hora', 'horas', 'fatiga', 'tope']):
-        fechas_8d_dot = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+        fechas_8d_dot = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
         placeholders_8d = ','.join(['?'] * 8)
         
         # 1. Buscar si nombraron a un chofer específico
@@ -3872,12 +3871,12 @@ REGLAS:
             pass
 
     # Fatiga NOM-087 en vivo (Últimos 8 días)
-    fechas_8d = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
+    fechas_8d = [(hoy - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
     c.execute(f"""
         SELECT o.nombre, o.producto, ROUND(SUM(d.horas), 1) as tot
         FROM dot_diario d
         JOIN operadores o ON d.operador_id = o.id
-        WHERE d.fecha IN ({','.join(['?']*8)}) AND o.estatus_empleado='Activo'
+        WHERE d.fecha IN ({','.join(['?']*7)}) AND o.estatus_empleado='Activo'
         GROUP BY o.id
         HAVING tot >= 52.0
         ORDER BY tot DESC
@@ -3893,8 +3892,8 @@ REGLAS:
         c.execute("SELECT nombre, producto FROM operadores WHERE id=?", (op_id,))
         op_row = c.fetchone()
         if op_row:
-            fechas_op_8d = [(datetime.strptime(f_cambio, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(8)]
-            c.execute(f"SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id=? AND fecha IN ({','.join(['?']*8)})", [op_id] + fechas_op_8d)
+            fechas_op_8d = [(datetime.strptime(f_cambio, '%Y-%m-%d').date() - timedelta(days=k)).strftime('%Y-%m-%d') for k in range(7)]
+            c.execute(f"SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id=? AND fecha IN ({','.join(['?']*7)})", [op_id] + fechas_op_8d)
             h_8d = float(c.fetchone()[0] or 0.0)
             c.execute("SELECT estatus FROM logistica_diaria WHERE operador_id=? AND fecha=?", (op_id, f_cambio))
             r_act = c.fetchone()
