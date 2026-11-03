@@ -247,6 +247,10 @@ def init_db():
     except sqlite3.OperationalError: pass
     try: cursor.execute("ALTER TABLE dot_diario ADD COLUMN sub_estatus TEXT DEFAULT ''")
     except sqlite3.OperationalError: pass
+    try: cursor.execute("ALTER TABLE dot_diario ADD COLUMN horas_dot_calc REAL DEFAULT 0.0")
+    except sqlite3.OperationalError: pass
+    try: cursor.execute("ALTER TABLE dot_diario ADD COLUMN dias_trabajados_calc INTEGER DEFAULT 0")
+    except sqlite3.OperationalError: pass
     
     cursor.execute('''CREATE TABLE IF NOT EXISTS pines_emergencia (id INTEGER PRIMARY KEY, operador_id INTEGER, pin TEXT, expira_en TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS solicitudes_cambio (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP, usuario_solicita TEXT, tipo_movimiento TEXT, datos_json TEXT, estatus TEXT DEFAULT 'Pendiente')''')
