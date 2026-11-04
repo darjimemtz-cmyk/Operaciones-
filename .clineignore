@@ -1,0 +1,12 @@
+.git/
+__pycache__/
+venv/
+env/
+*.pyc
+*.log
+*.sqlite3
+*.db
+static/vendor/
+node_modules/
+dist/
+build/

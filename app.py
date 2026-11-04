@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import sqlite3
 import json
@@ -9,11 +12,13 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, abort, jsonify, send_from_directory, Response
+from flask import Flask, send_file, render_template, request, redirect, url_for, session, abort, jsonify, send_from_directory, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.utils import secure_filename
+from services.ai_client import AIClient
+from services.prompt_builder import PromptBuilder
 
 TZ_LOCAL = ZoneInfo("America/Mexico_City")
 
@@ -1495,7 +1500,7 @@ def auditoria_dot():
                     'dias_trabajados_calc': 0
                 })
                 
-        # Ventana rodante estricta NOM-087: 70h menos horas reales en los últimos 8 días calendario
+        # Ventana rodante estricta NOM-087: 70h menos horas reales en los últimos 7 días calendario
         c.execute("SELECT COALESCE(SUM(horas), 0.0) FROM dot_diario WHERE operador_id=? AND fecha IN ({seq})".format(seq=','.join(['?']*7)), [op_id] + fechas_7dias)
         res_7d = c.fetchone()
         usadas_7d = float(res_7d[0]) if (res_7d and res_7d[0]) else 0.0
@@ -3923,86 +3928,61 @@ DATOS REALES EN VIVO:
 {f"- SOLICITUD DE REPORTE PDF: El usuario pidió PDF o descarga. DEBES incluir este botón al final de tu mensaje: {boton_pdf_html}" if quiere_pdf else ""}
 {detalle_cambio}"""
 
-    historial = data.get('historial', [])
-    texto_usuario = pregunta or "Dame un resumen del estatus de la flota y riesgos inmediatos."
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    # Construir context_data para PromptBuilder
+    context_data = {
+        "fleet_summary": {
+            "total_unidades": 31,
+            "unidades_activas": 31,
+            "contexto_pantalla": contexto_pantalla
+        },
+        "dot_hours": {
+            "ventana_dias": 7,
+            "fatiga_nom": fatiga_nom,
+            "cumplimiento": {
+                "en_riesgo": len(fatiga_nom),
+                "cumpliendo": max(0, 31 - len(fatiga_nom))
+            }
+        },
+        "alerts": [],
+        "additional": {
+            "usuario": nombre_usuario,
+            "rol": rol_usuario,
+            "pantalla": ruta_pantalla,
+            "quiere_pdf": quiere_pdf,
+            "boton_pdf_html": boton_pdf_html if quiere_pdf else "",
+            "detalle_cambio": detalle_cambio,
+            "deficits_detectados": deficits_detectados
+        }
+    }
 
-    # 1. Función para consultar a Groq (Llama 3.3 70B)
-    def ejecutar_groq():
-        if not groq_key:
-            return None
-        try:
-            mensajes_groq = [{"role": "system", "content": prompt_personalidad}]
-            for h in historial[-4:]:
-                rol_g = "user" if h.get('rol') == 'user' else "assistant"
-                mensajes_groq.append({"role": rol_g, "content": str(h.get('texto', '')).strip()})
-            mensajes_groq.append({"role": "user", "content": texto_usuario})
+    # Convertir historial al formato esperado
+    historial_raw = data.get('historial', [])
+    historial_fmt = [{"role": "user" if h.get('rol') == 'user' else "assistant", 
+                      "content": str(h.get('texto', '')).strip()} for h in historial_raw[-5:]]
 
-            resp_g = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                json={
-                    "model": "openai/gpt-oss-120b",
-                    "messages": mensajes_groq,
-                    "temperature": 0.25,
-                    "max_tokens": 350
-                },
-                timeout=7
-            )
-            if resp_g.status_code == 200:
-                return resp_g.json()["choices"][0]["message"]["content"].strip()
-        except Exception:
-            pass
-        return None
+    # Inicializar servicios
+    ai_client = AIClient(timeout_seconds=8)
+    prompt_builder = PromptBuilder(max_context_chars=8000)
 
-    # 2. Función para consultar a Gemini (Google)
-    def ejecutar_gemini():
-        if not api_key_limpia:
-            return None
-        try:
-            contents = [
-                {"role": "user", "parts": [{"text": f"[CONTEXTO Y ROL]\n{prompt_personalidad}\n\nConfirma de forma breve y cercana que estás listo."}]},
-                {"role": "model", "parts": [{"text": f"¡Listo y al tiro con la torre de control, {primer_nombre}! ¿Qué onda, qué revisamos hoy?"}]}
-            ]
-            for h in historial[-4:]:
-                r_m = "user" if h.get('rol') == 'user' else "model"
-                contents.append({"role": r_m, "parts": [{"text": str(h.get('texto', '')).strip()}]})
-            contents.append({"role": "user", "parts": [{"text": texto_usuario}]})
+    # Construir prompt y ejecutar query
+    try:
+        system_prompt, user_prompt = prompt_builder.build_prompt(
+            user_query=pregunta or "Dame un resumen del estatus de la flota y riesgos inmediatos.",
+            context_data=context_data,
+            history=historial_fmt
+        )
+        response = ai_client.query(user_prompt, system_prompt)
+        final_resp = response.content if response.success else (
+            "🟢 Centinela: " + 
+            ("Déficits en 5 días: " + ", ".join(deficits_detectados) + "." if deficits_detectados else "Flota de 31 unidades en regla.")
+        )
+        provider_used = response.provider
+        latency_ms = response.latency_ms
+    except Exception as e:
+        final_resp = "🟢 Centinela: " + ("Déficits en 5 días: " + ", ".join(deficits_detectados) + "." if deficits_detectados else "Flota de 31 unidades en regla.")
+        provider_used = "none"
+        latency_ms = 0
 
-            r_models = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key_limpia}", timeout=8)
-            if r_models.status_code == 200:
-                modelos = [m['name'] for m in r_models.json().get('models', []) if 'generateContent' in m.get('supportedGenerationMethods', [])]
-                candidatos = sorted(modelos, key=lambda m: (
-                    0 if '2.0-flash' in m or '2.5' in m else
-                    1 if 'flash' in m and '1.5' not in m else
-                    2 if 'flash' in m else 3
-                ))
-                for mod in candidatos:
-                    url_gen = f"https://generativelanguage.googleapis.com/v1beta/{mod}:generateContent?key={api_key_limpia}"
-                    try:
-                        resp = requests.post(url_gen, json={"contents": contents}, timeout=15)
-                        if resp.status_code == 200:
-                            return resp.json()['candidates'][0]['content']['parts'][0]['text'].strip()
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-        return None
-
-    # =========================================================================
-    # FUSIÓN INTELIGENTE POR ESPECIALIZACIÓN (OPCIÓN A)
-    # =========================================================================
-    # Si viene del modal de la sábana o es un chip rápido, va primero a Groq (0.5s);
-    # si es plática abierta o consulta libre, va primero a Gemini (empático).
-    es_accion_tactica = bool(cambio or 'drilldown' in ruta_baja or (pregunta and any(pregunta.startswith(emoji) for emoji in ['🚨', '⏱️', '🔄'])))
-
-    if es_accion_tactica:
-        respuesta = ejecutar_groq() or ejecutar_gemini()
-    else:
-        respuesta = ejecutar_gemini() or ejecutar_groq()
-
-    final_resp = respuesta if respuesta else (f"🟢 Centinela: " + (f"Déficits en 5 días: {', '.join(deficits_detectados)}." if deficits_detectados else "Flota de 31 unidades en regla."))
-    
     # Persistir pregunta del usuario y respuesta de Centinela en SQLite
     try:
         u_actual = session.get('usuario', 'invitado')
@@ -4016,9 +3996,428 @@ DATOS REALES EN VIVO:
     except Exception:
         pass
 
-    return jsonify({"status": "success", "respuesta": final_resp})
+    return jsonify({
+        "success": True,
+        "data": final_resp,
+        "provider": provider_used,
+        "latency_ms": latency_ms
+    })
+
+
+# =====================================================================
+# ENDPOINT: EXPORTACIÓN OFICIAL EXCEL 1:1 (KARDEX NOM-087 + PIVOTEABLE)
+# =====================================================================
+@app.route('/api/exportar_dot_excel')
+@login_required
+def api_exportar_dot_excel():
+    import io, openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    mes_req = request.args.get('mes')
+    filtro_op = (request.args.get('filtro') or '').strip().upper()
+    dias_mes, texto_mes, _, _, mes_actual_str = get_mes_data(mes_req)
+    num_dias = len(dias_mes)
+    col_max = num_dias + 3  # +3: días + Total + Meta 280h
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    query_ops = """
+        SELECT id, no_empleado, nombre 
+        FROM operadores 
+        WHERE UPPER(estatus_empleado) = 'ACTIVO' 
+          AND COALESCE(esquema, '') != 'Varios' 
+          AND UPPER(COALESCE(linea_negocio, '')) != 'VARIOS'
+          AND UPPER(COALESCE(producto, '')) != 'VARIOS'
+    """
+    if filtro_op:
+        query_ops += f" AND UPPER(nombre) LIKE '%{filtro_op}%'"
+    query_ops += " ORDER BY nombre"
+    c.execute(query_ops)
+    ops_raw = c.fetchall()
+
+    fechas_str = [d['fecha'] for d in dias_mes]
+    placeholders_mes = ','.join(['?'] * len(fechas_str))
+
+    c.execute(f"""
+        SELECT operador_id, fecha, horas, estatus_dia, eco_unidad, eco_pipas, 
+               horas_manejo, horas_maniobra, auditado, tipo_registro, observaciones, 
+               COALESCE(sub_estatus, ''), COALESCE(horas_dot_calc, 0.0), COALESCE(dias_trabajados_calc, 0)
+        FROM dot_diario 
+        WHERE fecha IN ({placeholders_mes})
+    """, fechas_str)
+    dot_global = {
+        (r[0], r[1]): {
+            'horas': r[2], 'estatus': r[3], 'unidad': r[4], 'pipas': r[5], 
+            'manejo': r[6], 'maniobra': r[7], 'auditado': r[8], 'tipo_registro': r[9],
+            'obs': r[10], 'sub_est': r[11], 'h_dot_calc': r[12], 'd_trab_calc': r[13]
+        } for r in c.fetchall()
+    }
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sabana DOT"
+
+    # Fuentes y rellenos corporativos 1:1
+    font_title = Font(name="Calibri", size=22, bold=True, color="FF000000")
+    font_sub_title = Font(name="Calibri", size=11, bold=True, color="FF000000")
+    font_header_dia = Font(name="Calibri", size=13, bold=True, color="FF000000")
+    font_op_header = Font(name="Calibri", size=13, bold=True, color="FF000000")
+    font_metric_lbl = Font(name="Calibri", size=10, bold=True, color="FF000000")
+    font_cell = Font(name="Calibri", size=10, bold=False, color="FF000000")
+    font_white_bold = Font(name="Calibri", size=10, bold=True, color="FFFFFFFF")
+    font_black_bold = Font(name="Calibri", size=10, bold=True, color="FF000000")
+
+    fill_gray = PatternFill(start_color="FFF2F2F2", end_color="FFF2F2F2", fill_type="solid")
+    fill_yellow = PatternFill(start_color="FFFFFF00", end_color="FFFFFF00", fill_type="solid")
+    fill_red = PatternFill(start_color="FFFF0000", end_color="FFFF0000", fill_type="solid")
+
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+
+    thin_border = Border(
+        left=Side(style='thin', color='FFE2E8F0'),
+        right=Side(style='thin', color='FFE2E8F0'),
+        top=Side(style='thin', color='FFE2E8F0'),
+        bottom=Side(style='thin', color='FFE2E8F0')
+    )
+
+    # 1. Título Maestro
+    col_max_let = get_column_letter(max(col_max, 20))
+    ws.merge_cells(f"A1:{col_max_let}1")
+    ws['A1'] = f"Sabana DOT - SAN LUIS POTOSI - {texto_mes}"
+    ws['A1'].font = font_title
+    ws['A1'].fill = fill_gray
+    ws['A1'].alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 38
+
+    # 2. Cálculos de KPIs del encabezado
+    kpi_sobregiros = 0
+    kpi_dias_lab = 0
+    kpi_horas_dec = 0.0
+    kpi_sobre14 = 0
+    kpi_sobre8 = 0
+    kpi_desc = 0
+    kpi_desc_incomp = 0
+    kpi_estimados = 0
+    kpi_plantilla = len(ops_raw)
+
+    datos_por_operador = []
+    for op_id, no_emp, nombre in ops_raw:
+        racha = 0
+        desc_op = 0
+        op_dias = []
+
+        for d in dias_mes:
+            f_str = d['fecha']
+            h_obj = dot_global.get((op_id, f_str), {})
+            est_dia = (h_obj.get('estatus') or '').strip().upper()
+            h_num = float(h_obj.get('horas') or 0.0)
+            tipo_reg = (h_obj.get('tipo_registro') or '').strip().upper()
+            es_audit = (h_obj.get('auditado') == 1 or tipo_reg == 'REAL')
+
+            es_trab = est_dia in ['EN VIAJE', 'G', 'C'] or h_num > 0
+            es_desc_puro = (est_dia == 'D')
+
+            if es_trab:
+                kpi_dias_lab += 1
+                kpi_horas_dec += h_num
+                racha += 1
+                if h_num >= 14.5:
+                    kpi_sobre14 += 1
+                d_calc = h_obj.get('d_trab_calc') or racha
+                if d_calc > 8:
+                    kpi_sobre8 += 1
+                if tipo_reg == 'ESTIMADO' or (not es_audit and h_num > 0):
+                    kpi_estimados += 1
+            elif es_desc_puro:
+                kpi_desc += 1
+                desc_op += 1
+                racha = 0
+            else:
+                racha = 0
+
+            h_dot = h_obj.get('h_dot_calc') or 0.0
+            if h_dot >= 70.0:
+                kpi_sobregiros += 1
+
+            op_dias.append({
+                'fecha': f_str,
+                'horas': h_num,
+                'estatus': est_dia,
+                'unidad': h_obj.get('unidad', ''),
+                'pipas': h_obj.get('pipas', ''),
+                'auditado': es_audit,
+                'tipo_reg': tipo_reg,
+                'sub_est': h_obj.get('sub_est', ''),
+                'obs': h_obj.get('obs', ''),
+                'h_dot_calc': h_dot,
+                'd_trab_calc': h_obj.get('d_trab_calc', 0)
+            })
+
+        if desc_op < 6:
+            kpi_desc_incomp += 1
+
+        datos_por_operador.append({
+            'id': op_id,
+            'no_emp': no_emp,
+            'nombre': nombre,
+            'dias': op_dias
+        })
+
+    incidencias = kpi_sobregiros + kpi_sobre8
+    calif_pct = f"{max(0, round(((kpi_dias_lab - incidencias) / kpi_dias_lab) * 100))}%" if kpi_dias_lab > 0 else "100 %"
+    dias_prog = kpi_plantilla * 25.3624
+    util_pct = f"{((kpi_dias_lab / dias_prog) * 100):.2f}%" if dias_prog > 0 else "0.00 %"
+
+    h_int = int(kpi_horas_dec)
+    m_int = int(round((kpi_horas_dec - h_int) * 60))
+    horas_tot_str = f"{h_int:02d}:{m_int:02d}"
+
+    def set_kpi(cell_lbl, cell_val, merge_lbl, lbl_text, val_text):
+        ws.merge_cells(merge_lbl)
+        c_l = ws[cell_lbl]
+        c_l.value = lbl_text
+        c_l.font = font_sub_title
+        c_l.fill = fill_gray
+        c_l.alignment = align_right
+
+        c_v = ws[cell_val]
+        c_v.value = val_text
+        c_v.font = font_sub_title
+        c_v.fill = fill_gray
+        c_v.alignment = align_center
+
+    set_kpi('B3', 'E3', 'B3:D3', 'Calificación Horas D.O.T.', calif_pct)
+    set_kpi('G3', 'J3', 'G3:I3', 'Plantilla de operadores', kpi_plantilla)
+    set_kpi('L3', 'O3', 'L3:N3', 'Sobregiros', kpi_sobregiros)
+    set_kpi('Q3', 'T3', 'Q3:S3', 'Suma horas acumuladas', horas_tot_str)
+
+    set_kpi('B4', 'E4', 'B4:D4', 'Utilización', util_pct)
+    set_kpi('G4', 'J4', 'G4:I4', 'Días estimados', kpi_estimados)
+    set_kpi('L4', 'O4', 'L4:N4', 'Sobretrabajo + 14:00 hrs', kpi_sobre14)
+    set_kpi('Q4', 'T4', 'Q4:S4', 'Descansos', kpi_desc)
+
+    set_kpi('G5', 'J5', 'G5:I5', 'Días laborados', kpi_dias_lab)
+    set_kpi('L5', 'O5', 'L5:N5', 'Sobretrabajo + 8 días', kpi_sobre8)
+    set_kpi('Q5', 'T5', 'Q5:S5', 'Descansos incompletos (6 días)', kpi_desc_incomp)
+
+    # 3. Encabezados de días
+    ws.row_dimensions[8].height = 24
+    for idx_d, d in enumerate(dias_mes, start=2):
+        cell_d = ws.cell(row=8, column=idx_d, value=idx_d - 1)
+        cell_d.font = font_header_dia
+        cell_d.alignment = align_center
+        cell_d.fill = fill_gray
+        cell_d.border = thin_border
+
+    # Encabezados Total y Meta 280h
+    cell_total = ws.cell(row=8, column=num_dias + 2, value='TOTAL')
+    cell_total.font = font_header_dia
+    cell_total.alignment = align_center
+    cell_total.fill = fill_gray
+    cell_total.border = thin_border
+
+    cell_meta = ws.cell(row=8, column=num_dias + 3, value='META 280h')
+    cell_meta.font = font_header_dia
+    cell_meta.alignment = align_center
+    cell_meta.fill = fill_gray
+    cell_meta.border = thin_border
+
+    # 4. Bloques de operadores (9 renglones por operador)
+    row_cursor = 10
+    labels_subrows = [
+        'Tipo', 'Estatus', 'Tractor / Pipa', 'Horas de Servicio',
+        'Horas D.O.T.', 'Acumulado', 'Días Trabajados'
+    ]
+
+    for op in datos_por_operador:
+        last_col_let = get_column_letter(col_max)
+        ws.merge_cells(f"A{row_cursor}:{last_col_let}{row_cursor}")
+        c_op = ws[f"A{row_cursor}"]
+        c_op.value = op['nombre']
+        c_op.font = font_op_header
+        c_op.fill = fill_gray
+        c_op.alignment = align_left
+        ws.row_dimensions[row_cursor].height = 22
+
+        racha_h = 0.0
+        racha_d = 0
+        dot_acum = 0.0
+
+        for s_idx, lbl in enumerate(labels_subrows, start=1):
+            curr_row = row_cursor + s_idx
+            ws.row_dimensions[curr_row].height = 18
+            lbl_cell = ws.cell(row=curr_row, column=1, value=lbl)
+            lbl_cell.font = font_metric_lbl
+            lbl_cell.fill = fill_gray
+            lbl_cell.alignment = align_left
+            lbl_cell.border = thin_border
+
+        for col_idx, d in enumerate(op['dias'], start=2):
+            est = d['estatus']
+            h = d['horas']
+            is_rest = est in ['D', 'DE', 'V', 'VA', 'I', 'IN', 'B', 'P', 'PER'] or (not est and h == 0)
+
+            # R1: Tipo
+            tipo_v = '-'
+            if h > 0:
+                tipo_v = 'R' if d['auditado'] else 'E'
+            ws.cell(row=row_cursor+1, column=col_idx, value=tipo_v).alignment = align_center
+
+            # R2: Estatus
+            est_v = est if est else ('EN VIAJE' if h > 0 else '-')
+            ws.cell(row=row_cursor+2, column=col_idx, value=est_v).alignment = align_center
+
+            # R3: Tractor / Pipa
+            u = d['unidad'] if d['unidad'] and d['unidad'] != 'N/A' else ''
+            p = d['pipas'] if d['pipas'] and d['pipas'] != 'N/A' else ''
+            eq_v = f"{u} / {p}" if (u or p) and not is_rest else " / "
+            ws.cell(row=row_cursor+3, column=col_idx, value=eq_v).alignment = align_center
+
+            # R4: Horas Servicio
+            h_int_d = int(h)
+            h_dec_d = int(round((h - h_int_d) * 60))
+            serv_v = f"{h_int_d:02d}.{h_dec_d:02d}" if h > 0 else "00:00"
+            ws.cell(row=row_cursor+4, column=col_idx, value=serv_v).alignment = align_center
+
+            # R5 y R6: Acumulados DOT
+            if is_rest:
+                racha_h = 0.0
+                racha_d = 0
+                dot_acum = 0.0
+            else:
+                racha_h += h
+                racha_d += 1
+                dot_acum += h
+
+            d_tot_h = int(dot_acum)
+            d_tot_m = int(round((dot_acum - d_tot_h) * 60))
+            dot_str = f"{d_tot_h:02d}:{d_tot_m:02d}" if dot_acum > 0 else "00:00"
+
+            c_dot = ws.cell(row=row_cursor+5, column=col_idx, value=dot_str)
+            c_dot.alignment = align_center
+            if dot_acum >= 70.0:
+                c_dot.fill = fill_red
+                c_dot.font = font_white_bold
+            elif dot_acum >= 52.0:
+                c_dot.fill = fill_yellow
+                c_dot.font = font_black_bold
+            else:
+                c_dot.font = font_cell
+
+            a_tot_h = int(racha_h)
+            a_tot_m = int(round((racha_h - a_tot_h) * 60))
+            acum_str = f"{a_tot_h:02d}:{a_tot_m:02d}" if racha_h > 0 else "00:00"
+            ws.cell(row=row_cursor+6, column=col_idx, value=acum_str).alignment = align_center
+
+            # R7: Días Trabajados (Semáforo estricto)
+            c_dias = ws.cell(row=row_cursor+7, column=col_idx, value=racha_d)
+            c_dias.alignment = align_center
+            if racha_d >= 8:
+                c_dias.fill = fill_red
+                c_dias.font = font_white_bold
+            elif racha_d == 7:
+                c_dias.fill = fill_yellow
+                c_dias.font = font_black_bold
+            else:
+                c_dias.font = font_cell
+
+            for sub_r in range(1, 8):
+                ws.cell(row=row_cursor+sub_r, column=col_idx).border = thin_border
+
+        # Escribir Total y Meta 280h en la fila de Horas de Servicio (subfila 4)
+        total_horas = racha_h
+        meta_faltante = max(0, 280 - total_horas)
+        t_h = int(total_horas)
+        t_m = int(round((total_horas - t_h) * 60))
+        total_str = f"{t_h:02d}:{t_m:02d}" if total_horas > 0 else "00:00"
+        meta_str = "✅ Meta" if meta_faltante == 0 else f"⚠️ {meta_faltante:.1f}h"
+
+        # Fila 4 = Horas de Servicio (row_cursor + 4)
+        c_total = ws.cell(row=row_cursor + 4, column=num_dias + 2, value=total_str)
+        c_total.alignment = align_center
+        c_total.border = thin_border
+        c_meta = ws.cell(row=row_cursor + 4, column=num_dias + 3, value=meta_str)
+        c_meta.alignment = align_center
+        c_meta.border = thin_border
+
+        # Bordes para las otras filas en columnas Total y Meta
+        for s_idx in [1, 2, 3, 5, 6, 7]:
+            curr_row = row_cursor + s_idx
+            ws.cell(row=curr_row, column=num_dias + 2).border = thin_border
+            ws.cell(row=curr_row, column=num_dias + 3).border = thin_border
+
+        row_cursor += 9
+
+    ws.column_dimensions['A'].width = 22
+    for c_i in range(2, col_max + 1):
+        ws.column_dimensions[get_column_letter(c_i)].width = 19
+
+    # HOJA 2: TABLA PIVOTEABLE PLANA PARA GERENCIA
+    ws_plana = wb.create_sheet(title="Datos_Pivotables")
+    cabeceras_plana = [
+        'No_Empleado', 'Operador', 'Fecha', 'Estatus', 'Sub_Estatus_Motivo', 
+        'Observaciones', 'Horas_Decimal', 'Horas_HHMM', 'Tractor', 'Pipa', 
+        'Tipo_Registro', 'Auditado', 'Total_Mensual', 'Meta_280h_Faltante'
+    ]
+    ws_plana.append(cabeceras_plana)
+    for c_idx_p, h_text in enumerate(cabeceras_plana, start=1):
+        cell_p = ws_plana.cell(row=1, column=c_idx_p)
+        cell_p.font = font_metric_lbl
+        cell_p.fill = fill_gray
+        cell_p.alignment = align_center
+
+    for op in datos_por_operador:
+        # Calcular total mensual y meta faltante por operador
+        total_mensual = sum(d['horas'] for d in op['dias'])
+        meta_faltante = max(0, 280 - total_mensual)
+        total_str = f"{int(total_mensual):02d}:{int(round((total_mensual - int(total_mensual)) * 60)):02d}"
+        meta_str = "Meta cumplida" if meta_faltante == 0 else f"Faltan {meta_faltante:.1f}h"
+        
+        for d in op['dias']:
+            h_val = d['horas']
+            h_int = int(h_val)
+            h_min = int(round((h_val - h_int) * 60))
+            ws_plana.append([
+                op['no_emp'],
+                op['nombre'],
+                d['fecha'],
+                d['estatus'] or ('EN VIAJE' if h_val > 0 else 'SIN ASIGNAR'),
+                d['sub_est'],
+                d['obs'],
+                h_val,
+                f"{h_int:02d}:{h_min:02d}",
+                d['unidad'],
+                d['pipas'],
+                d['tipo_reg'] or 'Estimado',
+                'SI' if d['auditado'] else 'NO',
+                total_str,
+                meta_str
+            ])
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    nombre_archivo = f"Sabana_DOT_{mes_actual_str}"
+    if filtro_op:
+        nombre_archivo += f"_{filtro_op.replace(' ', '_')}"
+    nombre_archivo += ".xlsx"
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=nombre_archivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 if __name__ == '__main__':
     # En producción debug debe ser False para no exponer consola interactiva
     debug_activo = os.environ.get("FLASK_DEBUG", "False").lower() in ("true", "1")
     app.run(host='0.0.0.0', port=5000, debug=debug_activo, threaded=True)
+

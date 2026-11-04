@@ -1,0 +1,15 @@
+# REGLAS CRÍTICAS DEL PROYECTO (ERP OPERACIONES)
+
+1. REGLAS DE NEGOCIO (DOT):
+   - Instructores y movedores NUNCA deben figurar en el apartado de DOT.
+   - La ventana rodante de DOT es estrictamente de 7 días (no 8).
+   - Las metas de horas son fijas para las unidades activas.
+
+2. PROTOCOLO DE MODIFICACIÓN DE ARCHIVOS:
+   - Solo ediciones quirúrgicas: modifica únicamente la función o bloque afectado.
+   - Prohibido reescribir archivos HTML o JS enteros; conserva los listeners existentes (ej. live:dot_actualizado).
+   - Siempre verifica el contrato de datos antes de tocar lógica en templates/ o app.py.
+
+3. VALIDACIÓN OBLIGATORIA:
+   - Tras modificar Python, ejecuta la prueba de sintaxis (smoke test).
+   - Si tocas el DOM en plantillas, verifica que los selectores coincidan exactamente.
