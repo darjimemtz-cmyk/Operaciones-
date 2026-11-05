@@ -469,22 +469,25 @@
             <h2 style="margin: 5px 0 0 0; font-size: 18px; color: #FF8C00;">PIZARRA OPERATIVA - <span id="pdfProgLinea"></span></h2>
             <p style="margin: 5px 0 0 0; font-size: 14px; color: #64748b; font-weight: bold;">FECHA OPERATIVA: <span id="pdfProgFecha"></span></p>
         </div>
-        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11px;">
+        <table id="plantillaPDFProgTabla" style="width: 100%; border-collapse: collapse; text-align: center; font-size: 9.5px;">
             <thead>
                 <tr style="background: #002d5a; color: white;">
-                    <th style="padding: 8px;">#</th>
-                    <th style="padding: 8px;">TR</th>
-                    <th style="padding: 8px;">PIPA</th>
-                    <th style="padding: 8px;">DLY</th>
-                    <th style="padding: 8px; text-align: left;">OPERADOR</th>
-                    <th style="padding: 8px;">S. PROG</th>
-                    <th style="padding: 8px;">C.C.</th>
-                    <th style="padding: 8px;">C/V</th>
-                    <th style="padding: 8px; text-align: left;">CLIENTES</th>
-                    <th style="padding: 8px;">DL</th>
-                    <th style="padding: 8px; text-align: left;">UBICACION</th>
-                    <th style="padding: 8px; text-align: left;">OBSERVACIONES</th>
-                    <th style="padding: 8px;">FACTURA</th>
+                    <th style="padding: 5px 3px;">#</th>
+                    <th style="padding: 5px 3px;">TR</th>
+                    <th style="padding: 5px 3px;">PIPA</th>
+                    <th style="padding: 5px 3px;">DLY</th>
+                    <th style="padding: 5px 3px; text-align: left;">OPERADOR</th>
+                    <th style="padding: 5px 3px;">S. PROG</th>
+                    <th style="padding: 5px 3px;">TMPO COND</th>
+                    <th style="padding: 5px 3px;">C.C.</th>
+                    <th style="padding: 5px 3px;">DIA</th>
+                    <th style="padding: 5px 3px;">C/V</th>
+                    <th style="padding: 5px 3px; text-align: left;">CLIENTES</th>
+                    <th style="padding: 5px 3px;">DL</th>
+                    <th style="padding: 5px 3px; text-align: left;">UBICACION</th>
+                    <th style="padding: 5px 3px; text-align: left;">OBSERVACIONES</th>
+                    <th style="padding: 5px 3px;">FECHA PROG</th>
+                    <th style="padding: 5px 3px;">FACTURA</th>
                 </tr>
             </thead>
             <tbody id="plantillaPDFProgTablaBody"></tbody>
@@ -816,7 +819,9 @@
             let v_dly = tr.cells[3].querySelector('input') ? tr.cells[3].querySelector('input').value : '';
             let v_op = tr.cells[4].querySelector('input') ? tr.cells[4].querySelector('input').value : '';
             let v_sprog = tr.cells[5].querySelector('input') ? tr.cells[5].querySelector('input').value : '';
+            let v_tmpocond = tr.cells[6].querySelector('input') ? tr.cells[6].querySelector('input').value : '';
             let v_cc = tr.cells[7].querySelector('input') ? tr.cells[7].querySelector('input').value : '';
+            let v_dia = tr.cells[8].querySelector('input') ? tr.cells[8].querySelector('input').value : '';
             
             let cvClass = tr.querySelector('.cv-indicator') ? tr.querySelector('.cv-indicator').className : '';
             let cvText = cvClass.includes('green') ? 'V' : (cvClass.includes('red') ? 'C' : '');
@@ -826,23 +831,27 @@
             let escs_dl = Array.from(tr.querySelectorAll('.col-dl input')).map(i=>i.value).join('<br>');
             let escs_ubi = Array.from(tr.querySelectorAll('.col-ubicacion input')).map(i=>i.value).join('<br>');
             let escs_obs = Array.from(tr.querySelectorAll('.col-obs input')).map(i=>i.value).join('<br>');
+            let escs_fch = Array.from(tr.querySelectorAll('.col-fecha input')).map(i => i.value ? i.value.split('-').reverse().join('/') : '').join('<br>');
             let escs_fac = Array.from(tr.querySelectorAll('.col-factura input')).map(i=>i.value).join('<br>');
             
             let html = `
                 <tr style="background-color: ${bgRow};">
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;"><b>${v_num}</b></td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_tr}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_pipa}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_dly}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left;"><b>${v_op}</b></td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_sprog}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${v_cc}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; background-color:${cvBg}; color:white; font-weight:bold;">${cvText}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left; font-weight:bold;">${escs_cli}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1;">${escs_dl}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left;">${escs_ubi}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: left; color:#002d5a;">${escs_obs}</td>
-                    <td style="padding: 6px; border: 1px solid #cbd5e1; font-weight:bold; color:#d97706;">${escs_fac}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;"><b>${v_num}</b></td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_tr}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_pipa}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_dly}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; text-align: left;"><b>${v_op}</b></td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_sprog}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_tmpocond}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_cc}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${v_dia}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; background-color:${cvBg}; color:white; font-weight:bold;">${cvText}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; text-align: left; font-weight:bold;">${escs_cli}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${escs_dl}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; text-align: left;">${escs_ubi}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; text-align: left; color:#002d5a;">${escs_obs}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1;">${escs_fch}</td>
+                    <td style="padding: 5px 3px; border: 1px solid #cbd5e1; font-weight:bold; color:#d97706;">${escs_fac}</td>
                 </tr>
             `;
             tbodyPDF.insertAdjacentHTML('beforeend', html);

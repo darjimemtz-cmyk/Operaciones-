@@ -268,6 +268,52 @@
         color: white !important;
         box-shadow: 0 2px 6px rgba(0,45,90,0.4) !important;
     }
+    body.dark-mode .btn-chip {
+        background: var(--fng-blue) !important;
+        color: white !important;
+        box-shadow: 0 2px 6px rgba(0,45,90,0.4) !important;
+    }
+    body.dark-mode .btn-chip:not(.active) {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #cbd5e1 !important;
+        border: 1px solid #475569 !important;
+        box-shadow: none !important;
+    }
+    body.dark-mode #mesFiltroEquidad {
+        background: #1e293b !important;
+        border-color: #475569 !important;
+        color: #e2e8f0 !important;
+    }
+    
+    /* ========================================================
+       RESPONSIVE: CONTROLES DE PERIODO EQUIDAD (MÓVIL)
+       ======================================================== */
+    @media (max-width: 768px) {
+        #sub-pred-equidad .btn-chip {
+            flex: 1 1 auto;
+            min-width: 0;
+            justify-content: center;
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+        #sub-pred-equidad #mesFiltroEquidad {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 140px;
+            padding: 4px 6px;
+            font-size: 11px;
+        }
+        #sub-pred-equidad span[style*="En vivo"] {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        #sub-pred-equidad > div[style*="background: rgba"] > div[style*="display: flex"] > div:last-child {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            width: 100%;
+            margin-top: 8px;
+        }
+    }
     body.dark-mode .equidad-card {
         background: #1e293b !important;
         border-color: #334155 !important;
@@ -639,7 +685,16 @@
                         <h4 style="margin: 0; color: var(--fng-blue); font-size: 16px;"><i class="fas fa-balance-scale"></i> Análisis de Sesgo</h4>
                         <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Auditoría objetiva de viajes foráneos, minas y pernoctas vs. circuitos locales cortos para detectar sobrecargas o favoritismos.</p>
                     </div>
-                    <button class="btn btn-light" onclick="cargarPredictivo()" style="padding: 6px 14px; font-size: 12px;"><i class="fas fa-sync-alt"></i> Actualizar Análisis</button>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <!-- Controles de periodo: 30 días / Mes específico -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" id="btnEquidad30D" class="btn-chip active" onclick="seleccionarPeriodoEquidad('30d')" style="background: var(--fng-blue); color: white; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,45,90,0.2);">
+                                <span style="font-size: 13px;">🔄</span> Últimos 30 días
+                            </button>
+                            <input type="month" id="mesFiltroEquidad" class="form-control" style="width: auto; height: 32px; padding: 2px 8px; font-size: 11.5px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: var(--fng-blue);" onchange="seleccionarPeriodoEquidad(this.value)">
+                            <span style="font-size: 11px; font-weight: 700; color: #10b981; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-circle" style="font-size: 7px;"></i> En vivo</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1119,16 +1174,67 @@
         }
     }
 
-    async function cargarPredictivo() {
+    function seleccionarPeriodoEquidad(periodo) {
+        const btn30d = document.getElementById('btnEquidad30D');
+        const inputMes = document.getElementById('mesFiltroEquidad');
+        
+        if (periodo === '30d') {
+            // Modo 30 días: activar botón, limpiar input mes
+            if (btn30d) {
+                btn30d.classList.add('active');
+                btn30d.style.background = 'var(--fng-blue)';
+                btn30d.style.color = 'white';
+                btn30d.style.boxShadow = '0 2px 6px rgba(0,45,90,0.2)';
+            }
+            if (inputMes) inputMes.value = '';
+            cargarPredictivo(); // sin parámetro = últimos 30 días
+        } else if (periodo) {
+            // Modo mes específico: desactivar botón 30d, cargar mes
+            if (btn30d) {
+                btn30d.classList.remove('active');
+                btn30d.style.background = 'rgba(0, 45, 90, 0.08)';
+                btn30d.style.color = 'var(--fng-blue)';
+                btn30d.style.boxShadow = 'none';
+            }
+            cargarPredictivo(periodo);
+        }
+    }
+
+    async function cargarPredictivo(periodo = null) {
         const grid = document.getElementById('gridPredictivo');
         const gridEquidad = document.getElementById('gridEquidadDespacho');
+        const btn30d = document.getElementById('btnEquidad30D');
+        const inputMes = document.getElementById('mesFiltroEquidad');
         grid.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Generando proyecciones a 15 días...</div>';
         if (gridEquidad) {
             gridEquidad.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Auditando asignaciones de viajes...</div>';
         }
 
+        // Construir URL: si periodo es '30d' o null -> sin parámetro; si es mes (ej. '2026-10') -> ?mes=...
+        const url = (periodo && periodo !== '30d') ? `/api/resumen_predictivo?mes=${periodo}` : '/api/resumen_predictivo';
+        
+        // Actualizar estado visual del selector de periodo
+        if (periodo && periodo !== '30d') {
+            // Modo mes específico: desactivar chip "Últimos 30 días"
+            if (btn30d) {
+                btn30d.classList.remove('active');
+                btn30d.style.background = 'rgba(0, 45, 90, 0.08)';
+                btn30d.style.color = 'var(--fng-blue)';
+                btn30d.style.boxShadow = 'none';
+            }
+        } else {
+            // Modo 30 días: activar chip "Últimos 30 días" y limpiar input
+            if (btn30d) {
+                btn30d.classList.add('active');
+                btn30d.style.background = 'var(--fng-blue)';
+                btn30d.style.color = 'white';
+                btn30d.style.boxShadow = '0 2px 6px rgba(0,45,90,0.2)';
+            }
+            if (inputMes) inputMes.value = '';
+        }
+
         try {
-            const res = await fetch('/api/resumen_predictivo');
+            const res = await fetch(url);
             const json = await res.json();
             
             if(json.status === 'success') {

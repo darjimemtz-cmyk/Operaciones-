@@ -2932,6 +2932,38 @@ def resumen_predictivo():
     c = conn.cursor()
     hoy = datetime.now().date()
     
+    # --- Parámetro opcional: mes (YYYY-MM) o modo Ventana Rodante 30D ---
+    mes_req = request.args.get('mes')
+    
+    if mes_req:
+        # MODO FILTRO MENSUAL: mes específico (ej. '2026-10')
+        try:
+            anio, mes = map(int, mes_req.split('-'))
+            f_inicio = datetime(anio, mes, 1).date()
+            # Último día del mes
+            if mes == 12:
+                f_fin_mes = datetime(anio + 1, 1, 1).date() - timedelta(days=1)
+            else:
+                f_fin_mes = datetime(anio, mes + 1, 1).date() - timedelta(days=1)
+            # Si es el mes actual, limitar a hoy
+            f_fin = min(f_fin_mes, hoy)
+            dias_totales = (f_fin - f_inicio).days + 1
+            # Norma FNG: ~6.5 descansos por 30 días
+            esperados_base = max(1, round(dias_totales * (6.5 / 30.0)))
+        except:
+            # Fallback a ventana rodante si el formato es inválido
+            mes_req = None
+    
+    if not mes_req:
+        # MODO POR DEFECTO: Ventana Rodante 30D
+        f_fin = hoy
+        f_inicio = hoy - timedelta(days=29)
+        dias_totales = 30
+        esperados_base = 7  # Norma FNG: ~6.5 a 7 descansos por cada 30 días
+    
+    f_inicio_str = f_inicio.strftime('%Y-%m-%d')
+    f_fin_str = f_fin.strftime('%Y-%m-%d')
+    
     fechas_obj = [(hoy + timedelta(days=i)) for i in range(1, 16)]
     fechas_str = [f.strftime('%Y-%m-%d') for f in fechas_obj]
     
@@ -3039,8 +3071,15 @@ def resumen_predictivo():
 
     auditoria_equidad = []
     if session.get('rol') in ['jefe_op', 'gerencia', 'super_usuario']:
-        # Consultamos el historial cerrado de viajes de los últimos 45 días
-        c.execute("SELECT viaje_json FROM viajes_archivados WHERE fecha_operativa >= date('now', '-45 days')")
+        # ========================================================
+        # RUTAS: Equidad en asignación (viajes_archivados)
+        # Ventana: f_inicio a f_fin (30D rodante o mes calendario)
+        # ========================================================
+        c.execute(
+            "SELECT viaje_json FROM viajes_archivados "
+            "WHERE fecha_operativa BETWEEN ? AND ?",
+            (f_inicio_str, f_fin_str)
+        )
         viajes_db = c.fetchall()
         
         balance_choferes = {}
@@ -3097,51 +3136,49 @@ def resumen_predictivo():
         
         # ========================================================
         # A) EQUIDAD DE DESCANSOS (Sábana vs Rol del Operador)
+        # Ventana: f_inicio a f_fin
+        # Déficit (🔴): descansos_reales < esperados_base - 2
+        # Exceso (🟡): descansos_reales > esperados_base + 2
         # ========================================================
         c.execute("SELECT id, nombre FROM operadores WHERE estatus_empleado='Activo'")
         ops_activos = c.fetchall()
-        
-        hoy = datetime.now().date()
-        primer_dia_mes = hoy.replace(day=1)
-        dias_mes = hoy.day
-        esperados_base = max(1, round(dias_mes / 4.5))
         
         c.execute(
             "SELECT operador_id, COUNT(*) FROM logistica_diaria "
             "WHERE fecha >= ? AND fecha <= ? AND estatus = 'DE' "
             "GROUP BY operador_id",
-            (primer_dia_mes.strftime('%Y-%m-%d'), hoy.strftime('%Y-%m-%d'))
+            (f_inicio_str, f_fin_str)
         )
         descansos_por_op = dict(c.fetchall())
         
         for op_id, nombre in ops_activos:
             descansos_reales = descansos_por_op.get(op_id, 0)
-            deficit = esperados_base - descansos_reales
-            exceso = descansos_reales - esperados_base
             
-            if descansos_reales < esperados_base - 1:
+            if descansos_reales < esperados_base - 2:
                 auditoria_equidad.append({
                     "operador": nombre,
                     "tipo": "Déficit de Descansos (Rol)",
                     "color": "red",
                     "icono": "fa-bed",
-                    "detalle": f"Lleva {descansos_reales} descansos de {esperados_base} esperados a la fecha (-{deficit} días).",
-                    "alerta": "Riesgo de sobrecarga en rol mensual.",
+                    "detalle": f"Lleva {descansos_reales} descansos en el periodo de {dias_totales} días (parámetro esperado: {esperados_base} días).",
+                    "alerta": "Riesgo de sobrecarga en rol; déficit crítico de recuperación.",
                     "categoria": "descanso"
                 })
-            elif descansos_reales > esperados_base + 1:
+            elif descansos_reales > esperados_base + 2:
                 auditoria_equidad.append({
                     "operador": nombre,
                     "tipo": "Exceso de Descansos (Rol)",
                     "color": "yellow",
                     "icono": "fa-clock",
-                    "detalle": f"Lleva {descansos_reales} descansos vs {esperados_base} esperados a la fecha (+{exceso} días de más).",
+                    "detalle": f"Lleva {descansos_reales} descansos en el periodo de {dias_totales} días (parámetro esperado: {esperados_base} días).",
                     "alerta": "Inactividad prolongada; candidato para activarse en piso.",
                     "categoria": "descanso"
                 })
         
         # ========================================================
         # B) CONFLICTOS DE ROL (Sábana vs Bitácora DOT)
+        # Cruzar logistica_diaria ('DE') vs dot_diario (horas > 0)
+        # WHERE fecha BETWEEN f_inicio AND f_fin
         # ========================================================
         c.execute(
             "SELECT ld.operador_id, ld.fecha, d.horas, o.nombre "
@@ -3151,7 +3188,7 @@ def resumen_predictivo():
             "WHERE ld.fecha >= ? AND ld.fecha <= ? "
             "AND ld.estatus = 'DE' AND d.horas > 0 "
             "AND o.estatus_empleado = 'Activo'",
-            (primer_dia_mes.strftime('%Y-%m-%d'), hoy.strftime('%Y-%m-%d'))
+            (f_inicio_str, f_fin_str)
         )
         conflictos = c.fetchall()
         
