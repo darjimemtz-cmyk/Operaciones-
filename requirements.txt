@@ -7,3 +7,5 @@ requests
 gunicorn
 python-dotenv
 groq
+openai
+google-genai
