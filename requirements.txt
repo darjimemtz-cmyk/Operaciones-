@@ -6,3 +6,4 @@ flask-limiter
 requests
 gunicorn
 python-dotenv
+groq
