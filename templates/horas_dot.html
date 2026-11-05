@@ -10,12 +10,11 @@
 {% block extra_css %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js'></script>
 
 <style>
-    /* ========================================================
-       TARJETA FLOTANTE INDEPENDIENTE: KPIS DOT (NOM-087)
-       ======================================================== */
+    /* kpis nom-087 */
     .kpi-panel-dot {
         background: white;
         border-radius: 12px;
@@ -71,9 +70,7 @@
         color: #1e293b;
     }
 
-    /* ========================================================
-       BARRA SUPERIOR Y CONTROLES CENTRADOS
-       ======================================================== */
+    /* barra superior y controles */
     .header-toolbar { display: flex; align-items: center; justify-content: space-between; position: relative; min-height: 48px; margin-bottom: 20px; gap: 15px; }
     .header-title-box { display: flex; align-items: center; }
     .date-navigator-box { display: flex; align-items: center; gap: 8px; }
@@ -100,6 +97,13 @@
     body.dark-mode .range-item input[type="date"]:focus { border-color: var(--fng-orange) !important; }
     body.dark-mode .week-display-badge { background: var(--bg-surface) !important; border-color: var(--border-subtle) !important; color: #ffffff !important; }
 
+    
+    .btn-export-xlsx { background: #16a34a; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; box-shadow: 0 4px 10px rgba(22,163,74,0.25); white-space: nowrap; transition: transform 0.2s, background 0.2s; height: 42px; box-sizing: border-box; }
+    .btn-export-xlsx:hover { background: #15803d; transform: translateY(-1px); }
+    #popJustificacion { display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+    body.dark-mode #popJustificacion { background: rgba(180, 83, 9, 0.2) !important; border-color: rgba(251, 191, 36, 0.4) !important; }
+    body.dark-mode #popJustificacion p { color: #fef08a !important; }
+
     .btn-export-pdf { background: #ef4444; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; box-shadow: 0 4px 10px rgba(239,68,68,0.25); white-space: nowrap; transition: transform 0.2s, background 0.2s; height: 42px; box-sizing: border-box; }
     .btn-export-pdf:hover { background: #dc2626; transform: translateY(-1px); }
 
@@ -117,9 +121,7 @@
     .dropzone-compact { border: 2px dashed rgba(0,45,90,0.25); border-radius: 12px; padding: 12px 20px; background: #f8fafc; cursor: pointer; transition: 0.3s; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 15px; }
     .dropzone-compact:hover { background: #e0f2fe; border-color: var(--fng-orange); }
 
-    /* ========================================================
-       TABLAS Y ANCLAJE BIDIRECCIONAL (STICKY TIPO KARDEX)
-       ======================================================== */
+    /* tablas y anclaje sticky */
     .table-responsive { 
         width: 100%; 
         max-height: 70vh; /* Activa el scroll vertical manteniendo el techo fijo */
@@ -223,23 +225,49 @@
     .col-dia { min-width: 45px; width: 45px; max-width: 45px; text-align: center; padding: 6px 2px; font-size: 11px; }
 
     /* 2. COLUMNAS CONGELADAS A LA DERECHA (ESCRITORIO) */
-    .col-total { 
+    /* NUEVA COLUMNA META 280H - FIJA A LA DERECHA */
+    .col-meta { 
         position: sticky;
         right: 55px;
         background: #ffffff;
         z-index: 6;
-        min-width: 95px; 
-        width: 95px; 
+        min-width: 120px; 
+        width: 120px; 
         text-align: center; 
         box-sizing: border-box;
+        font-weight: 700;
+        font-size: 12px;
+        white-space: nowrap;
     }
-    th.col-total {
+    th.col-meta {
         position: sticky;
         right: 55px;
         top: 0;
         background: var(--fng-blue) !important;
         color: #ffffff !important;
         z-index: 22 !important;
+        white-space: nowrap;
+    }
+
+    .col-total { 
+        position: sticky;
+        right: 175px;  /* 55px (acción) + 120px (meta) */
+        background: #ffffff;
+        z-index: 6;
+        min-width: 105px; 
+        width: 105px; 
+        text-align: center; 
+        box-sizing: border-box;
+        white-space: nowrap;
+    }
+    th.col-total {
+        position: sticky;
+        right: 175px;
+        top: 0;
+        background: var(--fng-blue) !important;
+        color: #ffffff !important;
+        z-index: 22 !important;
+        white-space: nowrap;
     }
 
     .col-accion { 
@@ -263,10 +291,15 @@
         box-shadow: -4px 2px 8px -3px rgba(0,0,0,0.15);
     }
 
+    /* ESTADOS DE LA META 280H */
+    .meta-cumplida { color: #16a34a !important; }
+    .meta-faltante { color: #dc2626 !important; }
+
     /* MODO OSCURO PARA COLUMNAS FIJAS */
     body.dark-mode .sticky-col-1,
     body.dark-mode .sticky-col-2,
     body.dark-mode .col-total,
+    body.dark-mode .col-meta,
     body.dark-mode .col-accion {
         background: var(--bg-surface) !important;
         color: var(--text-main) !important;
@@ -274,10 +307,14 @@
     body.dark-mode th.sticky-col-1,
     body.dark-mode th.sticky-col-2,
     body.dark-mode th.col-total,
+    body.dark-mode th.col-meta,
     body.dark-mode th.col-accion {
         background: var(--bg-surface-2) !important;
         color: var(--fng-orange) !important;
     }
+
+    body.dark-mode .meta-cumplida { color: #4ade80 !important; }
+    body.dark-mode .meta-faltante { color: #f87171 !important; }
 
     /* SUB-FILAS NATIVAS DEL ACORDEÓN */
     .accordion-subrow { background-color: #f8fafc; }
@@ -301,9 +338,7 @@
 
     .toggle-icon { margin-right: 8px; color: var(--fng-orange); transition: transform 0.2s; display: inline-block;}
     .row-expanded .toggle-icon { transform: rotate(90deg); }
-    /* ========================================================
-       TEXTO PLANO DEL CATÁLOGO OPERATIVO (CERO PÍLDORAS)
-       ======================================================== */
+    /* texto plano catálogo operativo */
     .txt-rol {
         font-weight: 800;
         font-size: 11.5px;
@@ -336,9 +371,7 @@
     body.dark-mode .txt-rol-cap { color: #34d399 !important; }
     body.dark-mode .txt-rol-gen { color: #94a3b8 !important; }
 
-    /* ========================================================
-       POPOVER DE RESUMEN RÁPIDO (OCULTO POR DEFECTO)
-       ======================================================== */
+    /* popover resumen rápido */
     .popover-dot { 
         position: absolute; 
         background: white; 
@@ -356,9 +389,7 @@
     .popover-body p { margin: 5px 0; font-size: 12px; color: #475569;}
     .popover-body i { width: 15px; text-align: center; margin-right: 5px;}
 
-    /* ========================================================
-       MODAL DE EDICIÓN FNG OFICIAL (OCULTO POR DEFECTO)
-       ======================================================== */
+    /* modal edición fng */
     .modal-overlay { 
         position: fixed; 
         top: 0; 
@@ -385,9 +416,7 @@
     .btn-light:hover { background: #dc2626; }
     .input-error { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
 
-    /* ========================================================
-       ESTILOS LIMPIOS DEL SEMÁFORO (SIN TEXTO S/B NI SATURACIÓN)
-       ======================================================== */
+    /* semáforo horas */
     /* 1. Verde: Auditado real */
     .horas-auditadas { 
         color: #16a34a !important; 
@@ -437,9 +466,7 @@
         font-weight: 600;
     }
 
-    /* ========================================================
-       ADAPTACIÓN RESPONSIVA MÓVIL Y MULTIPANTALLA (DOT)
-       ======================================================== */
+    /* adaptación responsiva móvil */
     @media (max-width: 991px) {
         .header-toolbar { 
             flex-direction: column; 
@@ -548,6 +575,7 @@
         .sticky-col-1,
         .sticky-col-2,
         .col-total,
+        .col-meta,
         .col-accion {
             position: static !important;
             left: auto !important;
@@ -558,6 +586,7 @@
         th.sticky-col-1,
         th.sticky-col-2,
         th.col-total,
+        th.col-meta,
         th.col-accion {
             position: sticky !important;
             top: 0 !important;
@@ -614,9 +643,7 @@
         }
     }
 
-    /* ========================================================
-       ADAPTACIÓN MODO OSCURO: KPIS, BARRA SUPERIOR Y ESCÁNER OCR
-       ======================================================== */
+    /* adaptación modo oscuro */
     /* 1. Tarjeta flotante de KPIs */
     body.dark-mode .kpi-panel-dot {
         background: var(--bg-surface) !important;
@@ -672,7 +699,7 @@
 
 {% block content %}
 
-<!-- TARJETA FLOTANTE INDEPENDIENTE: KPIS DOT (NOM-087) -->
+<!-- kpi panel dot -->
 <div class="kpi-panel-dot" id="kpiPanelDOT">
     <div class="kpi-row kpi-row-1">
         <div class="kpi-cell" onclick="abrirModalKPI('sobregiros')" title="Ver choferes en sobregiro">
@@ -726,7 +753,7 @@
 
 <div class="glass-panel">
     
-    <!-- BARRA SUPERIOR -->
+    <!-- barra superior -->
     <div class="header-toolbar">
         <div class="header-title-box">
             <h3 style="margin: 0; font-size: 20px; color: var(--fng-blue); display: flex; align-items: center; gap: 8px;">
@@ -764,7 +791,10 @@
                 <i class="fas fa-times clear-icon" onclick="limpiarYColapsarBuscadorRH(event)"></i>
             </div>
 
-            {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
+            {% if rol in ['jefe_op', 'aux_dot', 'super_usuario'] %}
+            <button class="btn-export-xlsx" onclick="descargarReporteExcel()" title="Exportar a Excel (XLSX)">
+                <i class="fas fa-file-excel"></i> <span>Exportar XLSX</span>
+            </button>
             <button class="btn-export-pdf" onclick="descargarReporteDOT()" title="Exportar Reporte Mensual">
                 <i class="fas fa-file-pdf"></i> <span>Exportar PDF</span>
             </button>
@@ -773,7 +803,7 @@
     </div>
 
     <!-- ESCÁNER AUTOMÁTICO BHS COMPACTO -->
-    {% if rol in ['jefe_op', 'aux_op'] %}
+    {% if rol in ['jefe_op', 'aux_dot'] %}
     <div style="margin-top: 10px;">
         <div class="dropzone-compact" id="ocr-dropzone" onclick="document.getElementById('ocr-input').click()">
             <i class="fas fa-file-signature" style="font-size: 26px; color: var(--fng-blue);"></i>
@@ -801,7 +831,8 @@
                         <th class="col-dia {% if d.es_hoy %}es-hoy{% endif %}" title="{{ d.fecha }}">{{ d.label }}</th>
                     {% endfor %}
                     <th class="col-total">Total Mensual</th>
-                    {% if rol in ['jefe_op', 'aux_op'] %}<th class="col-accion">Acción</th>{% endif %}
+                    <th class="col-meta">280h / Faltantes</th>
+                    {% if rol in ['jefe_op', 'aux_dot'] %}<th class="col-accion">Acción</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -820,13 +851,13 @@
                     {% for i in range(dias_mes|length) %}
                         {% set h_obj = op.horas_diarias[i] %}
                         {% set f_str = dias_mes[i].fecha %}
-                        {# LECTURA DIRECTA DE BITÁCORA DOT (DESCONECTADO DE LA SÁBANA) #}
+                        {# lectura directa bitácora dot (desconectado de sábana) #}
                         {% set est_dot = (h_obj.estatus_dia if (h_obj and h_obj.estatus_dia) else (h_obj.estatus if (h_obj and h_obj.estatus) else ''))|upper|trim %}
                         {% set es_futuro = (f_str > f_hoy) %}
                         {% set tiene_horas = (h_obj and h_obj.horas is not none and h_obj.horas != '' and h_obj.horas != 'None') %}
                         {% set h_val = (h_obj.horas|float) if tiene_horas else 0.0 %}
 
-                        {# ASIGNACIÓN DE COLOR SEGÚN ESTATUS DOT #}
+                        {# color según estatus dot #}
                         {% set rol_class = 'txt-rol-gen' %}
                         {% if est_dot in ['D', 'DE', 'DESCANSO'] %}
                             {% set rol_class = 'txt-rol-de' %}
@@ -847,7 +878,7 @@
                         <td class="col-dia {% if dias_mes[i].es_hoy %}es-hoy{% endif %}">
                             {% if es_futuro %}
                                 {% if est_dot != '' and est_dot != 'NONE' and est_dot != 'NAN' %}
-                                    <span class="txt-rol {{ rol_class }}" style="opacity: 0.55;" onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_dot }}</span>
+                                    <span class="txt-rol {{ rol_class }}" style="opacity: 0.55;" onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}', '{{ (h_obj.sub_estatus|default(""))|replace("'", "") }}', '{{ (h_obj.observaciones|default(""))|replace("'", "") }}')">{{ est_dot }}</span>
                                 {% else %}
                                     <span class="celda-futura">-</span>
                                 {% endif %}
@@ -855,7 +886,7 @@
                                 {% if tiene_horas and h_val > 0 %}
                                     {% set es_real = (h_obj.auditado == 1 or h_obj.auditado == true or h_obj.tipo_registro == 'Real') %}
                                     <span class="{% if es_real %}horas-auditadas{% else %}horas-crudas{% endif %}"
-                                          onclick="mostrarPopover(event, '{{ est_dot|default('EN VIAJE') }}', '{{ h_obj.unidad }}', '{{ h_obj.pipas }}', '{{ h_obj.manejo }}', '{{ h_obj.maniobra }}', '{{ f_str }}')"
+                                          onclick="mostrarPopover(event, '{{ est_dot|default('EN VIAJE') }}', '{{ h_obj.unidad }}', '{{ h_obj.pipas }}', '{{ h_obj.manejo }}', '{{ h_obj.maniobra }}', '{{ f_str }}', '{{ (h_obj.sub_estatus|default(""))|replace("'", "") }}', '{{ (h_obj.observaciones|default(""))|replace("'", "") }}')"
                                           title="{% if es_real %}🟢 Real Auditado: {{ h_obj.horas }}h{% else %}🟠 Estimado: {{ h_obj.horas }}h{% endif %}">
                                         {% if h_obj.evidencia_foto and h_obj.evidencia_foto != 'N/A' %}
                                             <i class="fas fa-camera" style="font-size: 9px; margin-right: 2px;"></i>
@@ -865,7 +896,7 @@
                                 {% else %}
                                     {% if est_dot != '' and est_dot != 'NONE' and est_dot != 'NAN' %}
                                         <span class="txt-rol {{ rol_class }}"
-                                              onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}')">{{ est_dot }}</span>
+                                              onclick="mostrarPopover(event, '{{ est_dot }}', 'N/A', 'N/A', '0.0', '0.0', '{{ f_str }}', '{{ (h_obj.sub_estatus|default(""))|replace("'", "") }}', '{{ (h_obj.observaciones|default(""))|replace("'", "") }}')">{{ est_dot }}</span>
                                     {% else %}
                                         <span style="color: #cbd5e1; font-weight: 600;">-</span>
                                     {% endif %}
@@ -876,7 +907,11 @@
                     
                     <td class="col-total" style="font-weight: 800; font-size: 13px;">{{ op.total }} hrs</td>
                     
-                    {% if rol in ['jefe_op', 'aux_op'] %}
+                    <td class="col-meta {% if op.total >= 280 %}meta-cumplida{% else %}meta-faltante{% endif %}">
+                        {% if op.total >= 280 %}✅ Meta{% else %}⚠️ Faltan {{ (280 - op.total)|round(1) }}h{% endif %}
+                    </td>
+                    
+                    {% if rol in ['jefe_op', 'aux_dot'] %}
                     <td class="col-accion">
                         <button class="btn-action" title="Captura Detallada" data-horas='{{ op.horas_diarias | tojson | safe }}' onclick="abrirModalEditorDatoUnico('{{ op.id }}', '{{ op.nombre_credencial|default(op.nombre) }}', this)"><i class="fas fa-edit"></i></button>
                     </td>
@@ -888,7 +923,7 @@
     </div>
 </div>
 
-<!-- POPOVER DE RESUMEN RÁPIDO -->
+<!-- popover resumen rápido -->
 <div id="dotPopover" class="popover-dot">
     <div class="popover-header">
         <span id="popTitle"><i class="far fa-calendar-alt"></i> Detalle</span>
@@ -896,6 +931,11 @@
     </div>
     <div class="popover-body">
         <p>📌 <b>Estatus:</b> <span id="popEstatus" style="color:var(--fng-blue); font-weight:bold;"></span></p>
+        <div id="popJustificacion">
+            <div style="font-size:10px; font-weight:700; color:#b45309; text-transform:uppercase;"><i class="fas fa-info-circle"></i> Motivo Oficial:</div>
+            <div id="popSubEstatus" style="font-size:12px; font-weight:800; color:#92400e; margin-top:2px;"></div>
+            <div id="popObs" style="font-size:11px; color:#78350f; font-style:italic; margin-top:3px;"></div>
+        </div>
         <div id="popVehiculos">
             <p><i class="fas fa-truck-moving" style="color:#64748b;"></i> <b>Tractor:</b> <span id="popUni"></span></p>
             <p><i class="fas fa-trailer" style="color:#64748b;"></i> <b>Pipa(s):</b> <span id="popPipas"></span></p>
@@ -907,7 +947,7 @@
 </div>
 
 <!-- MODAL DE EDICIÓN FNG OFICIAL -->
-{% if rol in ['jefe_op', 'aux_op'] %}
+{% if rol in ['jefe_op', 'aux_dot'] %}
 <div id="modalEditarDOT" class="modal-overlay">
     <div class="modal-box">
         
@@ -1059,6 +1099,10 @@
         </div>
         
         <div class="modal-footer-fixed">
+            <div style="margin-right: auto; display: flex; gap: 6px;">
+                <button onclick="descargarReporteDOT(document.getElementById('dotIdOp').value)" class="btn-action" style="padding: 6px 10px; font-size: 11px;" title="Exportar PDF individual"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button onclick="window.location.href='/api/exportar_dot_excel?mes={{ mes_actual_str }}&filtro=' + encodeURIComponent(document.getElementById('modalNombreCredencial').innerText)" class="btn-action" style="padding: 6px 10px; font-size: 11px;" title="Exportar Excel individual"><i class="fas fa-file-excel"></i> Excel</button>
+            </div>
             <button onclick="guardarUnSoloDia()" class="btn-primary"><i class="fas fa-save"></i> Guardar</button>
             <button onclick="cerrarModalDOT()" class="btn-light"><i class="fas fa-times"></i> Cerrar</button>
         </div>
@@ -1066,7 +1110,7 @@
     </div>
 </div>
 
-<!-- MODAL DE AUDITORÍA DETALLADA POR KPI (VENTANA EMERGENTE) -->
+<!-- modal detalle kpi -->
 <div id="modalDetalleKPI" class="modal-overlay" style="display: none;">
     <div class="modal-box" style="max-width: 780px;">
         <div class="modal-header-fixed">
@@ -1116,9 +1160,7 @@
         return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
     }
 
-    // ==========================================
-    // CÁLCULO DINÁMICO DE KPIS DOT (NOM-087) HOMOLOGADO AL ESTÁNDAR FNG
-    // ==========================================
+    // calculo kpis fng
     function calcularKPIDOT(filtro = '') {
         filtro = filtro.trim().toUpperCase();
         
@@ -1141,7 +1183,20 @@
             let rachaTrabajo = 0;
             let descansosOp = 0;
 
-            op.horas_diarias.forEach((dia) => {
+            // Para cálculo de sobregiros con ventana rodante de 7 días
+            const horasPorFecha = {};
+            op.horas_diarias.forEach((dia, idx) => {
+                if (!dia || !dia.fecha) return;
+                const est = (dia.estatus_dia || '').trim().toUpperCase();
+                const tieneHoras = (dia.horas !== null && dia.horas !== undefined && dia.horas !== '' && dia.horas !== 'None');
+                const h = tieneHoras ? (parseFloat(dia.horas) || 0) : 0;
+                const esTrabajo = ['EN VIAJE', 'G', 'C'].includes(est) || h > 0;
+                if (esTrabajo) {
+                    horasPorFecha[dia.fecha] = h;
+                }
+            });
+
+            op.horas_diarias.forEach((dia, idx) => {
                 if (!dia || !dia.fecha) return;
 
                 const est = (dia.estatus_dia || '').trim().toUpperCase();
@@ -1159,8 +1214,8 @@
                     sumaHorasDecimal += h;
                     rachaTrabajo++;
 
-                    // Sobretrabajo oficial (Jornadas extremas >= 14:30 hrs)
-                    if (h >= 14.5) sobretrabajo14++;
+                    // Sobretrabajo oficial (Jornadas extremas > 14:00 hrs)
+                    if (h > 14.0) sobretrabajo14++;
                     
                     // Sobretrabajo 8 días: contador nativo del Excel
                     let dTrabOficial = (dia.dias_trabajados_calc !== undefined && dia.dias_trabajados_calc > 0) 
@@ -1171,6 +1226,18 @@
                     if (tipoReg === 'ESTIMADO' || (!esAuditado && h > 0)) {
                         diasEstimados++;
                     }
+
+                    // Sobregiro oficial DOT (ventana rodante 7 días >= 70h)
+                    let suma7d = 0;
+                    for (let i = idx; i >= 0 && i > idx - 7; i--) {
+                        const diaAnt = op.horas_diarias[i];
+                        if (!diaAnt || !diaAnt.fecha) continue;
+                        const hAnt = horasPorFecha[diaAnt.fecha] || 0;
+                        suma7d += hAnt;
+                    }
+                    if (suma7d >= 70.0) {
+                        sobregiros++;
+                    }
                 } else if (esDescansoPuro) {
                     descansos++;
                     descansosOp++;
@@ -1178,26 +1245,20 @@
                 } else {
                     rachaTrabajo = 0;
                 }
-
-                // Sobregiro oficial DOT (Tope NOM-087 >= 70h importado de la matriz)
-                let hDotVal = (dia.horas_dot_calc !== undefined && dia.horas_dot_calc > 0) ? dia.horas_dot_calc : 0;
-                if (hDotVal >= 70.0) {
-                    sobregiros++;
-                }
             });
             if (descansosOp < 6) descansosIncompletos++;
         });
 
-        // 2. Calificación oficial FNG (percentH)
+        // 2. Calificación oficial FNG (percentH) - 1 decimal fijo
         let incidencias = sobregiros + sobretrabajo8;
-        let calificacion = diasLaborados > 0 
-            ? Math.max(0, Math.round(((diasLaborados - incidencias) / diasLaborados) * 100))
-            : 100;
+        let calificacion = diasLaborados > 0
+            ? (((diasLaborados - incidencias) / diasLaborados) * 100).toFixed(1)
+            : "100.0";
 
-        // 3. Utilización oficial FNG (percentU)
-        let diasProgramablesFlota = plantilla * 25.3624; 
-        let utilizacion = diasProgramablesFlota > 0 
-            ? ((diasLaborados / diasProgramablesFlota) * 100).toFixed(2) 
+        // 3. Utilización oficial FNG (percentU) - factor mensual real
+        let diasProgramablesFlota = plantilla * (diasMesFechas.length > 0 ? (diasMesFechas.length - 5) : 26.0394);
+        let utilizacion = diasProgramablesFlota > 0
+            ? ((diasLaborados / diasProgramablesFlota) * 100).toFixed(2)
             : "0.00";
 
         // Inyección directa a las tarjetas superiores
@@ -1214,9 +1275,7 @@
         document.getElementById('kpiUtilizacion').innerText = utilizacion + " %";
     }
 
-    // ==========================================
-    // LÓGICA DEL ACORDEÓN (SUB-FILAS NATIVAS)
-    // ==========================================
+    // acordeón sub-filas
     function toggleAccordion(opId) {
         const row = document.getElementById('row-' + opId);
         let subrows = document.querySelectorAll('.subrow-' + opId);
@@ -1333,6 +1392,7 @@
             });
 
             html += `<td class="col-total">-</td>`;
+            html += `<td class="col-meta">-</td>`;
             {% if rol in ['jefe_op', 'aux_dot', 'super_usuario'] %}
             html += `<td class="col-accion">-</td>`;
             {% endif %}
@@ -1348,10 +1408,8 @@
         });
     }
 
-    // ==========================================
-    // APERTURA DEL RESUMEN RÁPIDO (POPOVER)
-    // ==========================================
-    function mostrarPopover(e, est, uni, pipas, mane, mani, fecha) {
+    // popover resumen rápido
+    function mostrarPopover(e, est, uni, pipas, mane, mani, fecha, subEst = '', obs = '') {
         e.stopPropagation();
         const pop = document.getElementById('dotPopover');
         document.getElementById('popTitle').innerHTML = `<i class="far fa-calendar-alt"></i> ${fecha}`;
@@ -1365,7 +1423,25 @@
         };
         let estMostrar = catMap[est] || est;
         document.getElementById('popEstatus').innerText = estMostrar;
-        
+
+        // Renderizado del Motivo Oficial y Observaciones
+        const contJust = document.getElementById('popJustificacion');
+        const elSub = document.getElementById('popSubEstatus');
+        const elObs = document.getElementById('popObs');
+        const esOtro = (estMostrar === 'OTRO' || est === 'OTRO');
+
+        if (contJust) {
+            if (esOtro || subEst || obs) {
+                contJust.style.display = 'block';
+                elSub.innerText = subEst ? `• ${subEst}` : (esOtro ? '• Pendiente de justificar' : '• Causa no especificada');
+                elObs.innerText = obs ? `"${obs}"` : (esOtro && !subEst ? '(Edita con el lápiz para registrar causa oficial)' : '');
+            } else {
+                contJust.style.display = 'none';
+                elSub.innerText = '';
+                elObs.innerText = '';
+            }
+        }
+
         // Ocultar sección de vehículos si es descanso, ausencia o no tiene datos de viaje
         let esSinVehiculos = ['D', 'DE', 'V', 'VA', 'I', 'IN', 'C', 'P', 'B', '-', 'Sin Asignar'].includes(est) || 
                              ['D', 'V', 'I', 'C', 'P', 'B'].includes(estMostrar);
@@ -1386,10 +1462,8 @@
         pop.style.display = 'block';
     }
 
-    // ==========================================
-    // MOTOR OCR PARA BITÁCORAS F-OPE
-    // ==========================================
-    {% if rol in ['jefe_op', 'aux_op'] %}
+    // motor ocr bitácoras f-ope
+    {% if rol in ['jefe_op', 'aux_dot'] %}
     const todosNombresBD = {{ lista_ocr | safe }}; 
     
     function encontrarOperadorSimilar(textoLeido) {
@@ -1465,9 +1539,7 @@
 
     function cancelarOCR() { document.getElementById('ocr-input').value = ""; document.getElementById('ocr-dropzone').style.display = 'flex'; document.getElementById('ocr-loading').style.display = 'none'; }
 
-    // ==========================================
-    // MODAL OFICIAL DE EDICIÓN
-    // ==========================================
+    // modal edición
     function abrirModalEditorDatoUnico(id, nombre, btnEl) {
         document.body.style.overflow = 'hidden'; 
         
@@ -1544,7 +1616,7 @@
         toggleCamposVehiculos();
     }
 
-    // Disparo inmediato al cambiar las fechas (cero botón 'Consultar')
+    // disparo automático al cambiar fechas
     function filtrarRangoAutomatico() {
         const fIni = document.getElementById('fechaIniFiltro').value;
         const fFin = document.getElementById('fechaFinFiltro').value;
@@ -1562,14 +1634,13 @@
         const cont = document.getElementById('camposVehiculosDOT');
         const contSub = document.getElementById('contenedorSubEstatusOtro');
 
-        // Mostrar / ocultar desplegable de incidencias
         if (sel === 'OTRO') {
             contSub.style.display = 'block';
         } else {
             contSub.style.display = 'none';
         }
 
-        // Si es ausencia o estatus sin unidad en ruta
+        // ausencias y estatus sin unidad
         if (['D', 'V', 'I', 'B', 'P', 'C', 'OTRO'].includes(sel)) {
             cont.style.display = 'none';
             document.getElementById('editDotManejo').value = 0.0;
@@ -1656,8 +1727,16 @@
     }
     {% endif %}
 
-    {% if rol in ['jefe_op', 'aux_op', 'monitorista'] %}
-    function descargarReporteDOT() {
+    {% if rol in ['jefe_op', 'aux_dot', 'super_usuario'] %}
+        // exportación excel kardex + base pivoteable
+            function descargarReporteExcel() {
+        const mes = document.getElementById('dateJump') ? document.getElementById('dateJump').value : '';
+        const filtro = document.getElementById('buscadorRH') ? document.getElementById('buscadorRH').value.trim() : '';
+        showToast("⏳ Generando y descargando Excel 1:1...", "warning");
+        window.location.href = `/api/exportar_dot_excel?mes=${encodeURIComponent(mes)}&filtro=${encodeURIComponent(filtro)}`;
+    }
+
+    function descargarReporteDOT(opIdFiltro = null) {
         showToast("⏳ Generando Kardex Oficial paginado por operador...", "warning");
         const { jsPDF } = window.jspdf;
         
@@ -1670,19 +1749,42 @@
         const OPS_POR_PAGINA = 5;
         
         const dias_label = [{% for d in dias_mes %}"{{ d.label.split(' ')[0] }}\n{{ d.label.split(' ')[1] }}",{% endfor %}];
-        const head = [['Operador / Métrica', 'Rest.', ...dias_label, 'TOTAL']];
-        const ops = {{ operadores | tojson | safe }};
+        const head = [['Operador / Métrica', 'Rest.', ...dias_label, 'TOTAL', 'META 280h']];
+        const allOps = {{ operadores | tojson | safe }};
+        
+        // --- FILTRADO DE OPERADORES ---
+        let ops = allOps;
+        let nombreArchivo = `Kardex_DOT_{{ mes_actual_str }}_Oficio.pdf`;
+        
+        if (opIdFiltro) {
+            // Filtro estricto por ID de operador (desde modal)
+            ops = allOps.filter(o => o.id == opIdFiltro);
+            if (ops.length === 1) {
+                nombreArchivo = `Kardex_DOT_${ops[0].nombre.replace(/ /g, '_')}_{{ mes_actual_str }}.pdf`;
+            }
+        } else {
+            // Filtro por buscador de texto (nombre)
+            const filtroInput = (document.getElementById('buscadorRH')?.value || '').trim().toUpperCase();
+            if (filtroInput) {
+                ops = allOps.filter(o => o.nombre.toUpperCase().includes(filtroInput));
+                if (ops.length === 1) {
+                    nombreArchivo = `Kardex_DOT_${ops[0].nombre.replace(/ /g, '_')}_{{ mes_actual_str }}.pdf`;
+                }
+            }
+        }
+        // Si no hay filtro, usa allOps y nombre por defecto
         
         const numDias = dias_label.length;
         const colStyles = {
             0: { halign: 'left', cellWidth: 42 },
             1: { halign: 'center', cellWidth: 11 }
         };
-        const anchoDia = Math.floor((341.6 - 42 - 11 - 13) / numDias * 10) / 10;
+        const anchoDia = Math.floor((341.6 - 42 - 11 - 13 - 15) / numDias * 10) / 10;
         for (let c = 2; c < 2 + numDias; c++) {
             colStyles[c] = { cellWidth: anchoDia, halign: 'center' };
         }
-        colStyles[2 + numDias] = { halign: 'center', cellWidth: 13 };
+        colStyles[2 + numDias] = { halign: 'center', cellWidth: 13 };      // Total
+        colStyles[3 + numDias] = { halign: 'center', cellWidth: 15 };      // Meta 280h
 
         const totalPaginas = Math.ceil(ops.length / OPS_POR_PAGINA);
 
@@ -1714,6 +1816,9 @@
                     else filaOp.push('-');
                 });
                 filaOp.push((op.total || 0) + 'h');
+                // Meta 280h
+                const metaFaltante = Math.max(0, 280 - (op.total || 0));
+                filaOp.push(metaFaltante === 0 ? '✅ Meta' : '⚠️ ' + metaFaltante.toFixed(1) + 'h');
                 pageBody.push(filaOp);
                 metadataFilas.push({ tipo: 'operador_header' });
 
@@ -1762,7 +1867,8 @@
                 subMetricas.forEach(m => {
                     const filaM = [m.label, '-'];
                     celdasSub[m.key].forEach(val => filaM.push(val));
-                    filaM.push('-');
+                    filaM.push('-');  // Total
+                    filaM.push('-');  // Meta 280h
                     pageBody.push(filaM);
                     metadataFilas.push({ tipo: 'subfila', subKey: m.key });
                 });
@@ -1840,7 +1946,7 @@
             });
         }
 
-        doc.save(`Kardex_DOT_{{ mes_actual_str }}_Oficio.pdf`);
+        doc.save(nombreArchivo);
         showToast("✅ Kardex descargado sin cortes de operadores.", "success");
     }
     {% endif %}
@@ -1866,7 +1972,7 @@
         filtrarTablaAuditoria();
     }
 
-    // Escucha clics fuera para cerrar tanto el buscador como el popover
+    // cierra buscador y popover al click fuera
     window.addEventListener('click', function(e) {
         const bar = document.getElementById('searchBarContainerRH');
         const input = document.getElementById('buscadorRH');
@@ -1903,19 +2009,16 @@
             }
         });
 
-        // Recalcular métricas en el panel flotante
+        // recalcular kpis panel flotante
         calcularKPIDOT(input);
     }
 
-    // Inicializar cálculos de KPIs al cargar la página
-    // Inicializar cálculos de KPIs al cargar la página
+    // init kpis al cargar
     window.addEventListener('DOMContentLoaded', () => {
         calcularKPIDOT('');
     });
 
-    // ==========================================
-    // VENTANA EMERGENTE: DETALLE DE KPIS DOT
-    // ==========================================
+    // modal detalle kpis dot
     function abrirModalKPI(tipo) {
         const modal = document.getElementById('modalDetalleKPI');
         const titulo = document.getElementById('modalKPITitulo');
@@ -1924,6 +2027,13 @@
         const tbody = document.getElementById('tbodyDetalleKPI');
         const conteo = document.getElementById('modalKPIConteo');
         
+        // Respetar filtro del buscador activo
+        const filtroBuscador = (document.getElementById('buscadorRH') ? document.getElementById('buscadorRH').value : '').trim().toUpperCase();
+        const listaOperadores = todosOperadoresData.filter(op => {
+            if (!filtroBuscador) return true;
+            return op.nombre.toUpperCase().includes(filtroBuscador);
+        });
+
         tbody.innerHTML = '';
         let filasHTML = '';
         let totalCasos = 0;
@@ -1934,7 +2044,7 @@
                 desc.innerText = 'Operadores que excedieron el límite legal de 70 horas en ventana rodante de 7 días en el mes.';
                 thVar.innerText = 'Días con Sobregiro y Horas Acumuladas';
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let ventana = [];
                     let diasExcedidos = [];
 
@@ -1971,7 +2081,7 @@
                 desc.innerText = 'Días donde se registraron más de 14 horas de servicio continúo o acumuladas.';
                 thVar.innerText = 'Fecha y Horas del Día';
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let incidencias = [];
                     op.horas_diarias.forEach(d => {
                         if (d && parseFloat(d.horas) > 14.0) {
@@ -2001,7 +2111,7 @@
                 const hoyLim8 = "{{ hoy_str }}" || new Date().toISOString().split('T')[0];
                 const numsRol8 = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let racha = 0;
                     let maxRacha = 0;
                     op.horas_diarias.forEach(d => {
@@ -2046,7 +2156,7 @@
                 desc.innerText = 'Operadores que no alcanzaron el mínimo de 6 descansos en el periodo mensual.';
                 thVar.innerText = 'Descansos Registrados';
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let totalDesc = 0;
                     op.horas_diarias.forEach(d => {
                         if (d && (d.estatus_dia === 'D' || d.estatus === 'D')) {
@@ -2074,7 +2184,7 @@
                 desc.innerText = 'Turnos calculados de manera estimada que aún no han sido auditados contra bitácora física.';
                 thVar.innerText = 'Total de Días Estimados';
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let estimados = 0;
                     op.horas_diarias.forEach(d => {
                         if (d && (d.auditado === 0 || d.auditado === false || d.tipo_registro === 'Estimado')) {
@@ -2106,7 +2216,7 @@
                 desc.innerText = 'Desglose del comportamiento acumulado en el mes operativo.';
                 thVar.innerText = 'Horas Mes / Descansos';
 
-                todosOperadoresData.forEach(op => {
+                listaOperadores.forEach(op => {
                     let totalDesc = 0;
                     op.horas_diarias.forEach(d => {
                         if (!d) return;
@@ -2128,11 +2238,11 @@
         }
 
         if (totalCasos === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="padding: 24px; text-align: center; color: #10b981; font-weight: 700;"><i class="fas fa-check-circle" style="font-size: 22px; display: block; margin-bottom: 6px;"></i> Sin incidencias detectadas en este rubro.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="padding: 24px; text-align: center; color: #10b981; font-weight: 700;"><i class="fas fa-check-circle" style="font-size: 22px; display: block; margin-bottom: 6px;"></i> Sin incidencias detectadas en este rubro${filtroBuscador ? ' para ' + filtroBuscador : ''}.</td></tr>`;
             conteo.innerText = '0 registros encontrados';
         } else {
             tbody.innerHTML = filasHTML;
-            conteo.innerText = `Total de registros: ${totalCasos}`;
+            conteo.innerText = `Total de registros: ${totalCasos}${filtroBuscador ? ' (Filtrado: ' + filtroBuscador + ')' : ''}`;
         }
 
         document.body.style.overflow = 'hidden';
@@ -2144,7 +2254,7 @@
         document.getElementById('modalDetalleKPI').style.display = 'none';
     }
 
-// ABRIR MODAL DIRECTAMENTE AL TOCAR LA CELDA ROJA "S/B"
+// modal captura directa fecha s/b
     function abrirModalCapturaDirectaFecha(id, nombre, fecha) {
         const row = document.getElementById(`row-${id}`);
         if (!row) return;
@@ -2165,14 +2275,10 @@
         }
     }
 
-    // =====================================================================
-    // RECEPTOR EN TIEMPO REAL: ACTUALIZACIÓN REACTIVA DE HORAS DOT
-    // =====================================================================
+    // receptor tiempo real: actualización reactiva horas dot
     const diasMesFechas = [{% for d in dias_mes %}"{{ d.fecha }}",{% endfor %}];
 
-    // =====================================================================
-    // ALMAS GEMELAS: SINCRONIZACIÓN EN VIVO DESDE LA SÁBANA
-    // =====================================================================
+    // sincronización en vivo desde sábana
     function procesarSincronizacionSabanaEnDOT(e) {
         const payload = e.detail;
         if (!payload) return;
@@ -2189,7 +2295,7 @@
         const row = document.getElementById(`row-${opId}`);
         if (!op || colIdx === -1 || !row) return;
 
-        // 1. Actualizar memoria local
+        // 1. actualizar memoria local
         let diaObj = op.horas_diarias[colIdx];
         if (!diaObj) {
             diaObj = { fecha: fecha };
@@ -2197,7 +2303,7 @@
         }
         diaObj.estatus_sabana = nuevoEstatus;
 
-        // 2. Determinar si es fecha futura y si es día de trabajo
+        // 2. fecha futura y día de trabajo
         const fHoy = "{{ hoy_str }}" || "{% for d in dias_mes %}{% if d.es_hoy %}{{ d.fecha }}{% endif %}{% endfor %}" || new Date().toISOString().split('T')[0];
         const esFuturo = (fecha > fHoy);
         const numerosRol = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15'];
@@ -2206,7 +2312,7 @@
         const tieneHoras = (diaObj.horas !== null && diaObj.horas !== undefined && diaObj.horas !== '' && diaObj.horas !== 'None');
         const hVal = tieneHoras ? (parseFloat(diaObj.horas) || 0.0) : 0.0;
 
-        // 3. Estilos del catálogo operativo
+        // 3. estilos catálogo operativo
         let rolClass = 'txt-rol-gen';
         if (['DE', 'D', 'DESCANSO'].includes(nuevoEstatus)) rolClass = 'txt-rol-de';
         else if (['VA', 'V', 'VACACIONES'].includes(nuevoEstatus)) rolClass = 'txt-rol-va';
@@ -2217,7 +2323,7 @@
         else if (['LIC', 'LICENCIA'].includes(nuevoEstatus)) rolClass = 'txt-rol-lic';
         else if (['CAP', 'C', 'CAPACITACION'].includes(nuevoEstatus)) rolClass = 'txt-rol-cap';
 
-        // 4. Redibujar celda al vuelo
+        // 4. redibujar celda
         const celda = row.children[colIdx + 2];
         if (celda) {
             if (esFuturo) {
@@ -2245,7 +2351,7 @@
                 }
             }
 
-            // Destello suave de sincronización inmediata
+            // destello suave sincronización
             celda.style.transition = 'background-color 0.35s ease, transform 0.15s ease';
             celda.style.backgroundColor = 'rgba(2, 132, 199, 0.2)';
             celda.style.transform = 'scale(1.15)';
@@ -2255,11 +2361,11 @@
             }, 600);
         }
 
-        // 5. Actualizar KPIs superiores
+        // 5. actualizar kpis
         calcularKPIDOT(document.getElementById('buscadorRH')?.value || '');
     }
 
-    // DESCONEXIÓN DE SÁBANA OPERATIVA: Auditoría DOT queda 100% independiente
+    // sábana desconectada: auditoría dot 100% independiente
     // document.addEventListener('live:celda_sabana', procesarSincronizacionSabanaEnDOT);
     // document.addEventListener('live:celda_actualizada', procesarSincronizacionSabanaEnDOT);
 
@@ -2272,7 +2378,7 @@
         const row = document.getElementById(`row-${payload.operador_id}`);
         if (!op || colIdx === -1 || !row) return;
 
-        // 1. Actualizar memoria local
+        // 1. aplicar payload
         let diaObj = op.horas_diarias[colIdx];
         if (!diaObj) {
             diaObj = { fecha: payload.fecha };
@@ -2293,14 +2399,14 @@
         diaObj.viaje_mina = payload.viaje_mina;
         diaObj.observaciones = payload.observaciones;
 
-        // 2. Recalcular total mensual del operador
+        // 2. recalcular total mensual
         let totalHoras = 0;
         op.horas_diarias.forEach(d => {
             if (d && d.horas) totalHoras += parseFloat(d.horas) || 0;
         });
         op.total = Math.round(totalHoras * 10) / 10;
 
-        // 3. Pintar celda con animación
+        // 3. pintar celda con animación
         const celda = row.children[colIdx + 2];
         if (celda) {
             const hNum = parseFloat(payload.horas) || 0;
@@ -2323,13 +2429,24 @@
             }, 1200);
         }
 
-        // 4. Actualizar total en fila y modal
-        const celdaTotal = row.children[diasMesFechas.length + 2];
+        // 4. actualizar total en fila y modal
+        const celdaTotal = row.querySelector('.col-total');
         if (celdaTotal) celdaTotal.innerText = `${op.total} hrs`;
+        
+        // 4b. actualizar columna meta 280h
+        const celdaMeta = row.querySelector('.col-meta');
+        if (celdaMeta) {
+            const metaFaltante = Math.max(0, 280 - (op.total || 0));
+            celdaMeta.innerHTML = metaFaltante === 0 
+                ? '<span class="meta-cumplida">✅ Meta</span>' 
+                : '<span class="meta-faltante">⚠️ Faltan ' + metaFaltante.toFixed(1) + 'h</span>';
+            celdaMeta.className = 'col-meta ' + (metaFaltante === 0 ? 'meta-cumplida' : 'meta-faltante');
+        }
+        
         const btnAccion = row.querySelector('.btn-action');
         if (btnAccion) btnAccion.setAttribute('data-horas', JSON.stringify(op.horas_diarias));
 
-        // 5. Refrescar acordeón si estaba desplegado y recalcular KPIs superiores
+        // 5. refrescar acordeón y recalcular kpis
         const subrows = document.querySelectorAll(`.subrow-${payload.operador_id}`);
         if (subrows.length > 0 && subrows[0].style.display !== 'none') {
             subrows.forEach(r => r.remove());

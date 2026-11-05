@@ -14,3 +14,4 @@ evidencias_dot/
 # Configuraciones locales de editor y temporales
 .vscode/
 *.save
+.aider*

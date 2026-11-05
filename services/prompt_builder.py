@@ -1,6 +1,6 @@
 """
-Prompt Builder service for structuring ERP operational context.
-Separates System Prompt, User Query, and Dynamic Context with token control.
+Prompt Builder service for Centinela - FNG San Luis Potosí.
+Builds conversational, context-aware prompts for tactical logistics copilot.
 """
 
 from typing import Optional, Dict, Any, List
@@ -30,30 +30,49 @@ class BuiltPrompt:
 
 class PromptBuilder:
     """
-    Builds structured prompts for AI queries with ERP operational context.
+    Builds prompts for Centinela: conversational, tactical logistics copilot.
     
     Token estimation: ~4 chars per token (conservative)
     Max context: configurable (default ~8000 chars = ~2000 tokens for context)
     """
     
     # System prompt template - fixed, not counted in dynamic budget
-    SYSTEM_PROMPT = """Eres un asistente operativo especializado en gestión de flotas y cumplimiento DOT para una empresa de transporte.
-Tu rol es proporcionar respuestas concisas, accionables y basadas estrictamente en los datos proporcionados.
+    SYSTEM_PROMPT = """Eres Centinela, copiloto táctico de tráfico en FNG San Luis Potosí.
+Hablas con {usuario} ({rol}). Tono: telegráfico, al grano, sin rodeos corporativos.
 
-REGLAS CRÍTICAS:
-1. NUNCA inventes datos: si no está en el contexto, indícalo explícitamente.
-2. Las ventanas DOT son de 7 días rodantes (no 8).
-3. Instructores y movedores NUNCA aparecen en reportes DOT.
-4. Las metas de horas son fijas por unidad activa.
-5. Responde en español, tono profesional y directo.
-6. Prioriza alertas críticas y riesgos de incumplimiento.
-7. Formato: resumen ejecutivo → detalle accionable → recomendaciones."""
+=== REGLAS ESTRICTAS DE BREVEDAD Y SÍNTESIS (INQUEBRANTABLES) ===
+- RESPUESTAS ULTRA-CONCISAS: Máximo 3 a 5 renglones en total. Prohibidos los muros de texto o párrafos largos.
+- Estructura OBLIGATORIA para cualquier respuesta operativa:
+  1. Diagnóstico en 1 línea.
+  2-3. Viñetas con [Nombre | Horas | Acción sugerida].
+  4. Pregunta de cierre.
+- Cero introducciones, cierres, frases hechas, "como copiloto", "analizando", etc.
 
-    # Section headers for structured context
-    FLEET_HEADER = "=== RESUMEN DE FLOTA ==="
-    DOT_HEADER = "=== HORAS DOT (VENTANA 7 DÍAS) ==="
-    ALERTS_HEADER = "=== ALERTAS ACTIVAS ==="
-    ADDITIONAL_HEADER = "=== CONTEXTO ADICIONAL ==="
+=== DIÁLOGO ADAPTATIVO ===
+• **Saludo** ("hola", "buen día", "qué tal"): 1-2 líneas. Saluda por nombre, pregunta qué movemos.
+  Ej: "Buen día, {usuario}. Patio tranquilo, sin alertas. ¿En qué te apoyo?"
+
+• **Pregunta puntual** ("¿quién descansa?", "¿horas del 5?"): 2-3 líneas con datos. Sin intro.
+
+• **Dilema / decisión** ("¿a quién mando?", "¿cómo cubro CO2?"): Razona como en pizarrón de patio.
+  Cruza: disponibilidad real, horas libres DOT (tope 70h/7d), vigencias, producto.
+  Da recomendación táctica. Si faltan datos, dilo y pídelos.
+
+• **Reporte/auditoría** (solo si piden explícitamente): Ejecutivo, accionable, sin plantillas rígidas.
+
+=== CRITERIOS OPERATIVOS (INQUEBRANTABLES) ===
+- Flota objetivo: **31 unidades activas**.
+- **DOT/NOM-087**: Ventana rodante **7 días** (máx **70h**).
+- **Instructores y movedores NUNCA** en cálculos ni reportes DOT.
+- Basa **siempre** argumentos en datos vivos del contexto (viaje, descansos, vigencias, diésel, alertas).
+- Dato no en contexto = no inventes, admítelo.
+- Cero nombres quemados. Usuario viene en `context_data['additional']['usuario']`, rol en `['additional']['rol']`."""
+
+    # Section headers for context injection (neutral, no rigid templates)
+    FLEET_HEADER = "FLOTA ACTIVA"
+    DOT_HEADER = "HORAS DOT (VENTANA 7 DÍAS / TOPE 70H)"
+    ALERTS_HEADER = "ALERTAS ACTIVAS"
+    ADDITIONAL_HEADER = "CONTEXTO ADICIONAL"
 
     def __init__(
         self,
@@ -77,7 +96,9 @@ REGLAS CRÍTICAS:
         self,
         context: PromptContext,
         user_query: str,
-        include_system: bool = True
+        include_system: bool = True,
+        usuario: str = "Usuario",
+        rol: str = "Operaciones"
     ) -> BuiltPrompt:
         """
         Build complete prompt with system prompt, context, and user query.
@@ -86,6 +107,8 @@ REGLAS CRÍTICAS:
             context: Structured operational context
             user_query: User's question or request
             include_system: Whether to include system prompt
+            usuario: User name for system prompt interpolation
+            rol: User role for system prompt interpolation
             
         Returns:
             BuiltPrompt with all components and metadata
@@ -122,14 +145,15 @@ REGLAS CRÍTICAS:
         # Build user prompt with context
         user_prompt = self._build_user_prompt(full_context, user_query)
         
+        # Get interpolated system prompt
+        system_prompt = self.get_system_prompt(usuario, rol) if include_system else ""
+        
         # Calculate metrics
-        total_chars = len(user_prompt)
-        if include_system:
-            total_chars += len(self.SYSTEM_PROMPT)
+        total_chars = len(user_prompt) + len(system_prompt)
         estimated_tokens = total_chars // 4
         
         return BuiltPrompt(
-            system_prompt=self.SYSTEM_PROMPT if include_system else "",
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
             total_chars=total_chars,
             estimated_tokens=estimated_tokens,
@@ -277,9 +301,9 @@ REGLAS CRÍTICAS:
         """Estimate token count (conservative: 4 chars per token)."""
         return len(text) // 4
 
-    def get_system_prompt(self) -> str:
-        """Get the fixed system prompt."""
-        return self.SYSTEM_PROMPT
+    def get_system_prompt(self, usuario: str = "Usuario", rol: str = "Operaciones") -> str:
+        """Get the system prompt interpolated with user identity."""
+        return self.SYSTEM_PROMPT.format(usuario=usuario, rol=rol)
 
     def build_prompt(
         self,
@@ -300,11 +324,17 @@ REGLAS CRÍTICAS:
         """
         # Convert context_data to PromptContext
         context = PromptContext()
+        additional = {}
         if context_data:
             context.fleet_summary = context_data.get("fleet_summary", {})
             context.dot_hours = context_data.get("dot_hours", {})
             context.alerts = context_data.get("alerts", [])
             context.additional = context_data.get("additional", {})
+            additional = context_data.get("additional", {})
+        
+        # Extract user identity for system prompt interpolation
+        usuario = additional.get("usuario", "Usuario")
+        rol = additional.get("rol", "Operaciones")
         
         # Build history context if provided
         history_text = ""
@@ -316,12 +346,15 @@ REGLAS CRÍTICAS:
                 history_lines.append(f"  [{role.upper()}]: {content[:300]}")
             history_text = "\n".join(history_lines)
         
-        # Use existing build method
-        built = self.build(context, user_query, include_system=True)
+        # Use existing build method with interpolated system prompt
+        built = self.build(context, user_query, include_system=True, usuario=usuario, rol=rol)
+        
+        # System prompt already interpolated in build()
+        system_prompt = built.system_prompt
         
         # Prepend history to user prompt if exists
         full_user_prompt = built.user_prompt
         if history_text:
             full_user_prompt = history_text + "\n\n" + full_user_prompt
         
-        return (built.system_prompt, full_user_prompt)
+        return (system_prompt, full_user_prompt)

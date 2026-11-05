@@ -797,7 +797,7 @@
 
             <!-- Buscador interno compacto -->
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <input type="text" id="buscadorMovimientos" class="form-control" placeholder="Buscar por chofer, supervisor o estatus..." oninput="filtrarTablaAuditoria()" style="margin: 0; padding: 8px 12px; font-size: 12px;">
+                <input type="text" id="buscadorMovimientos" class="form-control" placeholder="Buscar por chofer, supervisor o estatus..." oninput="filtrarTablaMovimientos30D()" style="margin: 0; padding: 8px 12px; font-size: 12px;">
                 <span id="contadorAuditoria" style="font-size: 11px; font-weight: bold; color: var(--text-muted); white-space: nowrap;">0 registros</span>
             </div>
 
@@ -866,7 +866,7 @@
                 };
             }
 
-            // Ejemplo: "✅ Aprobado por Esteban Alvarado: Salvador Morales pasa a DE el 2026-10-22."
+            // Ejemplo: "✅ Aprobado por Supervisor: Salvador Morales pasa a DE el 2026-10-22."
             const regexAprobado = /(?:Aprobado|Rechazado)\s+por\s+(.*?):\s+(.*?)\s+(?:pasa a|se negó.*?para)\s+(.*?)\s+(?:el|del)\s+(.*?)(?:\.|\s*$)/i;
             const matchApr = texto.match(regexAprobado);
 
@@ -898,7 +898,7 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     cacheMovimientos = data.data;
-                    renderizarTablaAuditoria(cacheMovimientos);
+                    renderizarTablaMovimientos30D(cacheMovimientos);
                 } else {
                     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#ef4444;">No fue posible obtener los datos.</td></tr>`;
                 }
@@ -956,12 +956,17 @@
         }
 
         function filtrarPorSupervisorDirecto(sup) {
-            filtroSupervisorActivo = sup;
+            // Toggle: si es el mismo supervisor ya activo, desactivar filtro
+            if (filtroSupervisorActivo === sup) {
+                filtroSupervisorActivo = null;
+            } else {
+                filtroSupervisorActivo = sup;
+            }
             document.getElementById('buscadorMovimientos').value = '';
-            filtrarTablaAuditoria();
+            filtrarTablaMovimientos30D();
         }
 
-        function renderizarTablaAuditoria(lista) {
+        function renderizarTablaMovimientos30D(lista) {
             const tbody = document.getElementById('tbodyAuditoriaMovimientos');
             document.getElementById('contadorAuditoria').innerText = `${lista.length} registros`;
             tbody.innerHTML = '';
@@ -1000,7 +1005,7 @@
             });
         }
 
-        function filtrarTablaAuditoria() {
+        function filtrarTablaMovimientos30D() {
             const q = document.getElementById('buscadorMovimientos').value.toLowerCase();
             const filtrados = cacheMovimientos.filter(m => {
                 const info = parsearMensajeMovimiento(m.evento);
@@ -1008,7 +1013,7 @@
                 const coincideSupervisor = !filtroSupervisorActivo || info.supervisor === filtroSupervisorActivo;
                 return coincideTexto && coincideSupervisor;
             });
-            renderizarTablaAuditoria(filtrados);
+            renderizarTablaMovimientos30D(filtrados);
         }
     </script>
 
@@ -1038,6 +1043,9 @@
                 </button>
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="c26-icon-btn" onclick="borrarHistorialCentinela()" title="Borrar historial">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
                 <button type="button" class="c26-icon-btn" onclick="limpiarHistorialCentinela()" title="Reiniciar chat">
                     <i class="fas fa-sparkles"></i>
                 </button>
@@ -1557,7 +1565,65 @@
     </style>
 
     <script>
-        let centinelaHistorial = [];
+        // =====================================================================
+        // CENTINELA IA: PERSISTENCIA LOCALSTORAGE + HISTORIAL (v1)
+        // Clave: centinela_historial_v1 | Límite: 15 msg | Ventana: 7 días
+        // =====================================================================
+        const CENTINELA_STORAGE_KEY = 'centinela_historial_v1';
+        const CENTINELA_MAX_MSGS = 15;
+        const CENTINELA_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
+
+        function cargarHistorialLocal() {
+            try {
+                const raw = localStorage.getItem(CENTINELA_STORAGE_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                const now = Date.now();
+                // Filtrar mensajes > 7 días y limitar a 15
+                const filtrados = arr
+                    .filter(m => m.timestamp && (now - m.timestamp) < CENTINELA_MAX_AGE_MS)
+                    .slice(-CENTINELA_MAX_MSGS);
+                return filtrados;
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function guardarHistorialLocal(historial) {
+            try {
+                const recortado = historial.slice(-CENTINELA_MAX_MSGS);
+                localStorage.setItem(CENTINELA_STORAGE_KEY, JSON.stringify(recortado));
+            } catch (e) {}
+        }
+
+        function pintarMensajesGuardados() {
+            const historial = cargarHistorialLocal();
+            if (historial.length === 0) return;
+            const chat = document.getElementById('centinelaChatBody');
+            if (!chat) return;
+            chat.innerHTML = '';
+            historial.forEach(m => {
+                if (m.rol === 'user') {
+                    chat.innerHTML += `<div class="c26-msg-user">${m.texto}</div>`;
+                } else {
+                    chat.innerHTML += `<div class="c26-msg-bot">${m.texto}</div>`;
+                }
+            });
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function borrarHistorialCentinela() {
+            if (!confirm('¿Eliminar todo el historial de Centinela?')) return;
+            localStorage.removeItem(CENTINELA_STORAGE_KEY);
+            centinelaHistorial = [];
+            const chat = document.getElementById('centinelaChatBody');
+            if (chat) {
+                chat.innerHTML = `<div class="c26-msg-bot intro"><div class="c26-bot-tag"><i class="fas fa-robot"></i> Centinela</div>Historial borrado. ¿Qué evaluamos hoy?</div>`;
+            }
+            showToast('Historial eliminado', 'success');
+        }
+
+        let centinelaHistorial = cargarHistorialLocal();
         const bubble = document.getElementById('centinelaBubble');
         const speech = document.getElementById('centinelaSpeech');
         const speechTxt = document.getElementById('centinelaSpeechTexto');
@@ -1803,8 +1869,9 @@
                 const res = await fetch('/api/centinela_historial', { method: 'DELETE' });
                 if (res.ok) {
                     centinelaHistorial = [];
+                    localStorage.removeItem(CENTINELA_STORAGE_KEY);
                     const chat = document.getElementById('centinelaChatBody');
-                    chat.innerHTML = `<div style="background: rgba(0,45,90,0.06); padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--fng-orange);">🧹 Conversación reiniciada. ¿Qué evaluamos ahora?</div>`;
+                    chat.innerHTML = `<div class="c26-msg-bot intro"><div class="c26-bot-tag"><i class="fas fa-robot"></i> Centinela</div>Conversación reiniciada. ¿Qué evaluamos ahora?</div>`;
                     showToast("Historial reiniciado", "success");
                 }
             } catch (err) {}
@@ -1855,6 +1922,8 @@
             setInterval(checarMovimientosSabana, 10000);
             cargarHistorialCentinela();
             setTimeout(checarAlertasPredictivasCentinela, 3500);
+            // Restaurar historial local al cargar la página
+            pintarMensajesGuardados();
             // Iniciar sincronización en vivo cada 3.5 segundos
             sincronizarEnVivo();
             setInterval(sincronizarEnVivo, 3500);
@@ -1871,8 +1940,8 @@
             } else {
                 posicionarVentanaCentinela();
                 win.classList.add('abierto');
-                const chat = document.getElementById('centinelaChatBody');
-                if (chat) chat.scrollTop = chat.scrollHeight;
+                // Restaurar mensajes guardados al abrir
+                pintarMensajesGuardados();
             }
         }
 
@@ -1891,9 +1960,15 @@
 
             if (!texto && !datosCambio) return;
 
+            const ahora = Date.now();
+
             if (texto) {
-                chat.innerHTML += `<div style="align-self: flex-end; background: var(--fng-blue); color: white; padding: 8px 12px; border-radius: 12px; max-width: 80%;">${texto}</div>`;
-                centinelaHistorial.push({ rol: 'user', texto: texto });
+                // Persistir mensaje del usuario con timestamp ANTES del fetch
+                const msgUser = { rol: 'user', texto: texto, timestamp: ahora };
+                centinelaHistorial.push(msgUser);
+                guardarHistorialLocal(centinelaHistorial);
+
+                chat.innerHTML += `<div class="c26-msg-user">${texto}</div>`;
                 input.value = '';
             }
 
@@ -1902,6 +1977,9 @@
             chat.scrollTop = chat.scrollHeight;
 
             try {
+                // Enviar últimos 15 mensajes formateados para el payload
+                const historialPayload = centinelaHistorial.slice(-CENTINELA_MAX_MSGS).map(m => ({ rol: m.rol, texto: m.texto }));
+
                 const res = await fetch('/api/centinela_ia', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -1909,14 +1987,19 @@
                         pregunta: texto,
                         cambio: datosCambio,
                         ruta_pantalla: window.location.pathname,
-                        historial: centinelaHistorial.slice(-4)
+                        historial: historialPayload
                     })
                 });
                 const d = await res.json();
                 document.getElementById(loadId).remove();
                 if (d.status === 'success') {
-                    chat.innerHTML += `<div style="background: rgba(0,45,90,0.06); padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--fng-orange); line-height: 1.4;">${d.respuesta}</div>`;
-                    centinelaHistorial.push({ rol: 'model', texto: d.respuesta });
+                    // Usar response.data, provider, latency_ms del nuevo formato
+                    const respuesta = d.data || d.respuesta || '';
+                    chat.innerHTML += `<div class="c26-msg-bot">${respuesta}</div>`;
+                    // Persistir respuesta de la IA con timestamp
+                    const msgModel = { rol: 'model', texto: respuesta, timestamp: Date.now() };
+                    centinelaHistorial.push(msgModel);
+                    guardarHistorialLocal(centinelaHistorial);
                 } else {
                     chat.innerHTML += `<div style="color: #ef4444; font-size: 11px;">⚠️ ${d.msg || 'Error al consultar'}</div>`;
                 }

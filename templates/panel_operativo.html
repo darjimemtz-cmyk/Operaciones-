@@ -255,6 +255,46 @@
         color: #ffffff !important;
     }
 
+    /* ========================================================
+       FILTROS DE EQUIDAD Y TARJETAS - MODO OSCURO
+       ======================================================== */
+    body.dark-mode .filtro-chip {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #cbd5e1 !important;
+        border-color: #475569 !important;
+    }
+    body.dark-mode .filtro-chip.active {
+        background: var(--fng-blue) !important;
+        color: white !important;
+        box-shadow: 0 2px 6px rgba(0,45,90,0.4) !important;
+    }
+    body.dark-mode .equidad-card {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+    }
+    body.dark-mode .equidad-card h4 {
+        color: #e2e8f0 !important;
+    }
+    body.dark-mode .equidad-card p {
+        color: #cbd5e1 !important;
+    }
+    body.dark-mode .equidad-card div[style*="border-top"] {
+        border-color: #334155 !important;
+    }
+    body.dark-mode .equidad-card div[style*="border-top"] i,
+    body.dark-mode .equidad-card div[style*="border-top"] {
+        color: #94a3b8 !important;
+    }
+    body.dark-mode .msg-sin-resultados {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #94a3b8 !important;
+    }
+    body.dark-mode .msg-sin-resultados h4 {
+        color: #e2e8f0 !important;
+    }
+
 </style>
 {% endblock %}
 
@@ -603,6 +643,22 @@
                 </div>
             </div>
 
+            <!-- FILTROS DE CATEGORÍA (PASTILLAS/CHIPS) -->
+            <div id="filtrosEquidad" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; padding: 0 4px;">
+                <button class="filtro-chip active" data-cat="todos" onclick="filtrarEquidad('todos', this)" style="background: var(--fng-blue); color: white; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,45,90,0.2);">
+                    <i class="fas fa-list"></i> Todos
+                </button>
+                <button class="filtro-chip" data-cat="ruta" onclick="filtrarEquidad('ruta', this)" style="background: rgba(0, 45, 90, 0.08); color: var(--fng-blue); border: 1px solid var(--fng-blue); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    <i class="fas fa-route" style="color: var(--fng-orange);"></i> Rutas (Foráneo vs Local)
+                </button>
+                <button class="filtro-chip" data-cat="descanso" onclick="filtrarEquidad('descanso', this)" style="background: rgba(0, 45, 90, 0.08); color: var(--fng-blue); border: 1px solid var(--fng-blue); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    <i class="fas fa-bed" style="color: #ef4444;"></i> Descansos (Déficit / Exceso)
+                </button>
+                <button class="filtro-chip" data-cat="conflicto" onclick="filtrarEquidad('conflicto', this)" style="background: rgba(0, 45, 90, 0.08); color: var(--fng-blue); border: 1px solid var(--fng-blue); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    <i class="fas fa-triangle-exclamation" style="color: #ef4444;"></i> Conflictos Sábana vs DOT
+                </button>
+            </div>
+
             <!-- GRID DONDE SE PINTAN LAS TARJETAS -->
             <div id="gridEquidadDespacho" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
                 <div style="grid-column: 1 / -1; text-align: center; padding: 25px; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Auditando asignación de rutas...</div>
@@ -700,6 +756,48 @@
         btn.classList.add('active');
         if (tabId === 'sub-pred-clientes') {
             cargarAnaliticaClientes();
+        }
+    }
+
+    // FILTRADO DE TARJETAS DE AUDITORÍA DE EQUIDAD
+    function filtrarEquidad(categoria, boton) {
+        // Actualizar estado visual de los chips
+        document.querySelectorAll('.filtro-chip').forEach(chip => {
+            chip.classList.remove('active');
+            chip.style.background = 'rgba(0, 45, 90, 0.08)';
+            chip.style.color = 'var(--fng-blue)';
+            chip.style.boxShadow = 'none';
+        });
+        boton.classList.add('active');
+        boton.style.background = 'var(--fng-blue)';
+        boton.style.color = 'white';
+        boton.style.boxShadow = '0 2px 6px rgba(0,45,90,0.2)';
+
+        // Filtrar tarjetas
+        const cards = document.querySelectorAll('#gridEquidadDespacho .equidad-card');
+        cards.forEach(card => {
+            const cat = card.getAttribute('data-cat');
+            if (categoria === 'todos' || cat === categoria) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Mostrar mensaje si no hay resultados visibles
+        const visibles = document.querySelectorAll('#gridEquidadDespacho .equidad-card[style*="display: block"], #gridEquidadDespacho .equidad-card:not([style*="display: none"])');
+        const grid = document.getElementById('gridEquidadDespacho');
+        let msgExistente = grid.querySelector('.msg-sin-resultados');
+        if (visibles.length === 0) {
+            if (!msgExistente) {
+                const msg = document.createElement('div');
+                msg.className = 'msg-sin-resultados';
+                msg.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 35px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; color: #64748b;';
+                msg.innerHTML = `<i class="fas fa-filter" style="font-size: 28px; color: #94a3b8; margin-bottom: 10px; display: block;"></i><h4 style="margin: 0; color: var(--fng-blue);">Sin resultados para este filtro</h4><p style="margin: 5px 0 0 0; font-size: 13px;">No hay tarjetas en la categoría seleccionada.</p>`;
+                grid.appendChild(msg);
+            }
+        } else if (msgExistente) {
+            msgExistente.remove();
         }
     }
 
@@ -1106,9 +1204,10 @@
                             let borderHex = eq.color === 'red' ? '#ef4444' : '#f59e0b';
                             let bgTag = eq.color === 'red' ? '#fee2e2' : '#fef3c7';
                             let textTag = eq.color === 'red' ? '#b91c1c' : '#b45309';
+                            let cat = eq.categoria || 'ruta';
 
                             gridEquidad.innerHTML += `
-                                <div style="background: white; border: 1px solid #cbd5e1; border-left: 6px solid ${borderHex}; border-radius: 12px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                                <div class="equidad-card" data-cat="${cat}" style="background: white; border: 1px solid #cbd5e1; border-left: 6px solid ${borderHex}; border-radius: 12px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                                         <h4 style="margin:0; font-size:15px; color:var(--fng-blue); font-weight:800;">${eq.operador}</h4>
                                         <span style="font-size:10.5px; font-weight:800; background:${bgTag}; color:${textTag}; padding:3px 8px; border-radius:6px;">
@@ -1190,6 +1289,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ producto: producto, fecha: fecha, tipo: tipo })
             });
+
+            if (!res.ok) {
+                throw new Error(`El servidor respondió con código ${res.status}`);
+            }
+
             const data = await res.json();
 
             if (data.status === 'success') {
@@ -1276,7 +1380,8 @@
                 cont.innerHTML = `<div style="text-align:center; padding:25px; color:#ef4444; font-weight:600;"><i class="fas fa-exclamation-triangle"></i> Error: ${data.msg || 'No se pudieron consultar los datos'}</div>`;
             }
         } catch (e) {
-            cont.innerHTML = `<div style="text-align:center; padding:25px; color:#ef4444; font-weight:600;"><i class="fas fa-wifi"></i> Error de conexión con el servidor.</div>`;
+            console.error('Error en drilldown:', e);
+            cont.innerHTML = `<div style="text-align:center; padding:25px; color:#ef4444; font-weight:600;"><i class="fas fa-exclamation-triangle"></i> Fallo al consultar: ${e.message}</div>`;
         }
     }
 

@@ -1,15 +1,36 @@
-# REGLAS CRÍTICAS DEL PROYECTO (ERP OPERACIONES)
+# REGLAS MAESTRAS DE DESARROLLO Y ARQUITECTURA (ERP FNG)
 
-1. REGLAS DE NEGOCIO (DOT):
-   - Instructores y movedores NUNCA deben figurar en el apartado de DOT.
-   - La ventana rodante de DOT es estrictamente de 7 días (no 8).
-   - Las metas de horas son fijas para las unidades activas.
+0. IDIOMA OBLIGATORIO:
+   - Comunícate, razona, describe planes y entrega resúmenes SIEMPRE en español.
+   - Queda estrictamente prohibido responder o redactar explicaciones en inglés, salvo para nombres técnicos exactos de variables, librerías, archivos o rutas.
 
-2. PROTOCOLO DE MODIFICACIÓN DE ARCHIVOS:
-   - Solo ediciones quirúrgicas: modifica únicamente la función o bloque afectado.
-   - Prohibido reescribir archivos HTML o JS enteros; conserva los listeners existentes (ej. live:dot_actualizado).
-   - Siempre verifica el contrato de datos antes de tocar lógica en templates/ o app.py.
+1. PROTOCOLO DE CÓDIGO (EDICIÓN QUIRÚRGICA Y CONTRATOS):
+   - Prohibido reescribir archivos completos (app.py, templates grandes o repositorios). Modifica únicamente las líneas o bloques indispensables.
+   - Conserva intactos los Event Listeners existentes (ej. live:dot_actualizado, live:celda_sabana) y nombres de IDs en el DOM.
+   - Los endpoints en app.py deben mantenerse como controladores delgados; la lógica pertenece a services/ y repositorios.
+   - AIClient debe usar siempre un timeout mínimo de 15 segundos.
+   - NUNCA inventes tools para Centinela; usa estrictamente las registradas en services/tools/.
 
-3. VALIDACIÓN OBLIGATORIA:
-   - Tras modificar Python, ejecuta la prueba de sintaxis (smoke test).
-   - Si tocas el DOM en plantillas, verifica que los selectores coincidan exactamente.
+2. ESTÁNDAR RESPONSIVO Y MULTIDISPOSITIVO:
+   - Todo componente, tabla, modal o barra debe adaptarse fluidamente a smartphone, tablet y escritorio, tanto en vertical como en horizontal.
+   - Prohibido usar anchos fijos en px que provoquen desbordamiento horizontal en pantallas pequeñas.
+   - En pantallas móviles (max-width: 768px), las tablas deben priorizar scroll interno compacto y las tarjetas deben redistribuirse mediante flexbox/grid elástico.
+
+3. TEMA DUAL NATIVO (MODO CLARO Y MODO OSCURO):
+   - Cada estilo visual nuevo o modificado DEBE incluir su regla espejo correspondiente para `body.dark-mode`.
+   - Blindaje de opacidad: Modales, popovers y elementos fijados con `position: sticky` (como cabeceras y columnas de tablas) deben tener fondos 100% sólidos y opacos en ambos modos (ej. blanco/#f8fafc en claro, #0f172a/#1e293b en oscuro). Quedan prohibidas las transparencias accidentales.
+   - Emplea variables semánticas del sistema (`var(--fng-blue)`, `var(--fng-orange)`, `var(--bg-surface)`, etc.).
+
+4. REGLAS DE NEGOCIO Y MATEMÁTICA DOT (FNG):
+   - Instructores y movedores NUNCA figuran en DOT.
+   - La ventana rodante es estrictamente de 7 días continuos (máx. 70.0h).
+   - Flota base: 31 unidades activas.
+   - Sobretrabajo +14h: condición estricta `horas > 14.0`.
+   - Sobretrabajo +8d: racha continua mayor a 8 días de trabajo sin descanso.
+   - Descansos incompletos: operadores con menos de 6 descansos en el mes.
+   - % Calificación DOT: formateado a 1 decimal (:.1f o toFixed(1)).
+   - % Utilización: formateado a 2 decimales (:.2f o toFixed(2)).
+
+5. VALIDACIÓN Y ECONOMÍA DE COMUNICACIÓN:
+   - Tras editar Python, valida la sintaxis con `python -m py_compile <archivo>`.
+   - Al finalizar una tarea, sé conciso: describe los cambios en máximo 3 viñetas telegráficas, sin muros de texto ni repetir código innecesario.

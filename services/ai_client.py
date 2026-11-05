@@ -27,14 +27,14 @@ class AIClient:
     AI Client with dual-provider support and deterministic fallback.
     
     Fallback order: Groq (primary) -> Gemini (fallback)
-    Strict timeout: 8 seconds per provider
+    Strict timeout: 15 seconds per provider
     """
     
     def __init__(
         self,
         groq_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
-        timeout_seconds: int = 8
+        timeout_seconds: int = 15
     ):
         """
         Initialize AI clients for Groq and Gemini.
