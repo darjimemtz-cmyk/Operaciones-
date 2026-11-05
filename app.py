@@ -641,6 +641,9 @@ def index(): return redirect(url_for('login'))
 @limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == 'POST':
+        # Detectar si es petición AJAX
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+        
         u = request.form['usuario'].strip()
         p = request.form['contrasena'].strip()
         token_disp = request.form.get('device_token', '')
@@ -656,25 +659,41 @@ def login():
             es_valida = check_password_hash(pass_bd, p) if pass_bd.startswith(('pbkdf2:', 'scrypt:', 'argon2:')) else (pass_bd == p)
             
             if es_valida:
-                session['usuario'] = u_system; session['rol'] = rol_bd
+                session['usuario'] = u_system
+                session['rol'] = rol_bd
                 nombres = {
-                'admin_fng': 'Super Administrador FNG',
-                'gerencia_slp': 'José Luis Hernández Salazar',
-                'kzamarripa': 'Karla Yesenia Zamarripa Aguilar',
-                'cgonzalez': 'Claudia Guadalupe Gonzalez Hernandez',
-                'cherrera': 'Carlos Josue Herrera Lopez',
-                'nduarte': 'Naylea Guadalupe Duarte Briones',
-                'hrivera': 'Hugo Rivera Muro',
-                'jlugo': 'Juan Luis Fernando Lugo Cardenas',
-                'cortiz': 'Carlos Eduardo Ortiz Martinez',
-                'seguridad_slp': 'Oficial de Caseta',
-                'analista_slp': 'Analista de Diésel'
-            }
-            session['nombre_real'] = nombres.get(u_system, 'Operador')
-            conn.close()
-            if session['rol'] == 'seguridad': return redirect('/pruebas_fng')
-            if session['rol'] == 'analista_diesel': return redirect('/control_diesel')
-            return redirect(url_for('acumulado'))
+                    'admin_fng': 'Super Administrador FNG',
+                    'gerencia_slp': 'José Luis Hernández Salazar',
+                    'kzamarripa': 'Karla Yesenia Zamarripa Aguilar',
+                    'cgonzalez': 'Claudia Guadalupe Gonzalez Hernandez',
+                    'cherrera': 'Carlos Josue Herrera Lopez',
+                    'nduarte': 'Naylea Guadalupe Duarte Briones',
+                    'hrivera': 'Hugo Rivera Muro',
+                    'jlugo': 'Juan Luis Fernando Lugo Cardenas',
+                    'cortiz': 'Carlos Eduardo Ortiz Martinez',
+                    'seguridad_slp': 'Oficial de Caseta',
+                    'analista_slp': 'Analista de Diésel'
+                }
+                session['nombre_real'] = nombres.get(u_system, 'Operador')
+                conn.close()
+                
+                # Determinar URL de destino según rol
+                if session['rol'] == 'seguridad':
+                    target_url = '/pruebas_fng'
+                elif session['rol'] == 'analista_diesel':
+                    target_url = '/control_diesel'
+                else:
+                    target_url = url_for('acumulado')
+                
+                if is_ajax:
+                    return jsonify({"status": "success", "redirect": target_url})
+                
+                return redirect(target_url)
+            else:
+                conn.close()
+                if is_ajax:
+                    return jsonify({"status": "error", "msg": "Credenciales incorrectas"}), 401
+                return render_template('login_maestro.html', error="Credenciales incorrectas")
             
         cursor.execute("SELECT operador_id FROM pines_emergencia WHERE pin = ? AND expira_en > CURRENT_TIMESTAMP", (p,))
         pin_res = cursor.fetchone()
@@ -687,7 +706,10 @@ def login():
                 session['operador_id'] = op_id; session['modo_emergencia'] = True
                 cursor.execute("DELETE FROM pines_emergencia WHERE pin = ?", (p,))
                 conn.commit(); conn.close()
-                return redirect(url_for('operador_app'))
+                target_url = url_for('operador_app')
+                if is_ajax:
+                    return jsonify({"status": "success", "redirect": target_url})
+                return redirect(target_url)
 
         cursor.execute("SELECT id, nombre, no_empleado, token_dispositivo FROM operadores WHERE usuario_app = ? AND estatus_empleado = 'Activo'", (u.upper(),))
         op_res = cursor.fetchone()
@@ -699,12 +721,19 @@ def login():
                     conn.commit()
                 elif token_bd != token_disp:
                     conn.close()
+                    if is_ajax:
+                        return jsonify({"status": "error", "msg": "Acceso denegado: Dispositivo no reconocido."}), 401
                     return render_template('login_maestro.html', error="Acceso denegado: Dispositivo no reconocido.")
                 session['usuario'] = u.upper(); session['rol'] = 'operador'; session['nombre_real'] = nombre
                 session['operador_id'] = op_id; session['modo_emergencia'] = False
                 conn.close()
-                return redirect(url_for('operador_app'))
+                target_url = url_for('operador_app')
+                if is_ajax:
+                    return jsonify({"status": "success", "redirect": target_url})
+                return redirect(target_url)
         conn.close()
+        if is_ajax:
+            return jsonify({"status": "error", "msg": "Credenciales incorrectas"}), 401
         return render_template('login_maestro.html', error="Credenciales incorrectas")
     return render_template('login_maestro.html')
 

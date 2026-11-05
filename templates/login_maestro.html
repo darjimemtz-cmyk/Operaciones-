@@ -34,6 +34,23 @@
         .btn-login { background: var(--fng-blue); color: white; border: none; padding: 15px; width: 100%; font-weight: bold; font-size: 16px; border-radius: 12px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,45,90,0.2); }
         .btn-login:hover { background: var(--fng-orange); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,140,0,0.3); }
         .error-msg { background: rgba(220, 53, 69, 0.15); color: #dc3545; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-size: 14px; border: 1px solid rgba(220, 53, 69, 0.3); font-weight: bold; }
+
+        @keyframes shakeError {
+            0%, 100% { transform: translateX(0); }
+            15%, 45%, 75% { transform: translateX(-9px); }
+            30%, 60%, 90% { transform: translateX(9px); }
+        }
+        .shake-card {
+            animation: shakeError 0.45s ease-in-out;
+        }
+        #contenedorErrorAjax {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -44,10 +61,10 @@
             <h3>GRUPO FNG</h3>
         </div>
 
-        {% if error %}<div class="error-msg">⚠️ {{ error }}</div>{% endif %}
+        <div id="contenedorErrorAjax" class="error-msg"></div>
 
-        <form action="{{ url_for('login') }}" method="POST">
-            <input type="hidden" name="device_token" id="device_token">
+        <form id="formLogin" action="{{ url_for('login') }}" method="POST">
+            <input type="hidden" name="device_token" id="deviceToken">
             
             <div class="input-box"><input type="text" name="usuario" required autocomplete="off"><label>Usuario</label></div>
             <div class="input-box"><input type="password" name="contrasena" required autocomplete="off"><label>Contraseña o PIN</label></div>
@@ -61,7 +78,50 @@
             token = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
             localStorage.setItem('fng_device_token', token);
         }
-        document.getElementById('device_token').value = token;
+        document.getElementById('deviceToken').value = token;
+
+        // --- Login asíncrono con shake y vibración ---
+        const formLogin = document.getElementById('formLogin');
+        const contenedorError = document.getElementById('contenedorErrorAjax');
+        const loginCard = document.querySelector('.login-card');
+        const inputPass = formLogin.querySelector('input[name="contrasena"]');
+
+        formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            contenedorError.style.display = 'none';
+            contenedorError.textContent = '';
+            loginCard.classList.remove('shake-card');
+
+            const formData = new FormData(formLogin);
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    window.location.href = data.redirect;
+                } else {
+                    const msg = data.msg || 'Credenciales incorrectas';
+                    contenedorError.textContent = '⚠️ ' + msg;
+                    contenedorError.style.display = 'block';
+                    loginCard.classList.add('shake-card');
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    setTimeout(() => loginCard.classList.remove('shake-card'), 450);
+                    inputPass.value = '';
+                    inputPass.focus();
+                }
+            } catch (err) {
+                contenedorError.textContent = '⚠️ Error de conexión';
+                contenedorError.style.display = 'block';
+                loginCard.classList.add('shake-card');
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                setTimeout(() => loginCard.classList.remove('shake-card'), 450);
+                inputPass.value = '';
+                inputPass.focus();
+            }
+        });
 
         const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d');
         let width = canvas.width = window.innerWidth; let height = canvas.height = window.innerHeight;
