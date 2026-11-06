@@ -132,7 +132,7 @@
         color: white !important;
     }
     body.dark-mode th.sticky-col-id { background: var(--bg-surface-2) !important; color: var(--fng-orange) !important; }
-    body.dark-mode td.sticky-col-id { background: var(--bg-surface) !important; color: var(--text-muted) !important; }
+    body.dark-mode td.sticky-col-id { background: var(--bg-surface) !important; color: #f1f5f9 !important; }
 
     .sticky-col-op {
         position: sticky;
@@ -153,6 +153,14 @@
     }
     body.dark-mode th.sticky-col-op { background: var(--bg-surface-2) !important; color: var(--fng-orange) !important; }
     body.dark-mode td.sticky-col-op { background: var(--bg-surface) !important; }
+    body.dark-mode .sticky-col-op a {
+        color: #f8fafc !important;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+    body.dark-mode .sticky-col-op a:hover {
+        color: var(--fng-orange) !important;
+    }
 
     /* COLUMNA DE ACCIONES FIJA A LA DERECHA */
     .sticky-col-acc {
@@ -214,6 +222,22 @@
     .search-bar.active input { opacity: 1; }
     .search-bar .clear-icon { position: absolute; right: 12px; cursor: pointer; color: #94a3b8; display: none; font-size: 14px; }
     .search-bar.active .clear-icon { display: block; }
+    body.dark-mode .search-bar { background: var(--bg-surface-2) !important; border-color: var(--border-subtle) !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    body.dark-mode .search-bar .search-icon { color: var(--text-muted) !important; }
+    body.dark-mode .search-bar input { color: var(--text-main) !important; }
+    body.dark-mode .search-bar input::placeholder { color: var(--text-muted) !important; }
+    body.dark-mode .search-bar .clear-icon { color: var(--text-muted) !important; }
+    body.dark-mode .search-bar.active { border-color: var(--fng-orange) !important; box-shadow: 0 4px 20px rgba(255,140,0,0.2); }
+
+    /* PASO 4: Sellar Tablas y Capas Sticky - Encabezados 100% opacos var(--bg-surface-2) #334155 */
+    body.dark-mode table thead th,
+    body.dark-mode th.sticky-col-id,
+    body.dark-mode th.sticky-col-op,
+    body.dark-mode th.sticky-col-acc {
+        background: var(--bg-surface-2) !important;
+        color: var(--fng-orange) !important;
+        border-color: var(--border-subtle) !important;
+    }
 
     @media (max-width: 768px) {
         .modal-box {

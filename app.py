@@ -52,6 +52,8 @@ FOTOS_FOLDER = os.path.join(DIRECTORIO_BASE, 'static', 'fotos_perfil')
 os.makedirs(FOTOS_FOLDER, exist_ok=True)
 EVIDENCIAS_AMONESTACIONES = os.path.join(DIRECTORIO_BASE, 'static', 'evidencias_amonestaciones')
 os.makedirs(EVIDENCIAS_AMONESTACIONES, exist_ok=True)
+WALLPAPERS_FOLDER = os.path.join(DIRECTORIO_BASE, 'static', 'wallpapers')
+os.makedirs(WALLPAPERS_FOLDER, exist_ok=True)
 
 app = Flask(__name__, template_folder=DIRECTORIO_TEMPLATES)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_control_maestro_fng_slp_v7')
@@ -73,7 +75,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=False,
     SESSION_COOKIE_SAMESITE="Lax",
-    MAX_CONTENT_LENGTH=5 * 1024 * 1024
+    MAX_CONTENT_LENGTH=120 * 1024 * 1024
 ) 
 
 ENV_PATH = os.path.join(DIRECTORIO_BASE, '.env')
@@ -296,13 +298,15 @@ def init_db():
     )''')
 
     usuarios_base = [
-        ('admin_fng', 'master123', 'super_usuario'),
+        ('jmartinez', 'adm123', 'super_usuario'),
+        ('admin_fng', 'master123', 'jefe_op'),
+        ('jalvarado', 'jefe123', 'jefe_op'),
         ('gerencia_slp', 'ger123', 'gerencia'),
         ('kzamarripa', 'sup123', 'supervisor'),
         ('cgonzalez', 'sup123', 'supervisor'),
         ('cherrera', 'sup123', 'supervisor'),
         ('nduarte', 'aux123', 'aux_dot'),
-        ('hrivera', 'aux123', 'aux_bitacoras'),
+        ('hrivera', 'aux123', 'aux_dot'),
         ('jlugo', 'mon123', 'monitorista'),
         ('cortiz', 'mon123', 'monitorista'),
         ('seguridad_slp', 'seg123', 'seguridad'),
@@ -322,6 +326,8 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('unidades_nitrogeno', '13')")
     cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('unidades_oxigeno', '7')")
     cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('unidades_co2', '9')")
+    cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('tema_visual_activo', 'auto')")
+    cursor.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('wallpaper_video_url', '')")
 
     conn.commit(); conn.close()
 
@@ -541,6 +547,8 @@ def ratelimit_handler(e):
 @app.context_processor
 def inject_user():
     sols = []; notifs = []
+    tema_visual_activo = 'auto'
+    wallpaper_video_url = ''
     if 'usuario' in session:
         try:
             conn = sqlite3.connect(DB_NAME); c = conn.cursor()
@@ -548,9 +556,17 @@ def inject_user():
             sols = [{'id':r[0], 'usuario':r[1], 'tipo':r[2], 'datos':json.loads(r[3]), 'fecha':r[4]} for r in c.fetchall()]
             c.execute("SELECT id, mensaje, fecha, leida FROM notificaciones ORDER BY id DESC LIMIT 20")
             notifs = [{'id':r[0], 'msj':r[1], 'fecha':r[2], 'leida':r[3]} for r in c.fetchall()]
+            c.execute("SELECT valor FROM configuracion WHERE clave = 'tema_visual_activo'")
+            row = c.fetchone()
+            if row:
+                tema_visual_activo = row[0]
+            c.execute("SELECT valor FROM configuracion WHERE clave = 'wallpaper_video_url'")
+            row = c.fetchone()
+            if row:
+                wallpaper_video_url = row[0] or ''
             conn.close()
         except: pass
-    return dict(usuario=session.get('usuario'), nombre_real=session.get('nombre_real'), rol=session.get('rol'), solicitudes_globales=sols, notificaciones_globales=notifs)
+    return dict(usuario=session.get('usuario'), nombre_real=session.get('nombre_real'), rol=session.get('rol'), solicitudes_globales=sols, notificaciones_globales=notifs, tema_visual_activo=tema_visual_activo, wallpaper_video_url=wallpaper_video_url)
 
 def get_config_unidades():
     conn = sqlite3.connect(DB_NAME); cursor = conn.cursor()
@@ -663,6 +679,7 @@ def login():
                 session['rol'] = rol_bd
                 nombres = {
                     'admin_fng': 'Super Administrador FNG',
+                    'jmartinez': 'Darien Jimena Martinez',
                     'gerencia_slp': 'José Luis Hernández Salazar',
                     'kzamarripa': 'Karla Yesenia Zamarripa Aguilar',
                     'cgonzalez': 'Claudia Guadalupe Gonzalez Hernandez',
@@ -2245,6 +2262,58 @@ def leer_notificacion():
     conn.commit(); conn.close()
     return jsonify({"status": "success"})
 
+@app.route('/api/admin/guardar_tema', methods=['POST'])
+@login_required
+def api_admin_guardar_tema():
+    if session.get('rol') != 'super_usuario':
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    data = request.get_json()
+    nuevo_tema = data.get('tema') if data else None
+    if nuevo_tema not in ('corporativo', 'navidad', 'auto'):
+        return jsonify({"status": "error", "msg": "Tema inválido"}), 400
+    conn = sqlite3.connect(DB_NAME); c = conn.cursor()
+    try:
+        c.execute("UPDATE configuracion SET valor = ? WHERE clave = 'tema_visual_activo'", (nuevo_tema,))
+        registrar_evento_sync(c, 'tema_actualizado', {'tema': nuevo_tema})
+        conn.commit()
+        return jsonify({"status": "success", "tema": nuevo_tema})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "msg": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/subir_wallpaper', methods=['POST'])
+@login_required
+def api_admin_subir_wallpaper():
+    if session.get('rol') != 'super_usuario':
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    if 'wallpaper' not in request.files:
+        return jsonify({"status": "error", "msg": "No se envió archivo"}), 400
+    file = request.files['wallpaper']
+    if file.filename == '':
+        return jsonify({"status": "error", "msg": "Archivo vacío"}), 400
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    if ext not in ('mp4', 'webm'):
+        return jsonify({"status": "error", "msg": "Formato no permitido (solo MP4/WebM)"}), 400
+    destino = os.path.join(WALLPAPERS_FOLDER, 'wallpaper_activo.mp4')
+    file.save(destino)
+    url_video = '/static/wallpapers/wallpaper_activo.mp4'
+    conn = sqlite3.connect(DB_NAME); c = conn.cursor()
+    try:
+        c.execute("""
+            INSERT INTO configuracion (clave, valor) VALUES ('wallpaper_video_url', ?)
+            ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor
+        """, (url_video,))
+        registrar_evento_sync(c, 'wallpaper_actualizado', {'url': url_video})
+        conn.commit()
+        return jsonify({"status": "success", "url": url_video})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "msg": str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route('/logout')
 def logout(): session.clear(); return redirect(url_for('login'))
 
@@ -3507,11 +3576,6 @@ def api_sync_en_vivo():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # 1. Obtener eventos ocurridos después del último ID visto por este usuario
-    c.execute("SELECT id, tipo, payload, fecha FROM sync_eventos WHERE id > ? ORDER BY id ASC LIMIT 50", (ultimo_id,))
-    filas = c.fetchall()
-    
-    # 2. Estado actual de notificaciones no leídas y solicitudes pendientes
     c.execute("SELECT COUNT(*) FROM notificaciones WHERE leida = 0")
     notifs_unread = c.fetchone()[0] or 0
     
@@ -3519,7 +3583,22 @@ def api_sync_en_vivo():
     if session.get('rol') == 'jefe_op':
         c.execute("SELECT COUNT(*) FROM solicitudes_cambio WHERE estatus = 'Pendiente'")
         sols_pendientes = c.fetchone()[0] or 0
-        
+
+    # Si es la primera carga tras recargar, no enviar eventos históricos
+    if ultimo_id == 0:
+        c.execute("SELECT COALESCE(MAX(id), 0) FROM sync_eventos")
+        max_id = c.fetchone()[0] or 0
+        conn.close()
+        return jsonify({
+            "status": "success",
+            "eventos": [],
+            "ultimo_id": max_id,
+            "total_badge": notifs_unread + sols_pendientes
+        })
+
+    # Consultar solo eventos estrictamente posteriores al ID sincronizado
+    c.execute("SELECT id, tipo, payload, fecha FROM sync_eventos WHERE id > ? ORDER BY id ASC LIMIT 50", (ultimo_id,))
+    filas = c.fetchall()
     conn.close()
     
     eventos = []

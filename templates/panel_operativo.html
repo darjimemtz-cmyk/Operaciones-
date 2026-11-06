@@ -64,9 +64,9 @@
     .sub-dock-btn { padding: 6px 20px; border-radius: 8px; border: none; background: transparent; font-weight: 600; color: #475569; cursor: pointer; transition: 0.2s; font-size: 12px; display: flex; align-items: center; gap: 6px; }
     .sub-dock-btn.active { background: white; color: var(--fng-orange); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
 
-    body.dark-mode .sub-dock { background: rgba(0,0,0,0.4); border-color: #334155; }
-    body.dark-mode .sub-dock-btn { color: #cbd5e1; }
-    body.dark-mode .sub-dock-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: rgba(255,255,255,0.2); }
+    body.dark-mode .sub-dock { background: rgba(15, 23, 42, 0.6); border-color: var(--bg-surface-2); }
+    body.dark-mode .sub-dock-btn { color: var(--text-muted); }
+    body.dark-mode .sub-dock-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: var(--border-subtle); }
 
     .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; color: white; display: inline-block;}
     .bg-green { background: #10b981; }
@@ -181,14 +181,40 @@
     }
 
     /* TARJETAS DEL RESUMEN PREDICTIVO - COMPACTO */
-    .predictivo-card { background: #ffffff; border-radius: 10px; padding: 10px; border-left: 5px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: flex-start; gap: 8px; transition: transform 0.2s;}
+    .predictivo-card { background: var(--bg-surface); border-radius: 10px; padding: 10px; border-left: 5px solid var(--border-subtle); box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: flex-start; gap: 8px; transition: transform 0.2s; color: var(--text-main); }
     .predictivo-card:hover { transform: translateY(-2px); }
-    body.dark-mode .predictivo-card { background: rgba(0,0,0,0.4); }
+    .predictivo-card .predictivo-desc { color: var(--text-muted); }
+    body.dark-mode .predictivo-card { background: var(--bg-surface-2) !important; border-color: var(--border-subtle) !important; color: var(--text-main) !important; }
+    body.dark-mode .predictivo-card .predictivo-desc { color: var(--text-muted) !important; }
     .predictivo-card.blue { border-left-color: #3b82f6; }
     .predictivo-card.yellow { border-left-color: #eab308; }
     .predictivo-card.red { border-left-color: #ef4444; background: #fef2f2; }
     body.dark-mode .predictivo-card.red { background: rgba(239, 68, 68, 0.1); }
     .predictivo-card.orange { border-left-color: #f97316; }
+
+    /* EQUIDAD: PASTILLAS DE ALERTA EN MODO OSCURO - ÁMBAR SUAVE TRANSLÚCIDO */
+    body.dark-mode .equidad-alerta { 
+        background: rgba(245, 158, 11, 0.15) !important; 
+        color: #fbbf24 !important; 
+        border: 1px solid rgba(245, 158, 11, 0.3) !important; 
+    }
+    body.dark-mode .equidad-header { 
+        background: var(--bg-surface-2) !important; 
+        border-color: var(--border-subtle) !important; 
+    }
+    body.dark-mode .equidad-header h4 { color: var(--fng-orange) !important; }
+    body.dark-mode .equidad-header p { color: var(--text-muted) !important; }
+    body.dark-mode .filtro-chip:not(.active) { 
+        background: rgba(255, 255, 255, 0.05) !important; 
+        color: var(--text-muted) !important; 
+        border-color: var(--border-subtle) !important; 
+    }
+    body.dark-mode .equidad-card { 
+        background: var(--bg-surface) !important; 
+        border-color: var(--border-subtle) !important; 
+    }
+    body.dark-mode .equidad-card .card-title { color: var(--text-main) !important; }
+    body.dark-mode .equidad-card .card-desc { color: var(--text-muted) !important; }
 
     /* ESTILOS LISTAS TABLA EN VIVO */
     .lista-celda { display: flex; flex-direction: column; gap: 4px; }
@@ -663,7 +689,7 @@
         <!-- Pestaña 2: Analítica de Clientes -->
         <div id="sub-pred-clientes" class="sub-pred-section" style="display:none;">
             <!-- GRÁFICA DE VOLUMEN -->
-            <div style="background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 20px;">
+            <div style="background: var(--bg-surface); padding: 15px; border-radius: 10px; border: 1px solid var(--border-subtle); margin-bottom: 20px;">
                 <h4 style="margin-top: 0; color: var(--fng-blue);"><i class="fas fa-chart-bar"></i> Volumen de Surtimientos Reales (Top Consumidores)</h4>
                 <div style="position: relative; height: 250px; width: 100%;">
                     <canvas id="clientesChart"></canvas>
@@ -679,7 +705,7 @@
         <!-- TAB 3: AUDITORÍA DE EQUIDAD / ASIGNACIÓN (EXCLUSIVO GERENCIA) -->
         {% if rol in ['jefe_op', 'gerencia', 'super_usuario'] %}
         <div id="sub-pred-equidad" class="sub-pred-section" style="display: none;">
-            <div style="background: rgba(0, 45, 90, 0.04); border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <div class="equidad-header" style="background: rgba(0, 45, 90, 0.04); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <h4 style="margin: 0; color: var(--fng-blue); font-size: 16px;"><i class="fas fa-balance-scale"></i> Análisis de Sesgo</h4>
@@ -691,7 +717,7 @@
                             <button type="button" id="btnEquidad30D" class="btn-chip active" onclick="seleccionarPeriodoEquidad('30d')" style="background: var(--fng-blue); color: white; border: none; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,45,90,0.2);">
                                 <span style="font-size: 13px;">🔄</span> Últimos 30 días
                             </button>
-                            <input type="month" id="mesFiltroEquidad" class="form-control" style="width: auto; height: 32px; padding: 2px 8px; font-size: 11.5px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: var(--fng-blue);" onchange="seleccionarPeriodoEquidad(this.value)">
+                            <input type="month" id="mesFiltroEquidad" class="form-control" style="width: auto; height: 32px; padding: 2px 8px; font-size: 11.5px; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--input-bg); color: var(--text-main);" onchange="seleccionarPeriodoEquidad(this.value)">
                             <span style="font-size: 11px; font-weight: 700; color: #10b981; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-circle" style="font-size: 7px;"></i> En vivo</span>
                         </div>
                     </div>
@@ -773,8 +799,8 @@
             <span id="histTotalTon" style="font-size: 16px; font-weight: 800; color: #10b981;">0.0 Ton</span>
         </div>
 
-        <div style="overflow-y: auto; max-height: 50vh; margin-top: 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
-            <table style="width: 100%; border-collapse: collapse; min-width: 520px; background: white;">
+        <div style="overflow-y: auto; max-height: 50vh; margin-top: 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface);">
+            <table style="width: 100%; border-collapse: collapse; min-width: 520px; background: transparent;">
                 <thead>
                     <tr>
                         <th style="font-size: 11px; padding: 8px;">Fecha</th>
@@ -847,7 +873,7 @@
             if (!msgExistente) {
                 const msg = document.createElement('div');
                 msg.className = 'msg-sin-resultados';
-                msg.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 35px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; color: #64748b;';
+                msg.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 35px; background: var(--bg-surface); border-radius: 12px; border: 1px solid var(--border-subtle); color: var(--text-muted);';
                 msg.innerHTML = `<i class="fas fa-filter" style="font-size: 28px; color: #94a3b8; margin-bottom: 10px; display: block;"></i><h4 style="margin: 0; color: var(--fng-blue);">Sin resultados para este filtro</h4><p style="margin: 5px 0 0 0; font-size: 13px;">No hay tarjetas en la categoría seleccionada.</p>`;
                 grid.appendChild(msg);
             }
@@ -1044,17 +1070,17 @@
                     let frecStr = item.frecuencia_promedio > 0 ? `Cada ${item.frecuencia_promedio} días` : 'Variable';
 
                     let html = `
-                        <div style="background: #fff; border-radius: 12px; border: 1px solid #cbd5e1; border-left: 5px solid ${cardColorHex}; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="abrirHistorialCliente(${idx})">
+                        <div style="background: var(--bg-surface); border-radius: 12px; border: 1px solid var(--border-subtle); border-left: 5px solid ${cardColorHex}; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="abrirHistorialCliente(${idx})">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 10px;">
-                                <h5 style="margin: 0; font-size: 14px; color: var(--fng-blue); line-height: 1.2; word-break: break-word; padding-right:10px;">${item.cliente}</h5>
-                                <span style="font-size: 11px; font-weight: bold; background: #f1f5f9; color: ${prodColor}; padding: 3px 8px; border-radius: 10px;">${nombreProducto[item.producto_dominante] || item.producto_dominante}</span>
+                                <h5 style="margin: 0; font-size: 14px; color: var(--text-main); line-height: 1.2; word-break: break-word; padding-right:10px;">${item.cliente}</h5>
+                                <span style="font-size: 11px; font-weight: bold; background: var(--bg-surface-2); color: ${prodColor}; padding: 3px 8px; border-radius: 10px;">${nombreProducto[item.producto_dominante] || item.producto_dominante}</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
-                                <span style="font-size: 12px; color: #64748b;"><i class="fas fa-calendar-check"></i> Última: <b>${formatFecha}</b></span>
-                                <span style="font-size: 12px; font-weight: 700; color: #475569;">${textoHace}</span>
+                                <span style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-calendar-check"></i> Última: <b>${formatFecha}</b></span>
+                                <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">${textoHace}</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; align-items: center;">
-                                <span style="font-size: 12px; color: #64748b;"><i class="fas fa-sync-alt"></i> Ritmo: <b>${frecStr}</b></span>
+                                <span style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-sync-alt"></i> Ritmo: <b>${frecStr}</b></span>
                                 <span style="font-size: 11px; font-weight: 800; color: ${cardColorHex};"><i class="fas fa-${estadoIcon}"></i> ${estadoTexto}</span>
                             </div>
                         </div>
@@ -1262,18 +1288,18 @@
                         col.style.minWidth = '220px';
                         col.style.maxWidth = '240px';
                         col.style.flex = '1';
-                        col.style.background = '#f8fafc';
+                        col.style.background = 'var(--bg-surface)';
                         col.style.padding = '12px';
                         col.style.borderRadius = '12px';
-                        col.style.border = '1px solid #e2e8f0';
+                        col.style.border = '1px solid var(--border-subtle)';
                         
                         let formatFecha = fecha.split('-').reverse().join('/'); 
                         let tituloDia = agrupado[fecha].titulo.toUpperCase();
                         
                         let html = `
-                            <div style="font-weight:800; color:var(--fng-blue); font-size:13px; margin-bottom:12px; border-bottom:2px solid #cbd5e1; padding-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; color:var(--text-main); font-size:13px; margin-bottom:12px; border-bottom:2px solid var(--border-subtle); padding-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
                                 <span>${tituloDia}</span> 
-                                <span style="font-size:10px; color:#64748b; font-weight:600; background:#e2e8f0; padding:2px 6px; border-radius:8px;">${formatFecha}</span>
+                                <span style="font-size:10px; color:var(--text-muted); font-weight:600; background:var(--bg-surface-2); padding:2px 6px; border-radius:8px;">${formatFecha}</span>
                             </div>
                         `;
                         
@@ -1283,7 +1309,7 @@
                                     <div style="font-size: 16px; color: var(--fng-blue); opacity: 0.8; width: 25px; text-align:center;"><i class="fas ${item.icon}"></i></div>
                                     <div>
                                         <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 3px;">${item.tipo}</div>
-                                        <div style="font-size: 12px; font-weight: 600; color: var(--fng-blue); line-height: 1.3;">${item.mensaje}</div>
+                                        <div class="predictivo-desc" style="font-size: 12px; font-weight: 600; color: var(--fng-blue); line-height: 1.3;">${item.mensaje}</div>
                                     </div>
                                 </div>
                             `;
@@ -1299,29 +1325,29 @@
                     gridEquidad.innerHTML = '';
                     if (json.auditoria_equidad.length === 0) {
                         gridEquidad.innerHTML = `
-                            <div style="grid-column: 1 / -1; text-align:center; padding:35px; background:white; border-radius:12px; border:1px solid #cbd5e1;">
+                            <div style="grid-column: 1 / -1; text-align:center; padding:35px; background:var(--bg-surface); border-radius:12px; border:1px solid var(--border-subtle); color:var(--text-main);">
                                 <i class="fas fa-check-circle" style="font-size:36px; color:#10b981; margin-bottom:10px; display:block;"></i>
                                 <h4 style="margin:0; color:var(--fng-blue);">Distribución Equitativa Confirmada</h4>
-                                <p style="margin:5px 0 0 0; color:#64748b; font-size:13px;">No se registran desviaciones anormales de sobrecarga pesada ni privilegios de confort en los últimos 45 días.</p>
+                                <p style="margin:5px 0 0 0; color:var(--text-muted); font-size:13px;">No se registran desviaciones anormales de sobrecarga pesada ni privilegios de confort en los últimos 45 días.</p>
                             </div>
                         `;
                     } else {
                         json.auditoria_equidad.forEach(eq => {
                             let borderHex = eq.color === 'red' ? '#ef4444' : '#f59e0b';
-                            let bgTag = eq.color === 'red' ? '#fee2e2' : '#fef3c7';
-                            let textTag = eq.color === 'red' ? '#b91c1c' : '#b45309';
+                            let bgTag = eq.color === 'red' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+                            let textTag = eq.color === 'red' ? '#f87171' : '#fbbf24';
                             let cat = eq.categoria || 'ruta';
 
                             gridEquidad.innerHTML += `
-                                <div class="equidad-card" data-cat="${cat}" style="background: white; border: 1px solid #cbd5e1; border-left: 6px solid ${borderHex}; border-radius: 12px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                                <div class="equidad-card" data-cat="${cat}" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-left: 6px solid ${borderHex}; border-radius: 12px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); color: var(--text-main);">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                                        <h4 style="margin:0; font-size:15px; color:var(--fng-blue); font-weight:800;">${eq.operador}</h4>
-                                        <span style="font-size:10.5px; font-weight:800; background:${bgTag}; color:${textTag}; padding:3px 8px; border-radius:6px;">
+                                        <h4 class="card-title" style="margin:0; font-size:15px; color:var(--fng-blue); font-weight:800;">${eq.operador}</h4>
+                                        <span class="equidad-alerta" style="font-size:10.5px; font-weight:800; background:${bgTag}; color:${textTag}; padding:3px 8px; border-radius:6px; border: 1px solid ${borderHex}33;">
                                             <i class="fas ${eq.icono}"></i> ${eq.tipo}
                                         </span>
                                     </div>
-                                    <p style="margin:6px 0; font-size:13px; font-weight:600; color:#334155;">${eq.detalle}</p>
-                                    <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #e2e8f0; font-size:11px; color:#64748b; font-weight:600;">
+                                    <p class="card-desc" style="margin:6px 0; font-size:13px; font-weight:600; color:var(--text-main);">${eq.detalle}</p>
+                                    <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-subtle); font-size:11px; color:var(--text-muted); font-weight:600;">
                                         <i class="fas fa-info-circle"></i> ${eq.alerta}
                                     </div>
                                 </div>

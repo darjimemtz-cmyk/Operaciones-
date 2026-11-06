@@ -205,13 +205,14 @@
         text-align: left !important;
         padding-left: 12px !important;
     }
-    th.sticky-col-1 {
+    /* Encabezados sticky: azul marino corporativo #002d5a con texto blanco - FORZAR EN AMBOS TEMAS */
+    .glass-panel th.sticky-col-1 {
         position: sticky;
         left: 0;
         top: 0;
-        background: var(--fng-blue) !important;
-        color: white !important;
-        z-index: 20 !important;
+        background-color: var(--fng-blue, #002d5a) !important;
+        color: #ffffff !important;
+        z-index: 25 !important;
     }
 
     .sticky-col-2 {
@@ -226,14 +227,21 @@
         box-sizing: border-box;
         box-shadow: 4px 0 8px -3px rgba(0,0,0,0.08);
     }
-    th.sticky-col-2 {
+    .glass-panel th.sticky-col-2 {
         position: sticky;
         left: 250px;
         top: 0;
-        background: var(--fng-blue) !important;
-        color: white !important;
-        z-index: 20 !important;
+        background-color: var(--fng-blue, #002d5a) !important;
+        color: #ffffff !important;
+        z-index: 25 !important;
         box-shadow: 4px 2px 8px -3px rgba(0,0,0,0.15);
+    }
+
+    /* Modo oscuro: mantener azul marino en encabezados sticky */
+    body.dark-mode .glass-panel th.sticky-col-1,
+    body.dark-mode .glass-panel th.sticky-col-2 {
+        background-color: var(--fng-blue, #002d5a) !important;
+        color: #ffffff !important;
     }
 
     .col-dia { min-width: 45px; width: 45px; max-width: 45px; text-align: center; padding: 6px 2px; font-size: 11px; }
@@ -318,6 +326,19 @@
         background: var(--bg-surface) !important;
         color: var(--text-main) !important;
     }
+
+    /* Forzar blanco nítido #f8fafc en modo oscuro para textos de tabla y columnas fijas */
+    body.dark-mode table td,
+    body.dark-mode .sticky-col-1,
+    body.dark-mode .sticky-col-2,
+    body.dark-mode .col-total,
+    body.dark-mode .col-meta,
+    body.dark-mode .col-accion {
+        color: #f8fafc !important;
+    }
+
+    /* PASO 4: Sellar Tablas y Capas Sticky - Encabezados 100% opacos var(--bg-surface-2) #334155 */
+    body.dark-mode table thead th,
     body.dark-mode th.sticky-col-1,
     body.dark-mode th.sticky-col-2,
     body.dark-mode th.col-total,
@@ -325,6 +346,7 @@
     body.dark-mode th.col-accion {
         background: var(--bg-surface-2) !important;
         color: var(--fng-orange) !important;
+        border-color: var(--border-subtle) !important;
     }
 
     body.dark-mode .meta-cumplida { color: #4ade80 !important; }
@@ -347,8 +369,19 @@
     .accordion-subrow td.col-accion { background-color: #f8fafc; }
     .accordion-subrow:hover td.col-total,
     .accordion-subrow:hover td.col-accion { background-color: #f1f5f9; }
-    body.dark-mode .accordion-subrow,
-    body.dark-mode .accordion-subrow td { background-color: var(--bg-surface-2) !important; }
+    body.dark-mode .accordion-subrow { background-color: var(--bg-surface) !important; }
+    body.dark-mode .accordion-subrow:hover { background-color: var(--bg-surface-2) !important; }
+    body.dark-mode .accordion-subrow td { border-color: var(--border-subtle) !important; }
+    body.dark-mode .accordion-subrow td.sticky-col-1 {
+        background-color: var(--bg-surface) !important;
+        color: var(--fng-blue-light) !important;
+    }
+    body.dark-mode .accordion-subrow td.sticky-col-2 { background-color: var(--bg-surface) !important; color: var(--text-muted) !important; }
+    body.dark-mode .accordion-subrow:hover td.sticky-col-2 { background-color: var(--bg-surface-2) !important; }
+    body.dark-mode .accordion-subrow td.col-total,
+    body.dark-mode .accordion-subrow td.col-accion { background-color: var(--bg-surface) !important; }
+    body.dark-mode .accordion-subrow:hover td.col-total,
+    body.dark-mode .accordion-subrow:hover td.col-accion { background-color: var(--bg-surface-2) !important; }
 
     .toggle-icon { margin-right: 8px; color: var(--fng-orange); transition: transform 0.2s; display: inline-block;}
     .row-expanded .toggle-icon { transform: rotate(90deg); }

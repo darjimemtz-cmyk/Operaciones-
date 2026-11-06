@@ -12,7 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
-    .stat-card { background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 4px solid var(--fng-blue); text-align: center; }
+    .stat-card { background: var(--bg-surface-2); padding: 15px; border-radius: 10px; border-left: 4px solid var(--fng-blue); text-align: center; }
     .stat-card h4 { margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;}
     .stat-card p { margin: 0; font-size: 24px; font-weight: 700; color: var(--fng-blue); }
     .alert-red p { color: #dc3545; }
@@ -149,11 +149,11 @@
         background-clip: padding-box;
     }
 
-    /* MODO OSCURO */
-    body.dark-mode .fila-separador-bloque td { background-color: #0b1329 !important; border-bottom-color: #1e293b !important; }
-    body.dark-mode .fila-resumen-bloque td { background-color: #0f172a !important; }
-    body.dark-mode .sticky-col-resumen { background-color: #1e293b !important; color: #cbd5e1 !important; border-right-color: #334155 !important; }
-    body.dark-mode .cell-resumen-num { background-color: #1e293b !important; color: #38bdf8 !important; border-color: #334155 !important; }
+    /* MODO OSCURO - Paleta Azul Pizarra */
+    body.dark-mode .fila-separador-bloque td { background-color: var(--bg-body) !important; border-bottom-color: var(--bg-surface) !important; }
+    body.dark-mode .fila-resumen-bloque td { background-color: var(--bg-body) !important; }
+    body.dark-mode .sticky-col-resumen { background-color: var(--bg-surface) !important; color: var(--text-main) !important; border-right-color: var(--bg-surface-2) !important; }
+    body.dark-mode .cell-resumen-num { background-color: var(--bg-surface) !important; color: var(--text-main) !important; border-color: var(--bg-surface-2) !important; }
 
     /* MODO ASIGNAR ROL (PINCEL RÁPIDO) */
     .paleta-pincel-container {
@@ -199,8 +199,8 @@
         from { opacity: 0; transform: translateY(-3px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    body.dark-mode .paleta-pincel-container { background: #1e293b; border-color: #334155; }
-    body.dark-mode .pildora-estatus { background: #0f172a; color: #cbd5e1; }
+    body.dark-mode .paleta-pincel-container { background: var(--bg-surface); border-color: var(--bg-surface-2); }
+    body.dark-mode .pildora-estatus { background: var(--bg-body); color: var(--text-muted); }
 
     /* CONTENEDOR COMPACTO DEL OPERADOR (ALTA DENSIDAD) */
     .op-name-container { 
@@ -279,18 +279,35 @@
     body.dark-mode .bg-FA, body.dark-mode .bg-IN { background-color: rgba(225, 29, 72, 0.4) !important; color: #fecdd3 !important; border-color: rgba(225,29,72,0.4) !important;}
     body.dark-mode .bg-CAP { background-color: rgba(16, 185, 129, 0.3) !important; color: #d1fae5 !important; border-color: rgba(16,185,129,0.4) !important;}
     body.dark-mode .bg-MED, body.dark-mode .bg-LIC { background-color: rgba(202, 138, 4, 0.4) !important; color: #fef08a !important; border-color: rgba(202,138,4,0.4) !important;}
-    body.dark-mode .sticky-col-header { background: var(--fng-blue) !important; }
-    body.dark-mode .sticky-col-resumen { background: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important;}
-    body.dark-mode .sticky-col-body { background: #0f172a !important; border-color: #334155 !important; color: white !important; }
+    
+    /* PASO 4: Sellar Tablas y Capas Sticky - Fondos 100% opacos var(--bg-surface-2) #334155 */
+    body.dark-mode table thead th,
+    body.dark-mode .sticky-col-header,
+    body.dark-mode .sticky-col-1,
+    body.dark-mode .sticky-col-resumen {
+        background: var(--bg-surface-2) !important;
+        color: var(--text-main) !important;
+        border-color: var(--border-subtle) !important;
+    }
+    body.dark-mode .sticky-col-body {
+        background: var(--bg-surface) !important;
+        color: var(--text-main) !important;
+        border-color: var(--border-subtle) !important;
+    }
     body.dark-mode .op-name-container { background: rgba(255,255,255,0.05); }
-    body.dark-mode .op-firstname { color: white; }
+    body.dark-mode .op-firstname { color: var(--text-main); }
+
+    /* Forzar blanco nítido #f8fafc en modo oscuro para todas las celdas de tabla */
+    body.dark-mode table td {
+        color: #f8fafc !important;
+    }
 
     .es-hoy { background: #e0f2fe; border-bottom: 3px solid #0ea5e9;}
     body.dark-mode .es-hoy { background: rgba(255, 140, 0, 0.1) !important; border-bottom: 3px solid var(--fng-orange) !important; }
     
     .cell-hover { transition: 0.2s; }
     .cell-hover:hover { background: #f1f5f9 !important; cursor: pointer; border: 2px solid var(--fng-orange) !important; transform: scale(1.05); box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; position: relative;}
-    body.dark-mode .cell-hover:hover { background: rgba(255,255,255,0.1) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    body.dark-mode .cell-hover:hover { background: rgba(255,255,255,0.05) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
 
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
     .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 450px; }
@@ -460,12 +477,12 @@
         box-sizing: border-box;
     }
 
-    body.dark-mode .toolbar-minimalista { background: #0f172a; border-color: #334155; }
-    body.dark-mode .mac-dock-slim { background: #1e293b; border-color: #334155; }
-    body.dark-mode .mac-dock-slim .mac-dock-btn { color: #94a3b8; }
-    body.dark-mode .mac-dock-slim .mac-dock-btn.active { background: var(--fng-orange); color: #0f172a; }
-    body.dark-mode .search-bar-slim { background: #1e293b; border-color: #334155; }
-    body.dark-mode .date-input-slim { background: #1e293b; border-color: #334155; color: white; }
+    body.dark-mode .toolbar-minimalista { background: var(--bg-body); border-color: var(--bg-surface-2); }
+    body.dark-mode .mac-dock-slim { background: var(--bg-surface); border-color: var(--bg-surface-2); }
+    body.dark-mode .mac-dock-slim .mac-dock-btn { color: var(--text-muted); }
+    body.dark-mode .mac-dock-slim .mac-dock-btn.active { background: var(--fng-orange); color: var(--bg-body); }
+    body.dark-mode .search-bar-slim { background: var(--bg-surface); border-color: var(--bg-surface-2); }
+    body.dark-mode .date-input-slim { background: var(--bg-surface); border-color: var(--bg-surface-2); color: var(--text-main); }
 
     /* ========================================================
        ADAPTACIÓN ELÁSTICA SOLO PARA PANTALLAS MENORES A 900PX
@@ -539,6 +556,14 @@
             left: auto !important;
             z-index: 16 !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+            background: var(--fng-blue, #002d5a) !important;
+            color: #ffffff !important;
+        }
+
+        /* Modo oscuro: mantener azul marino en encabezado sticky */
+        body.dark-mode .glass-panel th.sticky-col-header {
+            background: var(--fng-blue, #002d5a) !important;
+            color: #ffffff !important;
         }
 
         .sticky-col-resumen,

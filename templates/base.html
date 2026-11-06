@@ -33,15 +33,130 @@
         }
         
         body.dark-mode { 
-            /* Estilos de Tema Oscuro */
-            --bg-body: linear-gradient(135deg, #0b0f19 0%, #0f172a 100%);
-            --bg-surface: #131b2e; /* Pizarra Marino - Tarjetas y Modales */
-            --bg-surface-2: #1c2640; /* Cabeceras, Etiquetas y Elementos elevados */
-            --text-main: #f8fafc; /* Blanco titanio nítido */
-            --text-muted: #94a3b8; /* Gris plata */
-            --border-subtle: rgba(255,255,255,0.08); /* Bordes sutiles cristalinos */
-            --shadow-sm: 0 10px 30px rgba(0,0,0,0.5);
-            --input-bg: #0b0f19; /* Fondo hondo para inputs */
+            /* Paleta FNG Nocturna - Escala Azul Pizarra (sin negro puro) */
+            --bg-body: #0f172a;         /* Pizarra oscuro, no negro */
+            --bg-surface: #1e293b;      /* Pizarra medio para tarjetas */
+            --bg-surface-2: #334155;    /* Pizarra claro para hover y sticky */
+            --text-main: #f8fafc;       /* Blanco titanio mate */
+            --text-muted: #94a3b8;      /* Gris técnico */
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --shadow-sm: 0 10px 30px rgba(0,0,0,0.4);
+            --input-bg: #0f172a;
+        }
+
+        /* ========================================================
+           TEMAS ESTACIONALES / FESTIVIDADES (FONDO DEL LAYOUT)
+           ======================================================== */
+        /* HALLOWEEN - Modo Claro */
+        body[data-theme-season="halloween"] {
+            --bg-body: linear-gradient(135deg, #e8e8e8 0%, #f0eae0 50%, #e8e0d8 100%);
+        }
+        body[data-theme-season="halloween"]::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background-image: 
+                radial-gradient(ellipse at 20% 30%, rgba(249, 115, 22, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(139, 69, 19, 0.03) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 2c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4zm0 20c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 2c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4z' fill='%23f97316' fill-opacity='0.02'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            opacity: 0.6;
+        }
+
+        /* HALLOWEEN - Modo Oscuro */
+        body[data-theme-season="halloween"].dark-mode {
+            --bg-body: #0a0f1a;
+        }
+        body[data-theme-season="halloween"].dark-mode::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse at 10% 20%, rgba(249, 115, 22, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 90% 80%, rgba(255, 140, 0, 0.05) 0%, transparent 60%),
+                linear-gradient(180deg, transparent 0%, rgba(20, 15, 5, 0.3) 100%),
+                url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 5c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 2c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4zm0 30c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm0 2c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4z' fill='%23ff8c00' fill-opacity='0.015'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+
+        /* ========================================================
+           NAVIDAD - TEMA FESTIVO PROFUNDO (3D Multicapa + Bokeh)
+           ======================================================== */
+        /* ---- MODO CLARO: Gradiente frío + luces cálidas bokeh ---- */
+        body[data-theme-season="navidad"] {
+            --bg-body: linear-gradient(135deg, #0c2340 0%, #1a365d 50%, #0f2b48 100%);
+        }
+        body[data-theme-season="navidad"]::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background-image: 
+                /* Capa 1: Esferas de luz cálida lejanas (bokeh suave) */
+                radial-gradient(ellipse at 12% 18%, rgba(255, 180, 60, 0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 88% 22%, rgba(255, 200, 80, 0.14) 0%, transparent 50%),
+                radial-gradient(ellipse at 15% 82%, rgba(255, 160, 40, 0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 85% 78%, rgba(255, 210, 100, 0.16) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 190, 70, 0.08) 0%, transparent 70%),
+                /* Capa 2: Destellos sutiles tipo estrella */
+                radial-gradient(circle at 8% 35%, rgba(255, 255, 200, 0.25) 0%, transparent 15%),
+                radial-gradient(circle at 92% 65%, rgba(255, 255, 180, 0.2) 0%, transparent 12%),
+                radial-gradient(circle at 35% 8%, rgba(255, 240, 160, 0.18) 0%, transparent 10%),
+                radial-gradient(circle at 65% 92%, rgba(255, 230, 140, 0.15) 0%, transparent 12%);
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(60px);
+            opacity: 0.85;
+        }
+        /* Ajuste para pantallas pequeñas: reducir blur y opacidad */
+        @media (max-width: 768px) {
+            body[data-theme-season="navidad"]::before {
+                filter: blur(40px);
+                opacity: 0.7;
+            }
+        }
+
+        /* ---- MODO OSCURO: Azul Pizarra profundo + luces doradas/cian ---- */
+        body[data-theme-season="navidad"].dark-mode {
+            --bg-body: #06101d; /* Pizarra más profundo */
+        }
+        body[data-theme-season="navidad"].dark-mode::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background: 
+                /* Fondo base profundo */
+                radial-gradient(ellipse at 50% 50%, #0a1828 0%, #06101d 70%),
+                /* Luces doradas cálidas en bordes */
+                radial-gradient(ellipse at 10% 15%, rgba(255, 170, 40, 0.22) 0%, transparent 45%),
+                radial-gradient(ellipse at 90% 20%, rgba(255, 190, 60, 0.18) 0%, transparent 40%),
+                radial-gradient(ellipse at 12% 85%, rgba(255, 150, 30, 0.16) 0%, transparent 50%),
+                radial-gradient(ellipse at 88% 80%, rgba(255, 200, 70, 0.2) 0%, transparent 45%),
+                /* Acentos cian tenues en esquinas opuestas */
+                radial-gradient(ellipse at 20% 80%, rgba(34, 211, 238, 0.1) 0%, transparent 35%),
+                radial-gradient(ellipse at 80% 15%, rgba(20, 184, 166, 0.08) 0%, transparent 30%),
+                /* Destellos finos tipo estrella */
+                radial-gradient(circle at 5% 40%, rgba(255, 255, 180, 0.35) 0%, transparent 8%),
+                radial-gradient(circle at 95% 60%, rgba(255, 255, 160, 0.28) 0%, transparent 6%),
+                radial-gradient(circle at 40% 5%, rgba(34, 211, 238, 0.25) 0%, transparent 5%),
+                radial-gradient(circle at 60% 95%, rgba(20, 184, 166, 0.2) 0%, transparent 6%);
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(80px);
+            opacity: 0.9;
+        }
+        @media (max-width: 768px) {
+            body[data-theme-season="navidad"].dark-mode::before {
+                filter: blur(50px);
+                opacity: 0.8;
+            }
         }
 
         /* 2. REGLAS UNIVERSALES DE ADAPTACIÓN (Sincronizan todo el sistema) */
@@ -51,12 +166,87 @@
         .sidebar-user-rol { color: var(--text-muted); }
         
         /* Paneles y Tarjetas (Absorben la variable de superficie) */
-        .glass-panel, .top-bar, .modal-content, .modal-box, .modal-box-global, .floating-menu, .dropdown-panel { 
+        .top-bar, .modal-content, .modal-box, .modal-box-global, .floating-menu, .dropdown-panel { 
             background: var(--bg-surface) !important; 
             border: 1px solid var(--border-subtle) !important; 
             box-shadow: var(--shadow-sm) !important; 
             color: var(--text-main) !important; 
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+        }
+        
+        /* Glassmorphism real para el panel principal (.glass-panel) */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65) !important;
+            border: 1px solid var(--border-subtle) !important;
+            box-shadow: var(--shadow-sm) !important;
+            color: var(--text-main) !important;
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 25px;
+            width: 98%;
+            max-width: none;
+            margin: 0 auto 30px auto;
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+        
+        body.dark-mode .glass-panel {
+            background: rgba(15, 23, 42, 0.70) !important;
+        }
+        
+        /* ========================================================
+           CAPA MORADA: BLOQUES DE DATOS SÓLIDOS DENTRO DE .glass-panel
+           Fondos opacos, sombras limpias, sin herencia de transparencias
+           ======================================================== */
+        /* Modo Claro - Fondos sólidos para tablas, contenedores, tarjetas KPI y canvas */
+        .glass-panel table,
+        .glass-panel .table-responsive,
+        .glass-panel .table-wrapper,
+        .glass-panel .kpi-panel-dot,
+        .glass-panel .kpi-cell,
+        .glass-panel canvas:not(#canvas-nieve) {
+            background-color: #ffffff !important;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Modo Oscuro - Fondos sólidos para tablas, contenedores, tarjetas KPI */
+        body.dark-mode .glass-panel table,
+        body.dark-mode .glass-panel .table-responsive,
+        body.dark-mode .glass-panel .table-wrapper,
+        body.dark-mode .glass-panel .kpi-panel-dot,
+        body.dark-mode .glass-panel .kpi-cell {
+            background-color: var(--bg-surface) !important;
+            border-color: var(--border-subtle) !important;
+            color: var(--text-main) !important;
+        }
+        
+        /* Encabezados <th> y celdas sticky: conservan color sólido sin heredar transparencias */
+        body.dark-mode .glass-panel th {
+            background-color: var(--bg-surface-2) !important;
+            color: var(--fng-orange) !important;
+            border-color: var(--border-subtle) !important;
+        }
+        
+        /* Celdas sticky (sticky-col-*) dentro de .glass-panel - SOLO CUERPO (td), NUNCA ENCABEZADOS (th) */
+        .glass-panel td.sticky-col-1,
+        .glass-panel td.sticky-col-2,
+        .glass-panel td.sticky-col-body {
+            background-color: #ffffff !important;
+            color: var(--text-main) !important;
+        }
+        body.dark-mode .glass-panel td.sticky-col-1,
+        body.dark-mode .glass-panel td.sticky-col-2,
+        body.dark-mode .glass-panel td.sticky-col-body {
+            background-color: var(--bg-surface) !important;
+            color: var(--text-main) !important;
+        }
+        body.dark-mode .glass-panel th.sticky-col-1,
+        body.dark-mode .glass-panel th.sticky-col-2,
+        body.dark-mode .glass-panel th.sticky-col-header {
+            background-color: var(--bg-surface-2) !important;
+            color: var(--fng-orange) !important;
         }
         
         /* Inputs y Formularios Globales */
@@ -100,6 +290,215 @@
             background-color: var(--bg-surface-2) !important;
         }
 
+        /* ========================================================
+           BLINDAJE DE CAPAS OPERATIVAS (Fondos sólidos y opacos)
+           Garantiza contraste y legibilidad con temas estacionales
+           ======================================================== */
+        /* Modo Claro - Fondos sólidos para componentes operativos */
+        body[data-theme-season="halloween"] .glass-panel,
+        body[data-theme-season="halloween"] .top-bar,
+        body[data-theme-season="halloween"] .modal-content,
+        body[data-theme-season="halloween"] .modal-box,
+        body[data-theme-season="halloween"] .modal-box-global,
+        body[data-theme-season="halloween"] .floating-menu,
+        body[data-theme-season="halloween"] .dropdown-panel,
+        body[data-theme-season="halloween"] .card,
+        body[data-theme-season="halloween"] .table-responsive,
+        body[data-theme-season="halloween"] .navbar,
+        body[data-theme-season="halloween"] .sabana-container,
+        body[data-theme-season="halloween"] .centinela-panel-2026,
+        body[data-theme-season="navidad"] .top-bar,
+        body[data-theme-season="navidad"] .modal-content,
+        body[data-theme-season="navidad"] .modal-box,
+        body[data-theme-season="navidad"] .modal-box-global,
+        body[data-theme-season="navidad"] .floating-menu,
+        body[data-theme-season="navidad"] .dropdown-panel,
+        body[data-theme-season="navidad"] .card,
+        body[data-theme-season="navidad"] .table-responsive,
+        body[data-theme-season="navidad"] .navbar,
+        body[data-theme-season="navidad"] .sabana-container,
+        body[data-theme-season="navidad"] .centinela-panel-2026 {
+            background-color: var(--bg-surface) !important;
+            background-image: none !important;
+        }
+
+        /* Modo Oscuro - Fondos sólidos para componentes operativos */
+        body[data-theme-season="halloween"].dark-mode .glass-panel,
+        body[data-theme-season="halloween"].dark-mode .top-bar,
+        body[data-theme-season="halloween"].dark-mode .modal-content,
+        body[data-theme-season="halloween"].dark-mode .modal-box,
+        body[data-theme-season="halloween"].dark-mode .modal-box-global,
+        body[data-theme-season="halloween"].dark-mode .floating-menu,
+        body[data-theme-season="halloween"].dark-mode .dropdown-panel,
+        body[data-theme-season="halloween"].dark-mode .card,
+        body[data-theme-season="halloween"].dark-mode .table-responsive,
+        body[data-theme-season="halloween"].dark-mode .navbar,
+        body[data-theme-season="halloween"].dark-mode .sabana-container,
+        body[data-theme-season="halloween"].dark-mode .centinela-panel-2026,
+        body[data-theme-season="navidad"].dark-mode .top-bar,
+        body[data-theme-season="navidad"].dark-mode .modal-content,
+        body[data-theme-season="navidad"].dark-mode .modal-box,
+        body[data-theme-season="navidad"].dark-mode .modal-box-global,
+        body[data-theme-season="navidad"].dark-mode .floating-menu,
+        body[data-theme-season="navidad"].dark-mode .dropdown-panel,
+        body[data-theme-season="navidad"].dark-mode .card,
+        body[data-theme-season="navidad"].dark-mode .table-responsive,
+        body[data-theme-season="navidad"].dark-mode .navbar,
+        body[data-theme-season="navidad"].dark-mode .sabana-container,
+        body[data-theme-season="navidad"].dark-mode .centinela-panel-2026 {
+            background-color: var(--bg-surface) !important;
+            background-image: none !important;
+        }
+
+        /* Tablas - Fondos sólidos en celdas y cabeceras */
+        body[data-theme-season="halloween"] table,
+        body[data-theme-season="navidad"] table {
+            background-color: var(--bg-surface) !important;
+        }
+        body[data-theme-season="halloween"] th,
+        body[data-theme-season="navidad"] th {
+            background-color: var(--bg-surface-2) !important;
+        }
+        body[data-theme-season="halloween"] td,
+        body[data-theme-season="navidad"] td {
+            background-color: var(--bg-surface) !important;
+        }
+        body[data-theme-season="halloween"].dark-mode table,
+        body[data-theme-season="navidad"].dark-mode table {
+            background-color: transparent !important;
+        }
+        body[data-theme-season="halloween"].dark-mode th,
+        body[data-theme-season="navidad"].dark-mode th {
+            background-color: var(--bg-surface-2) !important;
+        }
+        body[data-theme-season="halloween"].dark-mode td,
+        body[data-theme-season="navidad"].dark-mode td {
+            background-color: var(--bg-surface) !important;
+        }
+
+        /* Columnas fijas (sticky) - Fondos sólidos */
+        body[data-theme-season="halloween"] .sticky-col-1,
+        body[data-theme-season="halloween"] .sticky-col-2,
+        body[data-theme-season="halloween"] .sticky-col-header,
+        body[data-theme-season="halloween"] .sticky-col-body,
+        body[data-theme-season="halloween"] .sticky-col-resumen,
+        body[data-theme-season="navidad"] .sticky-col-1,
+        body[data-theme-season="navidad"] .sticky-col-2,
+        body[data-theme-season="navidad"] .sticky-col-header,
+        body[data-theme-season="navidad"] .sticky-col-body,
+        body[data-theme-season="navidad"] .sticky-col-resumen {
+            background-color: var(--bg-surface) !important;
+        }
+        body[data-theme-season="halloween"] th.sticky-col-1,
+        body[data-theme-season="halloween"] th.sticky-col-2,
+        body[data-theme-season="halloween"] th.sticky-col-header,
+        body[data-theme-season="navidad"] th.sticky-col-1,
+        body[data-theme-season="navidad"] th.sticky-col-2,
+        body[data-theme-season="navidad"] th.sticky-col-header {
+            background-color: var(--bg-surface-2) !important;
+        }
+        body[data-theme-season="halloween"].dark-mode .sticky-col-1,
+        body[data-theme-season="halloween"].dark-mode .sticky-col-2,
+        body[data-theme-season="halloween"].dark-mode .sticky-col-header,
+        body[data-theme-season="halloween"].dark-mode .sticky-col-body,
+        body[data-theme-season="halloween"].dark-mode .sticky-col-resumen,
+        body[data-theme-season="navidad"].dark-mode .sticky-col-1,
+        body[data-theme-season="navidad"].dark-mode .sticky-col-2,
+        body[data-theme-season="navidad"].dark-mode .sticky-col-header,
+        body[data-theme-season="navidad"].dark-mode .sticky-col-body,
+        body[data-theme-season="navidad"].dark-mode .sticky-col-resumen {
+            background-color: var(--bg-surface) !important;
+        }
+        body[data-theme-season="halloween"].dark-mode th.sticky-col-1,
+        body[data-theme-season="halloween"].dark-mode th.sticky-col-2,
+        body[data-theme-season="halloween"].dark-mode th.sticky-col-header,
+        body[data-theme-season="navidad"].dark-mode th.sticky-col-1,
+        body[data-theme-season="navidad"].dark-mode th.sticky-col-2,
+        body[data-theme-season="navidad"].dark-mode th.sticky-col-header {
+            background-color: var(--bg-surface-2) !important;
+        }
+
+        /* Modales - Posicionamiento y z-index seguro */
+        body[data-theme-season="halloween"] .modal-content,
+        body[data-theme-season="halloween"] .modal-box,
+        body[data-theme-season="halloween"] .modal-box-global,
+        body[data-theme-season="navidad"] .modal-content,
+        body[data-theme-season="navidad"] .modal-box,
+        body[data-theme-season="navidad"] .modal-box-global,
+        body[data-theme-season="halloween"].dark-mode .modal-content,
+        body[data-theme-season="halloween"].dark-mode .modal-box,
+        body[data-theme-season="halloween"].dark-mode .modal-box-global,
+        body[data-theme-season="navidad"].dark-mode .modal-content,
+        body[data-theme-season="navidad"].dark-mode .modal-box,
+        body[data-theme-season="navidad"].dark-mode .modal-box-global {
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* Jerarquía tipográfica modo oscuro: blanco nítido #f8fafc — SIN regla global destructiva sobre span/a */
+        body.dark-mode { 
+            color: var(--text-main); 
+        }
+        body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode h5, body.dark-mode p { 
+            color: var(--text-main); 
+        }
+        body.dark-mode a:not(.btn-action):not(.badge-status):not(.glass-pill-btn) { 
+            color: #f8fafc; 
+            text-decoration: underline; 
+            text-underline-offset: 3px; 
+        }
+        body.dark-mode a:not(.btn-action):not(.badge-status):hover { 
+            color: var(--fng-orange); 
+        }
+
+        /* ========================================================
+           PASO 3: NORMALIZACIÓN TONO SOBRE TONO DE BADGES Y ESTATUS (Dark Mode)
+           15% opacidad de fondo con texto semántico brillante, sin deslumbrar
+           ======================================================== */
+        body.dark-mode .pill-estatus-op, 
+        body.dark-mode .bg-TR { 
+            background: rgba(16, 185, 129, 0.15) !important; 
+            color: #34d399 !important; 
+            border: 1px solid rgba(16, 185, 129, 0.3); 
+        }
+        body.dark-mode .bg-DE { 
+            background: rgba(147, 51, 234, 0.15) !important; 
+            color: #c084fc !important; 
+            border: 1px solid rgba(147, 51, 234, 0.3); 
+        }
+        body.dark-mode .bg-VA { 
+            background: rgba(56, 189, 248, 0.15) !important; 
+            color: #7dd3fc !important; 
+            border: 1px solid rgba(56, 189, 248, 0.3); 
+        }
+        body.dark-mode .bg-FA, 
+        body.dark-mode .bg-IN, 
+        body.dark-mode .pill-estatus-baja { 
+            background: rgba(239, 68, 68, 0.15) !important; 
+            color: #f87171 !important; 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+        }
+
+        /* Semáforo térmico restaurado para números de turno en Sábana */
+        body.dark-mode .status-TR,
+        body.dark-mode .status-TR1, 
+        body.dark-mode .status-TR2, 
+        body.dark-mode .status-TR3 { 
+            color: #34d399 !important; 
+        }
+        body.dark-mode .status-TR4, 
+        body.dark-mode .status-TR5 { 
+            color: #fbbf24 !important; 
+        }
+        body.dark-mode .status-TR6, 
+        body.dark-mode .status-TR7 { 
+            color: #fb923c !important; 
+        }
+        body.dark-mode .status-TR8 { 
+            color: #f87171 !important; 
+            text-decoration: underline; 
+        }
+
         /* 5. ACENTOS Y BOTONES NOCTURNOS */
         body.dark-mode .row-label, body.dark-mode .esquema-subtitle { background: var(--bg-surface-2) !important; color: var(--fng-blue-light) !important; border-color: var(--border-subtle) !important; }
         body.dark-mode .es-hoy { background: rgba(255, 140, 0, 0.1) !important; border-bottom: 3px solid var(--fng-orange) !important; }
@@ -117,8 +516,6 @@
         .btn-menu:hover { background: rgba(0,0,0,0.05); color: var(--fng-orange); }
         body.dark-mode .btn-menu { color: var(--text-main); }
         body.dark-mode .btn-menu:hover { color: var(--fng-orange); }
-        
-        .glass-panel { border-radius: 16px; padding: 25px; width: 98%; max-width: none; margin: 0 auto 30px auto; box-sizing: border-box; transition: all 0.3s;}
 
         .toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
         .toast { background: rgba(0, 45, 90, 0.95); color: white; padding: 12px 25px; border-radius: 30px; font-weight: 600; font-size: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0; transform: translateY(-20px); transition: all 0.4s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 10px;}
@@ -202,15 +599,15 @@
         .sidebar-link i { width: 20px; text-align: center; font-size: 18px; color: var(--text-muted); transition: 0.3s;}
         .sidebar-link:hover { background: rgba(125, 125, 125, 0.1); transform: translateX(5px); }
         .sidebar-link.active { background: var(--fng-blue); color: white; box-shadow: 0 4px 15px rgba(0,45,90,0.2);}
-        body.dark-mode .sidebar-link.active { background: var(--fng-orange); color: #0f172a; }
-        body.dark-mode .sidebar-link.active i { color: #0f172a; }
+        body.dark-mode .sidebar-link.active { background: var(--fng-orange); color: var(--bg-body); }
+        body.dark-mode .sidebar-link.active i { color: var(--bg-body); }
         
         .dropdown-container { position: relative; display: flex; align-items: center; }
         .dropdown-panel { display: none; position: absolute; top: 40px; right: 0; min-width: 340px; border-radius: 16px; z-index: 2000; animation: slideDown 0.3s ease; overflow: hidden; cursor: default; }
         @keyframes slideDown { from {opacity: 0; transform: translateY(-10px);} to {opacity: 1; transform: translateY(0);} }
         
         .notif-header { padding: 12px 15px; background: rgba(0,0,0,0.03); font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;}
-        body.dark-mode .notif-header { background: rgba(0,0,0,0.3); color: var(--fng-blue-light) !important; }
+        body.dark-mode .notif-header { background: var(--bg-surface-2); color: var(--text-main) !important; border: 1px solid var(--border-subtle); }
         .badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 20px; font-size: 10px; }
         .notif-list { max-height: 250px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px;}
         
@@ -251,7 +648,27 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-theme="{{ tema_visual_activo }}">
+
+    <script>
+        (function() {
+            const now = new Date();
+            const month = now.getMonth() + 1; // 1-12
+            const day = now.getDate();
+            let season = 'default';
+
+            // Halloween: 15 Oct – 04 Nov
+            if ((month === 10 && day >= 15) || (month === 11 && day <= 4)) {
+                season = 'halloween';
+            }
+            // Navidad: 01 Dic – 06 Ene
+            else if ((month === 12 && day >= 1) || (month === 1 && day <= 6)) {
+                season = 'navidad';
+            }
+
+            document.body.setAttribute('data-theme-season', season);
+        })();
+    </script>
 
     <div class="top-bar">
         <div class="brand-logo">
@@ -344,6 +761,33 @@
             </div>
             {% endif %}
 
+            {% if rol == 'super_usuario' %}
+            <div class="dropdown-container" style="margin-right: 10px;">
+                <span onclick="toggleDropdown('dropTema')" style="cursor: pointer; font-size: 20px; color: var(--text-main); transition: 0.3s;" title="Cambiar tema visual">
+                    <i class="fas fa-palette"></i>
+                </span>
+                <div id="dropTema" class="dropdown-panel" style="min-width: 180px; right: 0;">
+                    <div class="notif-header" style="padding: 10px 15px; font-size: 12px;"><i class="fas fa-palette"></i> Tema Visual</div>
+                    <div style="padding: 5px;">
+                        <button class="sidebar-link" onclick="cambiarTemaVisual('corporativo')" style="padding: 10px 15px; text-align: left; border-radius: 8px; justify-content: flex-start;">
+                            <i class="fas fa-building" style="color: var(--fng-blue); width: 22px;"></i> Pizarra Corporativo
+                        </button>
+                        <button class="sidebar-link" onclick="cambiarTemaVisual('navidad')" style="padding: 10px 15px; text-align: left; border-radius: 8px; justify-content: flex-start;">
+                            <i class="fas fa-snowflake" style="color: #06b6d4; width: 22px;"></i> Navidad Nevada
+                        </button>
+                        <button class="sidebar-link" onclick="cambiarTemaVisual('auto')" style="padding: 10px 15px; text-align: left; border-radius: 8px; justify-content: flex-start;">
+                            <i class="fas fa-calendar-alt" style="color: var(--fng-orange); width: 22px;"></i> Automático (Calendario)
+                        </button>
+                        <div style="border-top: 1px solid var(--border-subtle); margin-top: 6px; padding-top: 6px;">
+                            <input type="file" id="inputWallpaperVideo" accept="video/mp4,video/webm" style="display: none;" onchange="subirWallpaperAnimado(this)">
+                            <button type="button" class="sidebar-link" onclick="document.getElementById('inputWallpaperVideo').click()" style="padding: 10px 15px; text-align: left; border-radius: 8px; justify-content: flex-start; color: var(--fng-orange); width: 100%;">
+                                <i class="fas fa-video" style="color: var(--fng-orange); width: 22px;"></i> Subir Wallpaper MP4
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             <img src="{{ url_for('static', filename='usuario.png') }}" alt="Avatar" class="user-avatar-top" style="width:28px; height:28px; border-radius:50%; border: 1px solid var(--border-subtle); object-fit: cover;" onerror="this.style.display='none'">
             <span class="user-name-text">{{ nombre_real }}</span>
         </div>
@@ -546,6 +990,11 @@
     </div>
     {% endif %}
 
+    <!-- Canvas para partículas de nieve -->
+    <canvas id="canvas-nieve" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; display: none;"></canvas>
+
+    <video id="bg-video-wallpaper" autoplay loop muted playsinline style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; pointer-events: none; {% if not wallpaper_video_url %}display: none;{% endif %}" {% if wallpaper_video_url %}src="{{ wallpaper_video_url }}"{% endif %}></video>
+
     <div id="toastContainer" class="toast-container"></div>
 
     {% block content %}{% endblock %}
@@ -582,6 +1031,160 @@
             const ts = document.getElementById('theme-switch'); if(ts) ts.checked = isDark;
         }
 
+        // ==================== MOTOR DE PARTÍCULAS DE NIEVE 3D MULTICAPA (60 FPS) ====================
+        const canvasNieve = document.getElementById('canvas-nieve');
+        const ctxNieve = canvasNieve ? canvasNieve.getContext('2d') : null;
+        let coposNieve = [];
+        let animacionNieveId = null;
+        const MAX_COPOS = 50;              // Límite estricto para 60 FPS estables
+        const CAPA_LEJANA_COUNT = 18;       // 35% - Pequeños, lentos, opacidad 0.35
+        const CAPA_MEDIA_COUNT = 20;        // 40% - Medianos, velocidad normal, opacidad 0.65
+        const CAPA_FRONTAL_COUNT = 12;      // 25% - Grandes, bamboleo brisa, opacidad 0.9
+
+        function redimensionarCanvasNieve() {
+            if (!canvasNieve) return;
+            canvasNieve.width = window.innerWidth;
+            canvasNieve.height = window.innerHeight;
+        }
+
+        function crearCopos() {
+            coposNieve = [];
+            const w = canvasNieve.width;
+            const h = canvasNieve.height;
+
+            // ---- CAPA LEJANA (Depth 0): Pequeños, lentos, opacidad 0.35 ----
+            for (let i = 0; i < CAPA_LEJANA_COUNT; i++) {
+                coposNieve.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radio: Math.random() * 1.2 + 0.6,      // 0.6 - 1.8 px
+                    velocidadY: Math.random() * 0.25 + 0.15, // 0.15 - 0.4 px/frame
+                    velocidadX: (Math.random() - 0.5) * 0.12,
+                    opacidad: 0.25 + Math.random() * 0.15,   // 0.25 - 0.4
+                    capa: 0,
+                    faseBreeze: Math.random() * Math.PI * 2,
+                    amplitudBreeze: 0
+                });
+            }
+
+            // ---- CAPA MEDIA (Depth 1): Medianos, velocidad normal, opacidad 0.65 ----
+            for (let i = 0; i < CAPA_MEDIA_COUNT; i++) {
+                coposNieve.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radio: Math.random() * 1.5 + 1.5,      // 1.5 - 3.0 px
+                    velocidadY: Math.random() * 0.4 + 0.35,  // 0.35 - 0.75 px/frame
+                    velocidadX: (Math.random() - 0.5) * 0.25,
+                    opacidad: 0.55 + Math.random() * 0.15,   // 0.55 - 0.7
+                    capa: 1,
+                    faseBreeze: Math.random() * Math.PI * 2,
+                    amplitudBreeze: 0.3 + Math.random() * 0.4 // 0.3 - 0.7 px
+                });
+            }
+
+            // ---- CAPA FRONTAL (Depth 2): Grandes, bamboleo brisa suave, opacidad 0.9 ----
+            for (let i = 0; i < CAPA_FRONTAL_COUNT; i++) {
+                coposNieve.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radio: Math.random() * 2 + 2.5,        // 2.5 - 4.5 px
+                    velocidadY: Math.random() * 0.35 + 0.5,  // 0.5 - 0.85 px/frame
+                    velocidadX: (Math.random() - 0.5) * 0.18,
+                    opacidad: 0.8 + Math.random() * 0.15,    // 0.8 - 0.95
+                    capa: 2,
+                    faseBreeze: Math.random() * Math.PI * 2,
+                    amplitudBreeze: 0.8 + Math.random() * 1.2 // 0.8 - 2.0 px (brisa notable)
+                });
+            }
+        }
+
+        function animarNieve() {
+            if (!ctxNieve) return;
+            const w = canvasNieve.width;
+            const h = canvasNieve.height;
+            const time = performance.now() * 0.001; // segundos para seno suave
+
+            ctxNieve.clearRect(0, 0, w, h);
+            ctxNieve.fillStyle = '#ffffff';
+
+            for (let copo of coposNieve) {
+                ctxNieve.globalAlpha = copo.opacidad;
+                ctxNieve.beginPath();
+                ctxNieve.arc(copo.x, copo.y, copo.radio, 0, Math.PI * 2);
+                ctxNieve.fill();
+
+                // Movimiento vertical
+                copo.y += copo.velocidadY;
+
+                // Movimiento horizontal base + brisa por capa
+                const breeze = Math.sin(time * 0.7 + copo.faseBreeze) * copo.amplitudBreeze;
+                copo.x += copo.velocidadX + breeze * 0.02;
+
+                // Reciclado al salir por abajo
+                if (copo.y - copo.radio > h) {
+                    copo.y = -copo.radio - 5;
+                    copo.x = Math.random() * w;
+                    copo.faseBreeze = Math.random() * Math.PI * 2; // nueva fase de brisa
+                }
+
+                // Límites horizontales con wrap suave
+                if (copo.x > w + copo.radio) copo.x = -copo.radio;
+                if (copo.x < -copo.radio) copo.x = w + copo.radio;
+            }
+            ctxNieve.globalAlpha = 1.0;
+            animacionNieveId = requestAnimationFrame(animarNieve);
+        }
+
+        function activarNieve(activar) {
+            if (activar) {
+                if (!canvasNieve) return;
+                canvasNieve.style.display = 'block';
+                redimensionarCanvasNieve();
+                crearCopos();
+                if (!animacionNieveId) animarNieve();
+            } else {
+                if (canvasNieve) canvasNieve.style.display = 'none';
+                if (animacionNieveId) {
+                    cancelAnimationFrame(animacionNieveId);
+                    animacionNieveId = null;
+                }
+            }
+        }
+
+        function esPeriodoNavidad() {
+            const hoy = new Date();
+            const mes = hoy.getMonth() + 1;
+            const dia = hoy.getDate();
+            return (mes === 12 && dia >= 1) || (mes === 1 && dia <= 6);
+        }
+
+        function aplicarTemaVisual(tema) {
+            const body = document.body;
+            body.removeAttribute('data-theme-season');
+            body.setAttribute('data-theme', tema);
+            if (tema === 'navidad' || (tema === 'auto' && esPeriodoNavidad())) {
+                activarNieve(true);
+                if (tema === 'auto') body.setAttribute('data-theme-season', 'navidad');
+            } else {
+                activarNieve(false);
+                if (tema === 'auto') {
+                    const ahora = new Date();
+                    const mes = ahora.getMonth() + 1;
+                    const dia = ahora.getDate();
+                    if ((mes === 10 && dia >= 15) || (mes === 11 && dia <= 4)) {
+                        body.setAttribute('data-theme-season', 'halloween');
+                    }
+                }
+            }
+        }
+
+        // Inicializar tema visual al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            const temaActual = '{{ tema_visual_activo }}' || 'auto';
+            aplicarTemaVisual(temaActual);
+            window.addEventListener('resize', redimensionarCanvasNieve);
+        });
+
         function showToast(msg, type="success") {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div'); toast.className = `toast ${type}`;
@@ -590,6 +1193,85 @@
             setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000); 
         }
+
+        // Cambiar tema visual (solo super_usuario)
+        async function cambiarTemaVisual(nuevoTema) {
+            if (!['corporativo', 'navidad', 'auto'].includes(nuevoTema)) return;
+            try {
+                const res = await fetch('/api/admin/guardar_tema', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({tema: nuevoTema})
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('Tema cambiado a: ' + nuevoTema, 'success');
+                    document.querySelectorAll('.dropdown-panel').forEach(d => d.style.display = 'none');
+                    aplicarTemaVisual(nuevoTema);
+                } else {
+                    showToast(data.msg || 'Error al cambiar tema', 'error');
+                }
+            } catch (e) {
+                showToast('Error de conexión', 'error');
+            }
+        }
+
+        // Subir wallpaper animado (MP4/WebM)
+        async function subirWallpaperAnimado(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('wallpaper', file);
+            showToast("Subiendo wallpaper animado...", "warning");
+            try {
+                const res = await fetch('/api/admin/subir_wallpaper', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const vid = document.getElementById('bg-video-wallpaper');
+                    if (vid) {
+                        vid.muted = true;
+                        vid.src = data.url;
+                        vid.style.display = 'block';
+                        vid.load();
+                        const playPromise = vid.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(err => console.warn("Reproducción diferida:", err));
+                        }
+                    }
+                    document.querySelectorAll('.dropdown-panel').forEach(d => d.style.display = 'none');
+                    showToast("✅ Fondo animado actualizado", "success");
+                } else {
+                    showToast(data.msg || "Error al subir video", "error");
+                }
+            } catch (err) {
+                showToast("Error de conexión al subir video", "error");
+            }
+        }
+
+        // Escucha de eventos de sincronización en vivo
+        let syncEventSource = null;
+        function iniciarEscuchaSync() {
+            if (typeof EventSource === 'undefined') return;
+            syncEventSource = new EventSource('/api/sync_en_vivo');
+            syncEventSource.onmessage = function(e) {
+                try {
+                    const evento = JSON.parse(e.data);
+                    if (evento.tipo === 'tema_actualizado' && evento.payload && evento.payload.tema) {
+                        aplicarTemaVisual(evento.payload.tema);
+                    }
+                } catch (err) {}
+            };
+            syncEventSource.onerror = function() {
+                setTimeout(iniciarEscuchaSync, 5000);
+            };
+        }
+        // Iniciar escucha si el usuario está logueado
+        {% if usuario %}
+        iniciarEscuchaSync();
+        {% endif %}
 
         let idRechazoActivo = null;
         async function procesarSolicitud(id, accion) {
@@ -1889,13 +2571,19 @@
                 if (!res.ok) return;
                 const d = await res.json();
                 if (d.status === 'success') {
-                    // 1. Actualizar la campanita global al instante
                     const badge = document.getElementById('mainBadge');
                     if (badge) {
                         badge.innerText = d.total_badge;
                         badge.style.display = d.total_badge > 0 ? 'inline-block' : 'none';
                     }
-                    // 2. Procesar eventos delta solo cuando ocurran después de cargar
+                    
+                    // En la primera respuesta, solo sincronizamos el último ID sin procesar toasts
+                    if (ultimoSyncId === 0) {
+                        ultimoSyncId = d.ultimo_id;
+                        syncInicioSilencioso = false;
+                        return;
+                    }
+                    
                     if (d.eventos && d.eventos.length > 0) {
                         d.eventos.forEach(ev => {
                             if (ev.id > ultimoSyncId) ultimoSyncId = ev.id;
@@ -1912,7 +2600,6 @@
                     } else if (d.ultimo_id > ultimoSyncId) {
                         ultimoSyncId = d.ultimo_id;
                     }
-                    syncInicioSilencioso = false;
                 }
             } catch (err) {}
         }

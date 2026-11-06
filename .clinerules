@@ -34,3 +34,9 @@
 5. VALIDACIÓN Y ECONOMÍA DE COMUNICACIÓN:
    - Tras editar Python, valida la sintaxis con `python -m py_compile <archivo>`.
    - Al finalizar una tarea, sé conciso: describe los cambios en máximo 3 viñetas telegráficas, sin muros de texto ni repetir código innecesario.
+
+6. COMANDOS DE ACCIÓN RÁPIDA:
+   - "Planifica [X]": Opera en modo arquitectura. Lista archivos afectados y pasos lógicos. Prohibido editar.
+   - "Constrúyelo": Aplica los cambios aprobados siguiendo el protocolo quirúrgico y valida sintaxis.
+   - "Asegúralo": Audita seguridad (Red Team). Revisa validación de entradas, autenticación y blindaje de datos.
+   - "Testéalo": Genera y ejecuta pruebas unitarias cubriendo casos límite y reporta cobertura alcanzada.

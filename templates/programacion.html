@@ -81,10 +81,10 @@
         box-shadow: 0 2px 6px rgba(0,45,90,0.25);
     }
     
-    body.dark-mode .toolbar-pizarra-maestra { background: #0f172a; border-color: #334155; }
-    body.dark-mode .mac-dock { background: #1e293b; border-color: #334155; }
-    body.dark-mode .mac-dock-btn { color: #94a3b8; }
-    body.dark-mode .mac-dock-btn.active { background: var(--fng-orange); color: #0f172a; }
+    body.dark-mode .toolbar-pizarra-maestra { background: var(--bg-body); border-color: var(--bg-surface-2); }
+    body.dark-mode .mac-dock { background: var(--bg-surface); border-color: var(--bg-surface-2); }
+    body.dark-mode .mac-dock-btn { color: var(--text-muted); }
+    body.dark-mode .mac-dock-btn.active { background: var(--fng-orange); color: var(--bg-body); }
 
     /* ESTILOS DE LA TABLA PIZARRA */
     .table-container { overflow-x: auto; border-radius: 10px; border: 1px solid #cbd5e1; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
@@ -120,6 +120,7 @@
     .cv-red { background: #ef4444; color: white; }
     .cv-green { background: #10b981; color: white; }
     .cv-gray { background: #e2e8f0; color: transparent; }
+    body.dark-mode .cv-indicator.cv-gray { background: rgba(255,255,255,0.08) !important; color: transparent; }
 
     /* ESTILOS PARA APILAR ESCALAS INTERNAMENTE */
     .col-apilada { padding: 0 !important; vertical-align: top !important; }
@@ -127,12 +128,12 @@
     .escala-item:last-child { border-bottom: none; }
     .escala-item .cell-input { height: 100%; border-radius: 0; }
     
-    body.dark-mode .table-container { background: #0f172a; border-color: #334155; }
-    body.dark-mode .prog-table td { background: #0f172a; border-color: #334155; }
-    body.dark-mode .cell-input { color: #cbd5e1; }
+    body.dark-mode .table-container { background: var(--bg-body); border-color: var(--bg-surface-2); }
+    body.dark-mode .prog-table td { background: var(--bg-body); border-color: var(--bg-surface-2); }
+    body.dark-mode .cell-input { color: var(--text-main); background: transparent; }
     body.dark-mode .cell-input:focus { background: rgba(2, 132, 199, 0.2); }
     body.dark-mode .prog-table tr:hover td { background: rgba(255,255,255,0.02); }
-    body.dark-mode .escala-item { border-bottom-color: #334155; }
+    body.dark-mode .escala-item { border-bottom-color: var(--bg-surface-2); }
 
     /* MODALES DE ACCIÓN RÁPIDA */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: none; justify-content: center; align-items: center; z-index: 3000; }

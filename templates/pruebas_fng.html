@@ -12,9 +12,9 @@
     .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; box-shadow: 0 4px 10px rgba(0,45,90,0.2); }
     .glass-pill-btn.active-red { background: #dc3545; color: white; box-shadow: 0 4px 10px rgba(220,53,69,0.2); }
 
-    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
-    body.dark-mode .glass-pill-btn { color: #94a3b8; }
-    body.dark-mode .glass-pill-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: rgba(255,255,255,0.2);}
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: var(--border-subtle); }
+    body.dark-mode .glass-pill-btn { color: var(--text-muted); }
+    body.dark-mode .glass-pill-btn.active { background: rgba(255,255,255,0.1); color: var(--fng-orange); border-color: var(--border-subtle); }
     body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
     body.dark-mode .glass-pill-btn.active-red { background: #dc3545; color: white; }
 
@@ -32,35 +32,35 @@
     .tabla-es thead th { background: var(--fng-blue); color: white; padding: 15px 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
     .tabla-es tbody td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #333; vertical-align: middle; }
     .tabla-es tbody tr:hover { background: #f8fafc; }
-    body.dark-mode .table-wrapper { background: transparent; border-color: rgba(255,255,255,0.1); }
-    body.dark-mode .tabla-es tbody td { border-bottom-color: rgba(255,255,255,0.05); color: #cbd5e1; }
-    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.05); }
+    body.dark-mode .table-wrapper { background: transparent; border-color: var(--border-subtle); }
+    body.dark-mode .tabla-es tbody td { border-bottom-color: var(--border-subtle); color: var(--text-muted); }
+    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.03); }
 
     .badge-tipo { background: var(--fng-blue); color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; }
 
     /* Modales y Formularios */
     .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); align-items: center; justify-content: center; padding: 15px; }
     .modal-content-local { background: white; width: 100%; max-width: 500px; border-radius: 16px; padding: 25px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.1);}
-    body.dark-mode .modal-content-local { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.1); color: white; }
+    body.dark-mode .modal-content-local { background: var(--bg-body); border: 1px solid var(--bg-surface-2); color: var(--text-main); }
 
     .form-control-local { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; background: #f8fafc; color: var(--fng-blue); font-weight: 600; outline: none; transition: 0.3s; box-sizing: border-box; }
     .form-control-local:focus { border-color: var(--fng-orange); box-shadow: 0 0 5px rgba(255,140,0,0.3); }
-    body.dark-mode .form-control-local { background: rgba(0,0,0,0.5); color: white; border-color: rgba(255,255,255,0.2); }
+    body.dark-mode .form-control-local { background: var(--input-bg); color: var(--text-main); border-color: var(--border-subtle); }
 
-    .sub-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
-    body.dark-mode .sub-box { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.1); }
+    .sub-box { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+    body.dark-mode .sub-box { background: var(--bg-surface); border-color: var(--border-subtle); }
     
-    .btn-toggle { flex: 1; padding: 10px; font-size: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; color: #64748b; font-weight: 600; transition: 0.2s;}
+    .btn-toggle { flex: 1; padding: 10px; font-size: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-2); color: var(--text-muted); font-weight: 600; transition: 0.2s;}
     .btn-toggle.active { border-color: var(--fng-blue); color: var(--fng-blue); box-shadow: 0 4px 10px rgba(0,45,90,0.1); }
     .btn-toggle.active.green-text { border-color: #10b981; color: #10b981; box-shadow: 0 4px 10px rgba(16,185,129,0.1); }
     .btn-toggle.active.red-text { border-color: #ef4444; color: #ef4444; box-shadow: 0 4px 10px rgba(239,68,68,0.1); }
-    body.dark-mode .btn-toggle { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+    body.dark-mode .btn-toggle { background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-muted); }
     
-    .check-item { display: flex; align-items: center; background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid #cbd5e1; transition: 0.2s;}
-    body.dark-mode .check-item { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.1); }
+    .check-item { display: flex; align-items: center; background: var(--bg-surface-2); padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-subtle); transition: 0.2s;}
+    body.dark-mode .check-item { background: var(--bg-surface); border-color: var(--border-subtle); }
 
-    .btn-upload-master { background: #f8fafc; border: 2px dashed #cbd5e1; color: var(--fng-blue); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; display: block; font-size: 14px; margin: 10px 0; transition: 0.3s; font-weight: 600;}
-    body.dark-mode .btn-upload-master { background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); color: #38bdf8; }
+    .btn-upload-master { background: var(--bg-surface-2); border: 2px dashed var(--border-subtle); color: var(--fng-blue); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer; display: block; font-size: 14px; margin: 10px 0; transition: 0.3s; font-weight: 600;}
+    body.dark-mode .btn-upload-master { background: var(--bg-surface); border-color: var(--border-subtle); color: var(--fng-blue-light); }
 
     .seccion-app { display: none; animation: fadeIn 0.3s ease; }
     .seccion-app.active { display: block; }

@@ -33,16 +33,16 @@
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
     .modal-content-large { background: white; padding: 25px; border-radius: 15px; width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
-    body.dark-mode .table-wrapper { background: transparent; border-color: rgba(255,255,255,0.1); }
-    body.dark-mode .tabla-es tbody td { border-bottom-color: rgba(255,255,255,0.05); border-right-color: rgba(255,255,255,0.05); color: #cbd5e1; }
-    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.05); }
-    body.dark-mode .tabla-es tfoot { background: rgba(0,0,0,0.4); }
-    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.1); }
-    body.dark-mode .glass-pill-btn { color: #94a3b8; }
+    body.dark-mode .table-wrapper { background: transparent; border-color: var(--border-subtle); }
+    body.dark-mode .tabla-es tbody td { border-bottom-color: var(--border-subtle); border-right-color: var(--border-subtle); color: var(--text-muted); }
+    body.dark-mode .tabla-es tbody tr:hover { background: rgba(255,255,255,0.03); }
+    body.dark-mode .tabla-es tfoot { background: var(--bg-surface-2); }
+    body.dark-mode .glass-pill-container { background: rgba(15, 23, 42, 0.6); border-color: var(--border-subtle); }
+    body.dark-mode .glass-pill-btn { color: var(--text-muted); }
     body.dark-mode .glass-pill-btn.active-blue { background: var(--fng-blue); color: white; }
-    body.dark-mode .form-control-local { background: rgba(0,0,0,0.5); color: white; border-color: rgba(255,255,255,0.2); }
-    body.dark-mode .cell-hover:not(.celda-descanso):hover { background: rgba(255,255,255,0.1) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
-    body.dark-mode .modal-content-large { background: #0f172a; color: white; border: 1px solid #334155; }
+    body.dark-mode .form-control-local { background: var(--input-bg); color: var(--text-main); border-color: var(--border-subtle); }
+    body.dark-mode .cell-hover:not(.celda-descanso):hover { background: rgba(255,255,255,0.05) !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    body.dark-mode .modal-content-large { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--bg-surface-2); }
 </style>
 {% endblock %}
 
